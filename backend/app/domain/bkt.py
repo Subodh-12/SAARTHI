@@ -176,7 +176,8 @@ def mastery_effect_for_event(
             # Unknown or marked-legacy revision: accepted, no mastery effect.
             return MasteryEffect(EFFECT_NONE, "LEGACY_QUESTION", None,
                                  payload.get("concept_id") or getattr(event, "concept_id", None))
-        correct = bool(q.correct(payload.get("response")))
+        resp = payload.get("response") if payload.get("response") is not None else payload.get("selected_option")
+        correct = bool(q.correct(resp))
         concept_id = q.concept_id
     else:
         correct = bool(payload.get("correct", False))

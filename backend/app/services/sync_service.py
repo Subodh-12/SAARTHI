@@ -519,7 +519,19 @@ class SyncService:
             trigger_type = _etype(last_event)
             trigger_concept = last_event.concept_id
             if trigger_type == "ANSWER_SUBMITTED":
-                trigger_correct = bool(last_event.payload.get("correct"))
+                # Never trust a client-supplied correctness flag for the server
+                # decision. Re-grade the submitted response against the active
+                # packed question revision, just as the mastery projection does.
+                lookup = self._question_lookup()
+                payload = last_event.payload or {}
+                question_id = payload.get("question_id") or last_event.question_id
+                revision = payload.get("revision", 1)
+                question = lookup(question_id, revision) if lookup and question_id else None
+                resp = payload.get("response") if payload.get("response") is not None else payload.get("selected_option")
+                trigger_correct = (bool(question.correct(resp))
+                                   if question is not None else None)
+                if trigger_concept is None and question is not None:
+                    trigger_concept = question.concept_id
         return await ds.next_decision(
             learner_id=req.learner_id, env_network=NetworkState.RECONNECTED,
             produced_by="server_engine", source="server",

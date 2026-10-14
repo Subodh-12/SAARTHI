@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Any, Literal, Optional
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 
 # --------------------------------------------------------------------------- #
@@ -299,6 +299,29 @@ class LearnerEvent(BaseModel):
     question_id: Optional[str] = None
 
     model_config = {"populate_by_name": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reconcile_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Accept legacy 'ts' for 'client_ts'
+            if "client_ts" not in data and "ts" in data:
+                data["client_ts"] = data["ts"]
+            # Accept legacy lowercase wire types
+            raw_type = data.get("type") or data.get("event_type")
+            legacy_map = {
+                "lesson_opened": "CONTENT_VIEWED",
+                "mcq_answered": "ANSWER_SUBMITTED",
+                "doubt_asked": "DOUBT_ASKED",
+                "pack_installed": "PACK_INSTALLED",
+            }
+            if raw_type in legacy_map:
+                data["type"] = legacy_map[raw_type]
+            elif isinstance(raw_type, str):
+                upper = raw_type.upper()
+                if upper in {e.value for e in EventType}:
+                    data["type"] = upper
+        return data
 
     # Back-compat alias for older call sites/tests that used `.ts`.
     @property

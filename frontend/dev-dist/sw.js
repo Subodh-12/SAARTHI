@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-17772b39'], (function (workbox) { 'use strict';
+define(['./workbox-7b16fee0'], (function (workbox) { 'use strict';
 
   self.addEventListener('message', event => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -85,7 +85,7 @@ define(['./workbox-17772b39'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.11fho717hdo"
+    "revision": "0.tqakcco54s"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -100,15 +100,6 @@ define(['./workbox-17772b39'], (function (workbox) { 'use strict';
       maxEntries: 10,
       maxAgeSeconds: 15552000
     }), new workbox.CacheableResponsePlugin({
-      statuses: [0, 200]
-    })]
-  }), 'GET');
-  workbox.registerRoute(({
-    url
-  }) => url.pathname.startsWith("/api/v1/"), new workbox.NetworkFirst({
-    "cacheName": "saarthi-api",
-    "networkTimeoutSeconds": 5,
-    plugins: [new workbox.CacheableResponsePlugin({
       statuses: [0, 200]
     })]
   }), 'GET');

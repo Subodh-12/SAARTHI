@@ -239,6 +239,65 @@ async def _migrate_prior_schema(conn) -> None:
             except Exception:
                 pass
 
+    # learner_events: legacy schema had `ts NOT NULL`, whereas v2 canonical schema uses `client_ts`.
+    # When ts is present with NOT NULL, migrate to canonical schema preserving all data.
+    if await _table_exists(conn, "learner_events"):
+        if "sqlite" in str(conn.dialect.name):
+            res = await conn.execute(text("PRAGMA table_info(learner_events)"))
+            rows = res.fetchall()
+            ts_row = next((r for r in rows if r[1] == "ts"), None)
+            if ts_row and ts_row[3] == 1:  # ts column is NOT NULL
+                await conn.execute(text("PRAGMA foreign_keys = OFF"))
+                await conn.execute(text(
+                    "CREATE TABLE learner_events_v2 ("
+                    "  device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,"
+                    "  learner_id TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,"
+                    "  seq INTEGER NOT NULL,"
+                    "  event_id TEXT NOT NULL,"
+                    "  client_ts INTEGER NOT NULL,"
+                    "  event_type TEXT NOT NULL,"
+                    "  concept_id TEXT,"
+                    "  chapter_id TEXT,"
+                    "  question_id TEXT,"
+                    "  payload_json TEXT NOT NULL DEFAULT '{}',"
+                    "  status TEXT NOT NULL DEFAULT 'accepted',"
+                    "  effect TEXT,"
+                    "  reason TEXT,"
+                    "  received_at INTEGER NOT NULL,"
+                    "  server_seq INTEGER,"
+                    "  PRIMARY KEY (device_id, seq),"
+                    "  UNIQUE (event_id)"
+                    ")"
+                ))
+                has_client_ts = any(r[1] == "client_ts" for r in rows)
+                ts_expr = "COALESCE(client_ts, ts, received_at, 0)" if has_client_ts else "COALESCE(ts, received_at, 0)"
+                has_status = any(r[1] == "status" for r in rows)
+                status_expr = "COALESCE(status, 'accepted')" if has_status else "'accepted'"
+                has_payload = any(r[1] == "payload_json" for r in rows)
+                payload_expr = "COALESCE(payload_json, '{}')" if has_payload else "'{}'"
+                await conn.execute(text(f"""
+                    INSERT INTO learner_events_v2
+                    (device_id, learner_id, seq, event_id, client_ts, event_type,
+                     concept_id, chapter_id, question_id, payload_json, status,
+                     effect, reason, received_at, server_seq)
+                    SELECT
+                      device_id, learner_id, seq, event_id,
+                      {ts_expr},
+                      event_type, concept_id, chapter_id, question_id,
+                      {payload_expr},
+                      {status_expr},
+                      effect, reason, received_at, server_seq
+                    FROM learner_events
+                """))
+                await conn.execute(text("DROP TABLE learner_events"))
+                await conn.execute(text("ALTER TABLE learner_events_v2 RENAME TO learner_events"))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_events_learner_seq "
+                    "ON learner_events (learner_id, server_seq)"
+                ))
+                await conn.execute(text("PRAGMA foreign_keys = ON"))
+                log.info("migrated learner_events (canonical client_ts schema, preserved data)")
+
 
 # --------------------------------------------------------------------------- #
 # Lifecycle helpers

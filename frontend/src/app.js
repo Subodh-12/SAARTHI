@@ -441,14 +441,58 @@ function runSelfTests(){
 
 /* ================= backend API ================= */
 const API_BASE='/api/v1';
-let AUTH=ls.get('saarthi:auth')||null;   // {learner_id, device_id, token, expires_at}
+let AUTH=ls.get('saarthi:auth')||null;   // {learner_id, device_id, token, expires_at, refresh_token, refresh_expires_at}
 const saveAuth=()=>ls.set('saarthi:auth',AUTH);
+function rememberAuth(resp, learnerId){
+ const prior=AUTH||{};
+ AUTH={
+  learner_id:resp.learner_id||learnerId||prior.learner_id||null,
+  device_id:resp.device_id||prior.device_id||DEV.device_id||null,
+  token:resp.device_token||resp.access_token||prior.token||null,
+  expires_at:resp.token_expires_at??resp.access_expires_at??prior.expires_at??0,
+  refresh_token:resp.refresh_token||prior.refresh_token||null,
+  refresh_expires_at:resp.refresh_expires_at??prior.refresh_expires_at??0
+ };
+ if(AUTH.device_id){DEV.device_id=AUTH.device_id;ls.set('saarthi:device',DEV)}
+ saveAuth();
+ return AUTH;
+}
+let refreshInFlight=null;
+async function refreshAuthTokens(){
+ if(refreshInFlight)return refreshInFlight;
+ if(!AUTH?.device_id||!AUTH?.refresh_token)throw{status:401,detail:'No refresh token is available; sign in again.'};
+ const old={...AUTH};
+ refreshInFlight=(async()=>{
+  const resp=await apiFetch('/auth/refresh',{method:'POST',auth:false,body:{device_id:old.device_id,refresh_token:old.refresh_token}});
+  AUTH={...old,device_id:resp.device_id,token:resp.access_token,expires_at:resp.access_expires_at,
+   refresh_token:resp.refresh_token,refresh_expires_at:resp.refresh_expires_at};
+  if(AUTH.device_id){DEV.device_id=AUTH.device_id;ls.set('saarthi:device',DEV)}
+  saveAuth();return AUTH;
+ })();
+ try{return await refreshInFlight}
+ catch(e){
+  // A rotating refresh token is single-use. Do not keep retrying a token the
+  // server has rejected; preserve local learner data and require explicit recovery.
+  if(e.status===401){AUTH={...old,token:null,expires_at:0,refresh_token:null,refresh_expires_at:0};saveAuth()}
+  throw e;
+ }finally{refreshInFlight=null}
+}
 async function apiFetch(path,{method='GET',body,auth=true,headers={},raw=false}={}){
  const h=Object.assign({'Content-Type':'application/json'},headers);
- if(auth&&AUTH){h['Authorization']='Bearer '+AUTH.token;if(AUTH.device_id)h['X-Device-Id']=AUTH.device_id}
- let r;
- try{r=await fetch(API_BASE+path,{method,headers:h,body:body!=null?JSON.stringify(body):undefined})}
- catch(e){throw{status:0,network:true}}
+ if(auth&&path!=='/auth/refresh'&&AUTH?.refresh_token&&(!AUTH.token||(AUTH.expires_at&&Date.now()>AUTH.expires_at))){
+  try{await refreshAuthTokens()}catch(e){}
+ }
+ const setBearer=()=>{if(auth&&AUTH?.token){h.Authorization='Bearer '+AUTH.token;if(AUTH.device_id)h['X-Device-Id']=AUTH.device_id}};
+ const send=async()=>{
+  try{return await fetch(API_BASE+path,{method,headers:h,body:body!=null?JSON.stringify(body):undefined})}
+  catch(e){throw{status:0,network:true}}
+ };
+ setBearer();let r=await send();
+ // Refresh once on an expired access token, then retry the original request.
+ // The refresh endpoint itself is excluded to prevent recursive refresh loops.
+ if(r.status===401&&auth&&path!=='/auth/refresh'&&AUTH?.refresh_token){
+  await refreshAuthTokens();setBearer();r=await send();
+ }
  if(!r.ok){const err={status:r.status};try{const j=await r.json();if(j&&j.detail)err.detail=j.detail}catch(e){}throw err}
  return raw?r:r.json();
 }
@@ -466,38 +510,52 @@ async function serverCreateLearner(displayLabel){
  const headers=DEV.device_id?{'X-Device-Id':DEV.device_id}:{};
  const resp=await apiFetch('/learners',{method:'POST',auth:false,headers,
   body:{display_label:displayLabel,locale:'or',grade:'class9',subject:'science'}});
- if(resp.device_id){DEV.device_id=resp.device_id;ls.set('saarthi:device',DEV)}
+ rememberAuth(resp,resp.learner_id);
  return resp;
 }
 async function serverActivate(learnerId){
- if(!DEV.device_id)throw{status:400};
- const resp=await apiFetch('/learners/'+encodeURIComponent(learnerId)+'/activate',{method:'POST',auth:false,headers:{'X-Device-Id':DEV.device_id}});
- AUTH={learner_id:resp.learner_id,device_id:resp.device_id,token:resp.device_token,expires_at:resp.token_expires_at};
- if(resp.device_id){DEV.device_id=resp.device_id;ls.set('saarthi:device',DEV)}
- saveAuth();return resp;
+ if(!DEV.device_id&&AUTH?.device_id){DEV.device_id=AUTH.device_id;ls.set('saarthi:device',DEV)}
+ if(!DEV.device_id)throw{status:400,detail:'Device has not been registered yet.'};
+ if(!AUTH?.device_id||AUTH.device_id!==DEV.device_id||(!AUTH.token&&!AUTH.refresh_token)){
+  throw{status:401,detail:'A valid device session is required to activate this learner.'};
+ }
+ // Activation is protected by require_device_auth. Sending X-Device-Id alone
+ // is insufficient; apiFetch attaches the stored Bearer token and refreshes it
+ // once if the access token has expired.
+ const resp=await apiFetch('/learners/'+encodeURIComponent(learnerId)+'/activate',
+  {method:'POST',headers:{'X-Device-Id':DEV.device_id}});
+ rememberAuth(resp,learnerId);
+ return resp;
 }
 async function registerAccount(d){
  const resp=await serverCreateLearner(d.name);
  const acc={id:d.id,role:d.role||'student',name:d.name,names:d.names||{en:d.name,or:d.name},
   pw_hash:hashPw(d.pw,d.id),learner_id:resp.learner_id,created:Date.now()};
  ACC.push(acc);saveACC();
- AUTH={learner_id:resp.learner_id,device_id:resp.device_id,token:resp.device_token,expires_at:resp.token_expires_at};saveAuth();
  return acc;
 }
 async function seedAccounts(){
  if(ACC.length)return;
  for(const d of DEMO)await registerAccount(d);
 }
+function canRecoverLearnerLink(e){
+ if(e.status===404)return true; // learner was removed/reset on the server
+ if(e.status!==403)return false;
+ const detail=String(e.detail||'').toLowerCase();
+ return detail.includes('learner is not linked to this device')||detail.includes('no active learner on this device');
+}
 async function loginAccount(acc){
  try{await serverActivate(acc.learner_id)}
  catch(e){
   if(e.status===0)throw e;
-  /* server DB was reset or device lost the link: create a fresh learner and migrate local data */
+  // Do not treat authentication failures (including an expired/invalid token)
+  // as a missing learner. Only confirmed missing profile/link errors recover.
+  if(!canRecoverLearnerLink(e))throw e;
   const resp=await serverCreateLearner(acc.name);
   const oldKey='saarthi:p:'+acc.learner_id,old=ls.get(oldKey);
   if(old){ls.del(oldKey);ls.set('saarthi:p:'+resp.learner_id,old)}
   acc.learner_id=resp.learner_id;saveACC();
-  AUTH={learner_id:resp.learner_id,device_id:resp.device_id,token:resp.device_token,expires_at:resp.token_expires_at};saveAuth();
+  rememberAuth(resp,resp.learner_id);
  }
 }
 
@@ -524,13 +582,16 @@ const PS={
 };
 
 /* ---- events: local apply + outbox for the backend ---- */
-const SYNCABLE={CONTENT_VIEWED:'lesson_opened',ANSWER_SUBMITTED:'mcq_answered',DOUBT_ASKED:'doubt_asked',PACK_INSTALLED:'pack_installed'};
+// Values on the wire must match backend.domain.schemas.EventType exactly.
+// Existing locally persisted events keep their local names; toBackend maps them.
+const SYNCABLE={CONTENT_VIEWED:'CONTENT_VIEWED',ANSWER_SUBMITTED:'ANSWER_SUBMITTED',DOUBT_ASKED:'DOUBT_ASKED',PACK_INSTALLED:'PACK_INSTALLED'};
 function emitLocal(type,payload){
  if(!S.p)return;
  applyEvent(S.p,{type,payload:payload||{},seq:0},false);PS.save();
 }
 function emit(type,payload){
  if(!S.p)return null;
+ if(!DEV.device_id&&AUTH?.device_id){DEV.device_id=AUTH.device_id;ls.set('saarthi:device',DEV)}
  const ev={event_id:'evt_'+uuid(),device_id:DEV.device_id,learner_id:S.id,seq:++DEV.seq,type,ts:Date.now(),payload:payload||{}};
  ls.set('saarthi:device',DEV);
  applyEvent(S.p,ev,false);
@@ -541,13 +602,24 @@ function emit(type,payload){
 }
 function toBackend(ev){
  const pl=ev.payload||{};
- const out={event_id:ev.event_id,device_id:ev.device_id,learner_id:ev.learner_id,seq:ev.seq,ts:ev.ts,event_type:SYNCABLE[ev.type],payload:{}};
+ const out={event_id:ev.event_id,device_id:ev.device_id,learner_id:ev.learner_id,seq:ev.seq,
+  client_ts:Number(ev.ts)||Date.now(),type:SYNCABLE[ev.type]||ev.type,payload:{}};
  if(pl.concept)out.concept_id=pl.concept;
  if(ev.type==='ANSWER_SUBMITTED'){
+  const q=QB[pl.question_id];
+  const conceptId=pl.concept||(q&&q.c)||null;
   out.question_id=pl.question_id;
-  out.payload={attempt_id:pl.attempt_id,selected_option:pl.response,evidence:pl.correct_claim?'correct':'incorrect',weight:1};
- }else if(ev.type==='PACK_INSTALLED'){out.payload={pack_id:pl.pack_id,version:String(pl.version)}}
- else out.payload=pl;
+  if(conceptId)out.concept_id=conceptId;
+  out.payload={attempt_id:String(pl.attempt_id||ev.event_id),question_id:pl.question_id,
+   revision:Number(pl.revision)||1,response:pl.response};
+  if(conceptId)out.payload.concept_id=conceptId;
+  // Do not send the client's correctness claim as the answer key. The server
+  // grades response against its own packed question revision.
+ }else if(ev.type==='PACK_INSTALLED'){
+  out.payload={pack_id:pl.pack_id,version:String(pl.version)};
+ }else{
+  out.payload=pl;
+ }
  return out;
 }
 function mkCtx(){return{ruleset_version:RULES.version,mastery:S.p.mastery,last_graded:S.p.last_graded,doubt_hint:S.p.doubt_hint,outbox_len:S.p.outbox.length,env:curEnv()}}
@@ -601,7 +673,9 @@ async function doSync(manual){
 }
 function applyServer(resp,batch,trigger){
  const p=S.p,cnt={ACCEPTED:0,DUPLICATE:0,REJECTED:0,RETRYABLE:0};
- const byId={};(resp.accepted||[]).forEach(r=>byId[r.event_id]=r);
+ const byId={};
+ const resultsList=Array.isArray(resp.results)?resp.results:(Array.isArray(resp.accepted)?resp.accepted:[]);
+ resultsList.forEach(r=>byId[r.event_id]=r);
  const keep=[];
  p.outbox.forEach(ev=>{
   const r=byId[ev.event_id];if(!r){keep.push(ev);return}
@@ -611,14 +685,24 @@ function applyServer(resp,batch,trigger){
  });
  p.outbox=keep;
  /* rebase: take the server's canonical mastery, then re-apply events created after the upload */
- const rows=resp.canonical_mastery||[];
- if(rows.length){
-  const nm={};rows.forEach(m=>{const bp=Math.round((m.p_known==null?0.4:m.p_known)*10000);
-   nm[m.concept_id]={p_bp:bp,attempts:m.attempts||0,correct:m.correct||0,cycle_attempts:0,cycle_base_bp:bp,alt_shown:false,last_seen:m.last_updated_event_seq||0}});
+ const hasCanonicalMastery=Array.isArray(resp.canonical_mastery)||Array.isArray(resp.mastery);
+ const rows=Array.isArray(resp.canonical_mastery)?resp.canonical_mastery:(Array.isArray(resp.mastery)?resp.mastery:[]);
+ if(hasCanonicalMastery){
+  const nm={};rows.forEach(m=>{
+   // API mastery probabilities are integer basis points (0..10000), not a
+   // p_known fraction. Retain the legacy fraction only for older servers.
+   const bpRaw=m.p_bp!=null?Number(m.p_bp):
+    (m.p_known!=null?Math.round(Number(m.p_known)*10000):RULES.bkt.p_init_bp);
+   const bp=Math.max(0,Math.min(10000,Math.round(Number.isFinite(bpRaw)?bpRaw:RULES.bkt.p_init_bp)));
+   nm[m.concept_id]={p_bp:bp,attempts:Number(m.attempts)||0,correct:Number(m.correct)||0,
+    cycle_attempts:0,cycle_base_bp:bp,alt_shown:false,last_seen:Number(m.last_event_seq??m.last_updated_event_seq)||0};
+  });
   p.mastery=nm;
  }
  p.outbox.slice().sort((a,b)=>a.seq-b.seq).forEach(ev=>applyEvent(p,ev,false));
- p.cursor=resp.server_learner_seq||p.cursor;p.lastsync=Date.now();
+ const serverCursor=Number(resp.server_learner_seq??resp.server_cursor);
+ if(Number.isFinite(serverCursor))p.cursor=Math.max(Number(p.cursor)||0,serverCursor);
+ p.lastsync=Date.now();
  p.synclog.unshift({ts:Date.now(),n:batch.length,status:'OK',cnt,trigger});p.synclog.length=Math.min(p.synclog.length,15);
  if(resp.next_decision){
   const sd=mapServerDecision(resp.next_decision);

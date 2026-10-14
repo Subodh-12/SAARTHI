@@ -15,7 +15,7 @@ from ...domain.schemas import new_device_id
 from ...domain.schemas import (
     AuthResponse, DeviceTokenResponse, LearnerProfile, LearnerProfileCreate,
 )
-from ..middleware import get_auth_service, require_device_auth
+from ..middleware import get_auth_service, require_device_auth, require_device_token
 from ...services import AuthService
 
 router = APIRouter(prefix="/learners", tags=["learners"])
@@ -71,7 +71,7 @@ async def get_current_learner(
 
 @router.get("", response_model=list[LearnerProfile])
 async def list_learners(
-    ctx: tuple[str, str] = Depends(require_device_auth),
+    ctx: tuple[str, str | None] = Depends(require_device_token),
     auth: AuthService = Depends(get_auth_service),
 ):
     """Learner profiles on THIS device only (never another device's)."""
@@ -83,7 +83,7 @@ async def list_learners(
 async def activate_learner(
     learner_id: str,
     request: Request,
-    ctx: tuple[str, str] = Depends(require_device_auth),
+    ctx: tuple[str, str | None] = Depends(require_device_token),
     auth: AuthService = Depends(get_auth_service),
 ):
     """Activate a profile on the CALLING device; the learner must already be
