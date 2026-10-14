@@ -38,6 +38,15 @@ def _to_input(v: dict) -> DecisionInput:
                           last_event_seq=m.get("last_event_seq", 0))
         for cid, m in inp["mastery"].items()
     }
+    bloom_mastery = {
+        cid: {
+            lvl: MasteryEntry(p_bp=bm["p_bp"], attempts=bm.get("attempts", 0),
+                              correct=bm.get("correct", 0),
+                              last_event_seq=bm.get("last_event_seq", 0))
+            for lvl, bm in levels.items()
+        }
+        for cid, levels in inp.get("bloom_mastery", {}).items()
+    }
     return DecisionInput(
         trigger_event_type=inp["trigger_event_type"],
         trigger_concept_id=inp["trigger_concept_id"],
@@ -62,6 +71,8 @@ def _to_input(v: dict) -> DecisionInput:
         battery_saver=inp.get("battery_saver", False),
         outbox_nonempty=inp.get("outbox_nonempty", False),
         ruleset_version=inp["ruleset_version"],
+        bloom_mastery=bloom_mastery,
+        available_bloom_levels_for_concept=inp.get("available_bloom_levels_for_concept", {}),
     )
 
 
@@ -74,6 +85,7 @@ def test_vector(vector) -> None:
     assert out.background_actions == expected["background_actions"]
     assert out.target_concept_id == expected["target_concept_id"]
     assert out.reason_code == expected["reason_code"]
+    assert out.target_bloom_level == expected.get("target_bloom_level")
     assert out.needs_help == expected["needs_help"]
 
 

@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS questions (
   question_id         TEXT PRIMARY KEY,
   concept_id          TEXT NOT NULL REFERENCES concepts(concept_id) ON DELETE CASCADE,
   chapter_id          TEXT NOT NULL REFERENCES chapters(chapter_id) ON DELETE CASCADE,
+  bloom_level         TEXT NOT NULL DEFAULT 'remember',
   qtype               TEXT NOT NULL,
   prompt_or           TEXT NOT NULL,
   options_json        TEXT NOT NULL DEFAULT '[]',
@@ -188,6 +189,19 @@ CREATE TABLE IF NOT EXISTS learner_progress (
   PRIMARY KEY (learner_id, concept_id)
 );
 
+CREATE TABLE IF NOT EXISTS learner_bloom_progress (
+  learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
+  concept_id          TEXT NOT NULL REFERENCES concepts(concept_id) ON DELETE CASCADE,
+  bloom_level         TEXT NOT NULL,
+  p_bp                INTEGER NOT NULL DEFAULT 2000,
+  bkt_version         TEXT NOT NULL DEFAULT '1',
+  band                TEXT NOT NULL DEFAULT 'weak',
+  attempts            INTEGER NOT NULL DEFAULT 0,
+  correct             INTEGER NOT NULL DEFAULT 0,
+  last_event_seq      INTEGER,
+  PRIMARY KEY (learner_id, concept_id, bloom_level)
+);
+
 CREATE TABLE IF NOT EXISTS learning_sessions (
   session_id          TEXT PRIMARY KEY,
   learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
@@ -253,6 +267,7 @@ CREATE TABLE IF NOT EXISTS decisions (
   trigger_event_id    TEXT,
   ruleset_version     TEXT NOT NULL,
   target_concept_id   TEXT NOT NULL,
+  target_bloom_level  TEXT,
   action              TEXT NOT NULL,
   delivery_mode       TEXT NOT NULL,
   background_actions_json TEXT NOT NULL DEFAULT '[]',

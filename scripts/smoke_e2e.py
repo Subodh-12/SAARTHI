@@ -120,9 +120,13 @@ async def main():
     result = await assessment.submit_assessment(
         auth_resp.learner_id, device_id, sub, seq=1)
     print(f"[2] mcq correct: {result.correct} evidence={result.evidence.value} "
+          f"bloom_level={result.bloom_level.value if result.bloom_level else None} "
           f"mastery.p_bp={result.mastery_after.p_bp} band={result.mastery_after.band}")
     assert result.correct, "MCQ correct should be True"
     assert result.mastery_after.p_bp == 6000, "first correct answer = 6000 bp (Appendix A)"
+    assert result.bloom_level == q.bloom_level, "bloom_level should match question"
+    assert result.bloom_mastery_after is not None, "bloom_mastery_after should be populated"
+    assert result.bloom_mastery_after.p_bp == 6000, "first bloom mastery step = 6000 bp"
 
     # 3. Submit an MCQ (incorrect answer)
     wrong_option = (q.correct_option + 1) % len(q.options)
@@ -150,6 +154,7 @@ async def main():
           f"needs_help={decision.needs_help} ruleset={decision.ruleset_version}")
     assert decision.action.value in ("REMEDIATE", "RETRY", "REVISE", "ADVANCE")
     assert decision.target_concept_id, "target_concept_id should be set"
+    assert decision.target_bloom_level is not None, "target_bloom_level should be set"
     assert decision.reason_code in (
         "WEAK_CONCEPT", "WRONG_RETRY", "WEAK_PREREQ_GAP", "PARTIAL_PRACTICE")
 
@@ -170,9 +175,11 @@ async def main():
           f"decision_status={sync_resp.decision_status}")
     assert sync_resp.results[0].outcome.value == "ACCEPTED"
     assert sync_resp.mastery, "canonical mastery should be returned"
+    assert sync_resp.bloom_mastery is not None, "canonical bloom mastery should be returned"
     assert isinstance(sync_resp.mastery[0].p_bp, int)
     print(f"    mastery[0]: concept={sync_resp.mastery[0].concept_id} "
-          f"p_bp={sync_resp.mastery[0].p_bp} band={sync_resp.mastery[0].band}")
+          f"p_bp={sync_resp.mastery[0].p_bp} band={sync_resp.mastery[0].band} "
+          f"bloom_records={len(sync_resp.bloom_mastery)}")
 
     # 5b. Idempotent resubmission → DUPLICATE, no double effect.
     sync_resp2 = await sync.sync(SyncRequest(

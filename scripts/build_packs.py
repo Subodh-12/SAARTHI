@@ -39,6 +39,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CURRIC = ROOT / "curriculum"
 PACKS_DIR = ROOT / "packs"
 
+sys.path.insert(0, str(ROOT / "backend"))
+from app.domain.bloom import BloomLevel, is_valid_bloom_level, parse_bloom_level
+
 PACK_ID = "pack_class9_science_or_v1"
 PACK_VERSION = "1.0.0"
 CONTENT_VERSION = "2026.10.001"
@@ -106,9 +109,12 @@ def validate_chunk(c: dict) -> None:
 
 def validate_question(q: dict) -> None:
     for f in ("question_id", "concept_id", "qtype", "prompt_or",
-              "explanation_or", "difficulty", "source_ref"):
+              "explanation_or", "difficulty", "source_ref", "bloom_level"):
         if not q.get(f):
-            raise ValidationError(f"question missing {f}: {q}")
+            raise ValidationError(f"question missing {f} (publication gate): {q.get('question_id')}")
+    if not is_valid_bloom_level(q["bloom_level"]):
+        raise ValidationError(f"question {q['question_id']} has invalid bloom_level: {q['bloom_level']}")
+    q["bloom_level"] = parse_bloom_level(q["bloom_level"]).value
     if not re.match(r"^q_[A-Za-z0-9_-]{6,32}$", q["question_id"]):
         raise ValidationError(f"question_id format invalid: {q['question_id']}")
     if q["qtype"] == "mcq":

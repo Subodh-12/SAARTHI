@@ -62,6 +62,7 @@ class PackContentIndex:
             q["question_id"]: Question(
                 question_id=q["question_id"], concept_id=q["concept_id"],
                 chapter_id=q.get("chapter_id", ""),
+                bloom_level=q.get("bloom_level", "remember"),
                 qtype=q["qtype"], prompt_or=q["prompt_or"],
                 options=q.get("options", []),
                 correct_option=q.get("correct_option"),
@@ -129,11 +130,26 @@ class PackContentIndex:
     def get_chapter(self, chapter_id: str) -> Optional[Chapter]:
         return self.chapters.get(chapter_id)
 
-    def list_questions_for_concept(self, concept_id: str, difficulty: Optional[str] = None) -> list[Question]:
+    def list_questions_for_concept(
+        self, concept_id: str, difficulty: Optional[str] = None, bloom_level: Optional[str] = None
+    ) -> list[Question]:
         out = [q for q in self.questions.values() if q.concept_id == concept_id]
         if difficulty:
             out = [q for q in out if q.difficulty == difficulty]
+        if bloom_level:
+            bl_str = str(bloom_level.value if hasattr(bloom_level, "value") else bloom_level).lower()
+            out = [q for q in out if str(q.bloom_level.value if hasattr(q.bloom_level, "value") else q.bloom_level).lower() == bl_str]
         return out
+
+    def available_bloom_levels_for_concept(self, concept_id: str) -> list[str]:
+        levels = set()
+        for q in self.questions.values():
+            if q.concept_id == concept_id and getattr(q, "status", "active") == "active":
+                lvl = q.bloom_level
+                lvl_str = lvl.value if hasattr(lvl, "value") else str(lvl)
+                levels.add(lvl_str.lower())
+        order = ["remember", "understand", "apply", "analyze", "evaluate", "create"]
+        return [l for l in order if l in levels]
 
     def list_chunks_for_concept(self, concept_id: str) -> list[Chunk]:
         return sorted(

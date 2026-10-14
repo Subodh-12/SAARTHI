@@ -243,6 +243,10 @@ class HuggingFaceTranslationProvider(TranslationProvider):
                 return None
             return self._load_error_result()
         self._load_attempted = True
+        if not self.s.has_secret("hf_token"):
+            self._load_error = "HF_TOKEN not set; provide HF_TOKEN to access HuggingFace translation models."
+            log.warning("hf_translation_token_missing")
+            return self._load_error_result()
         try:
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
             import torch  # noqa: F401

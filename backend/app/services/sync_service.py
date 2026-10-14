@@ -38,10 +38,11 @@ from ..core.errors import ErrorCode, SaarthiError
 from ..domain.bkt import (
     bkt_update_bp, mastery_band_bp, mastery_effect_for_event,
 )
+from ..domain.bloom import BloomLevel, parse_bloom_level
 from ..domain.decide import decide
 from ..domain.ruleset import get_ruleset
 from ..domain.schemas import (
-    EventType, LearnerEvent, MasteryRecord, NetworkState, Outcome,
+    BloomMasteryRecord, EventType, LearnerEvent, MasteryRecord, NetworkState, Outcome,
     PerEventResult, SyncEffect, SyncReason, SyncRequest, SyncResponse,
 )
 from ..repositories import (
@@ -380,6 +381,19 @@ class SyncService:
             correct=int(row[4] or 0), last_event_seq=int(row[5] or 0),
         ) for row in res.fetchall()}
 
+    async def _session_bloom_mastery(self, s, learner_id: str) -> dict[tuple[str, str], BloomMasteryRecord]:
+        res = await s.execute(
+            text("SELECT concept_id, bloom_level, p_bp, band, attempts, correct, last_event_seq "
+                 "FROM learner_bloom_progress WHERE learner_id = :lid"),
+            {"lid": learner_id},
+        )
+        return {(row[0], row[1]): BloomMasteryRecord(
+            concept_id=row[0], bloom_level=parse_bloom_level(row[1]),
+            p_bp=int(row[2] if row[2] is not None else 2000),
+            band=row[3] or "weak", attempts=int(row[4] or 0),
+            correct=int(row[5] or 0), last_event_seq=int(row[6] or 0),
+        ) for row in res.fetchall()}
+
     async def _session_upsert(self, s, learner_id: str, cid: str, p_bp: int,
                               band: str, attempts: int, correct: int,
                               seq: int) -> None:
@@ -394,11 +408,38 @@ class SyncService:
              "bv": get_ruleset().bkt_version},
         )
 
+    async def _session_upsert_bloom(self, s, learner_id: str, cid: str, bl: str,
+                                    p_bp: int, band: str, attempts: int,
+                                    correct: int, seq: int) -> None:
+        await s.execute(
+            text("INSERT INTO learner_bloom_progress (learner_id, concept_id, bloom_level, "
+                 "p_bp, band, attempts, correct, last_event_seq, bkt_version) "
+                 "VALUES (:lid, :cid, :bl, :p, :b, :a, :c, :seq, :bv) "
+                 "ON CONFLICT(learner_id, concept_id, bloom_level) DO UPDATE SET "
+                 "p_bp = :p, band = :b, attempts = :a, correct = :c, last_event_seq = :seq"),
+            {"lid": learner_id, "cid": cid, "bl": bl, "p": int(p_bp), "b": band,
+             "a": attempts, "c": correct, "seq": int(seq),
+             "bv": get_ruleset().bkt_version},
+        )
+
+    def _event_bloom_level(self, ev: LearnerEvent) -> str:
+        bl = ev.payload.get("bloom_level")
+        if bl:
+            return bl.lower()
+        qid = ev.question_id or ev.payload.get("question_id")
+        if qid and self.pack:
+            q = self.pack.get_question(qid)
+            if q and getattr(q, "bloom_level", None):
+                lvl = q.bloom_level
+                return (lvl.value if hasattr(lvl, "value") else str(lvl)).lower()
+        return "remember"
+
     async def _session_apply(self, s, learner_id: str,
                              accepted: list[LearnerEvent], ruleset) -> None:
         """Apply mastery-updated events to the projection inside the open
         transaction, in canonical seq order, starting from stored integers."""
         current = await self._session_mastery(s, learner_id)
+        current_bloom = await self._session_bloom_mastery(s, learner_id)
         for ev in sorted(accepted, key=lambda e: e.seq):
             cid = ev.concept_id or ev.payload.get("concept_id")
             if not cid:
@@ -418,6 +459,21 @@ class SyncService:
                                          attempts=attempts, correct=correct_n,
                                          last_event_seq=ev.seq)
 
+            bl_str = self._event_bloom_level(ev)
+            bm = current_bloom.get((cid, bl_str))
+            bm_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
+            bm_next = bkt_update_bp(bm_prior, correct, ruleset, cid)
+            bm_attempts = (bm.attempts if bm else 0) + 1
+            bm_correct_n = (bm.correct if bm else 0) + (1 if correct else 0)
+            bm_band = mastery_band_bp(bm_next, ruleset)
+            await self._session_upsert_bloom(s, learner_id, cid, bl_str, bm_next, bm_band,
+                                             bm_attempts, bm_correct_n, ev.seq)
+            current_bloom[(cid, bl_str)] = BloomMasteryRecord(
+                concept_id=cid, bloom_level=parse_bloom_level(bl_str),
+                p_bp=bm_next, band=bm_band, attempts=bm_attempts,
+                correct=bm_correct_n, last_event_seq=ev.seq,
+            )
+
     async def _session_replay(self, s, learner_id: str, ruleset) -> None:
         """Canonical replay inside the transaction: rebuild the projection
         from ALL accepted events in seq order (correctness oracle)."""
@@ -436,6 +492,7 @@ class SyncService:
         ) for r in res.fetchall()]
         seen: set[str] = set()
         current: dict[str, MasteryRecord] = {}
+        current_bloom: dict[tuple[str, str], BloomMasteryRecord] = {}
         for ev in events:  # already in canonical order
             effect = mastery_effect_for_event(ev, ruleset, seen,
                                               question_lookup=self._question_lookup())
@@ -452,14 +509,33 @@ class SyncService:
             current[cid] = MasteryRecord(concept_id=cid, p_bp=p_next, band=band,
                                          attempts=attempts, correct=correct_n,
                                          last_event_seq=ev.seq)
+
+            bl_str = self._event_bloom_level(ev)
+            bm = current_bloom.get((cid, bl_str))
+            bm_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
+            bm_next = bkt_update_bp(bm_prior, bool(effect.correct), ruleset, cid)
+            bm_attempts = (bm.attempts if bm else 0) + 1
+            bm_correct_n = (bm.correct if bm else 0) + (1 if effect.correct else 0)
+            bm_band = mastery_band_bp(bm_next, ruleset)
+            current_bloom[(cid, bl_str)] = BloomMasteryRecord(
+                concept_id=cid, bloom_level=parse_bloom_level(bl_str),
+                p_bp=bm_next, band=bm_band, attempts=bm_attempts,
+                correct=bm_correct_n, last_event_seq=ev.seq,
+            )
+
         for cid, m in current.items():
             await self._session_upsert(s, learner_id, cid, m.p_bp, m.band,
                                        m.attempts, m.correct, m.last_event_seq)
+        for (cid, bl_str), bm in current_bloom.items():
+            await self._session_upsert_bloom(s, learner_id, cid, bl_str, bm.p_bp, bm.band,
+                                             bm.attempts, bm.correct, bm.last_event_seq)
 
     async def _incremental_projection(self, learner_id: str,
                                       accepted: list[LearnerEvent], ruleset) -> None:
         seen = await self.events.learner_attempt_ids(learner_id)
         current = {m.concept_id: m for m in await self.mastery.get_mastery(learner_id)}
+        current_bloom = {(bm.concept_id, bm.bloom_level.value): bm
+                         for bm in await self.mastery.get_bloom_mastery(learner_id)}
         for ev in sorted(accepted, key=lambda e: e.seq):
             effect = mastery_effect_for_event(ev, ruleset, seen,
                                               question_lookup=self._question_lookup())
@@ -479,10 +555,26 @@ class SyncService:
                                          attempts=attempts, correct=correct_n,
                                          last_event_seq=ev.seq)
 
+            bl_str = self._event_bloom_level(ev)
+            bm = current_bloom.get((cid, bl_str))
+            bm_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
+            bm_next = bkt_update_bp(bm_prior, bool(effect.correct), ruleset, cid)
+            bm_attempts = (bm.attempts if bm else 0) + 1
+            bm_correct_n = (bm.correct if bm else 0) + (1 if effect.correct else 0)
+            bm_band = mastery_band_bp(bm_next, ruleset)
+            await self.mastery.upsert_bloom_mastery(learner_id, cid, bl_str, bm_next, bm_band,
+                                                   bm_attempts, bm_correct_n, ev.seq)
+            current_bloom[(cid, bl_str)] = BloomMasteryRecord(
+                concept_id=cid, bloom_level=parse_bloom_level(bl_str),
+                p_bp=bm_next, band=bm_band, attempts=bm_attempts,
+                correct=bm_correct_n, last_event_seq=ev.seq,
+            )
+
     async def _rebuild_projection(self, learner_id: str, ruleset) -> None:
         all_events = await self.events.list_events(learner_id, since_seq=0, limit=200000)
         seen: set[str] = set()
         current: dict[str, MasteryRecord] = {}
+        current_bloom: dict[tuple[str, str], BloomMasteryRecord] = {}
         for ev in sorted(all_events, key=lambda e: e.seq):
             effect = mastery_effect_for_event(ev, ruleset, seen,
                                               question_lookup=self._question_lookup())
@@ -499,9 +591,26 @@ class SyncService:
             current[cid] = MasteryRecord(concept_id=cid, p_bp=p_next, band=band,
                                          attempts=attempts, correct=correct_n,
                                          last_event_seq=ev.seq)
+
+            bl_str = self._event_bloom_level(ev)
+            bm = current_bloom.get((cid, bl_str))
+            bm_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
+            bm_next = bkt_update_bp(bm_prior, bool(effect.correct), ruleset, cid)
+            bm_attempts = (bm.attempts if bm else 0) + 1
+            bm_correct_n = (bm.correct if bm else 0) + (1 if effect.correct else 0)
+            bm_band = mastery_band_bp(bm_next, ruleset)
+            current_bloom[(cid, bl_str)] = BloomMasteryRecord(
+                concept_id=cid, bloom_level=parse_bloom_level(bl_str),
+                p_bp=bm_next, band=bm_band, attempts=bm_attempts,
+                correct=bm_correct_n, last_event_seq=ev.seq,
+            )
+
         if current:
             await self.mastery.replace_mastery_snapshot(learner_id,
                                                         list(current.values()))
+        if current_bloom:
+            await self.mastery.replace_bloom_mastery_snapshot(learner_id,
+                                                              list(current_bloom.values()))
 
     # ------------------------------------------------------------------ #
     # Post-commit decision (deterministic, server-side)
@@ -556,6 +665,7 @@ class SyncService:
                     detail="no outcome recorded; resend safely (idempotent)")
         per_event = sorted(results.values(), key=lambda r: r.seq)
         mastery = await self.mastery.get_mastery(req.learner_id)
+        bloom_mastery = await self.mastery.get_bloom_mastery(req.learner_id)
         acked = [r.seq for r in per_event
                  if r.outcome in (Outcome.ACCEPTED, Outcome.DUPLICATE)]
         rejected = [r.seq for r in per_event if r.outcome == Outcome.REJECTED]
@@ -565,6 +675,8 @@ class SyncService:
             accepted=per_event,
             mastery=mastery,
             canonical_mastery=mastery,
+            bloom_mastery=bloom_mastery,
+            canonical_bloom_mastery=bloom_mastery,
             decision=decision,
             next_decision=decision,
             decision_status=decision_status,

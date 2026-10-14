@@ -88,6 +88,8 @@ def _inp(**over) -> dict:
         "battery_saver": False,
         "outbox_nonempty": False,
         "ruleset_version": RULESET.ruleset_version,
+        "bloom_mastery": {},
+        "available_bloom_levels_for_concept": {},
     }
     base.update(over)
     return base
@@ -117,7 +119,7 @@ GOLDEN: list[tuple[str, dict, dict]] = []
 
 
 def _golden(name, inp, action, target, reason, needs_help=False,
-            delivery=None, background=None):
+            delivery=None, background=None, target_bloom=None):
     expected = {
         "action": action,
         "target_concept_id": target,
@@ -128,6 +130,8 @@ def _golden(name, inp, action, target, reason, needs_help=False,
         expected["delivery_mode"] = delivery
     if background is not None:
         expected["background_actions"] = background
+    if target_bloom is not None:
+        expected["target_bloom_level"] = target_bloom
     GOLDEN.append((name, inp, expected))
 
 
@@ -316,7 +320,36 @@ _golden("boundary_mastered_at_8500",
 _golden("boundary_weak_at_4000",
         _inp(trigger_event_type="ANSWER_SUBMITTED", trigger_concept_id="c0001",
              trigger_correct=True, mastery={"c0001": _m(4000, 1, 1)}),
-        "RETRY", "c0001", "PARTIAL_PRACTICE")
+        "RETRY", "c0001", "PARTIAL_PRACTICE", target_bloom="remember")
+
+# 22. Bloom progression: foundational mastery (remember >= 7000) advances target to understand.
+_golden("bloom_progress_to_understand",
+        _inp(trigger_event_type="ANSWER_SUBMITTED", trigger_concept_id="c0001",
+             trigger_correct=True, mastery={"c0001": _m(7200, 3, 2)},
+             bloom_mastery={"c0001": {"remember": _m(7500, 2, 2), "understand": _m(2000, 1, 0)}}),
+        "RETRY", "c0001", "PARTIAL_PRACTICE", target_bloom="understand")
+
+# 23. Bloom progression: foundational demonstrated (remember & understand >= 7000) advances target to apply.
+_golden("bloom_progress_to_apply",
+        _inp(trigger_event_type="ANSWER_SUBMITTED", trigger_concept_id="c0001",
+             trigger_correct=True, mastery={"c0001": _m(7800, 5, 4)},
+             bloom_mastery={"c0001": {"remember": _m(8000, 2, 2), "understand": _m(7500, 2, 2), "apply": _m(2000, 1, 0)}}),
+        "RETRY", "c0001", "PARTIAL_PRACTICE", target_bloom="apply")
+
+# 24. Bloom safe fallback: higher level wanted but unavailable for concept → fallback to highest available.
+_golden("bloom_fallback_when_higher_level_unavailable",
+        _inp(trigger_event_type="ANSWER_SUBMITTED", trigger_concept_id="c0001",
+             trigger_correct=True, mastery={"c0001": _m(7800, 5, 4)},
+             bloom_mastery={"c0001": {"remember": _m(8000, 2, 2), "understand": _m(7500, 2, 2)}},
+             available_bloom_levels_for_concept={"c0001": ["remember", "understand"]}),
+        "RETRY", "c0001", "PARTIAL_PRACTICE", target_bloom="understand")
+
+# 25. Bloom remediation anchors back to foundational level below proficiency.
+_golden("bloom_remediate_anchors_foundational",
+        _inp(trigger_event_type="ANSWER_SUBMITTED", trigger_concept_id="c0001",
+             trigger_correct=False, mastery={"c0001": _m(3500, 3, 0)},
+             bloom_mastery={"c0001": {"remember": _m(3500, 3, 0), "understand": _m(2000, 0, 0)}}),
+        "REMEDIATE", "c0001", "WEAK_CONCEPT", target_bloom="remember")
 
 
 def _canonical(inp: dict) -> dict:
@@ -338,10 +371,23 @@ def _canonical(inp: dict) -> dict:
         "battery_saver": inp["battery_saver"],
         "outbox_nonempty": inp["outbox_nonempty"],
         "ruleset_version": inp["ruleset_version"],
+        "bloom_mastery": {k: {bl: dict(bm) for bl, bm in v.items()}
+                          for k, v in inp.get("bloom_mastery", {}).items()},
+        "available_bloom_levels_for_concept": {k: list(v)
+                                               for k, v in inp.get("available_bloom_levels_for_concept", {}).items()},
     }
 
 
 def _to_decision_input(d: dict) -> DecisionInput:
+    bloom_mastery = {
+        cid: {
+            lvl: MasteryEntry(p_bp=bm["p_bp"], attempts=bm.get("attempts", 0),
+                              correct=bm.get("correct", 0),
+                              last_event_seq=bm.get("last_event_seq", 0))
+            for lvl, bm in levels.items()
+        }
+        for cid, levels in d.get("bloom_mastery", {}).items()
+    }
     return DecisionInput(
         trigger_event_type=d["trigger_event_type"],
         trigger_concept_id=d["trigger_concept_id"],
@@ -367,6 +413,8 @@ def _to_decision_input(d: dict) -> DecisionInput:
         battery_saver=d["battery_saver"],
         outbox_nonempty=d["outbox_nonempty"],
         ruleset_version=d["ruleset_version"],
+        bloom_mastery=bloom_mastery,
+        available_bloom_levels_for_concept=d.get("available_bloom_levels_for_concept", {}),
     )
 
 
@@ -378,6 +426,7 @@ for name, inp, expected in GOLDEN:
         "action": out.action,
         "target_concept_id": out.target_concept_id,
         "reason_code": out.reason_code,
+        "target_bloom_level": out.target_bloom_level,
         "needs_help": out.needs_help,
         "delivery_mode": out.delivery_mode,
         "background_actions": out.background_actions,
@@ -499,6 +548,7 @@ for i in range(120):
             "delivery_mode": out.delivery_mode,
             "background_actions": out.background_actions,
             "reason_code": out.reason_code,
+            "target_bloom_level": out.target_bloom_level,
             "needs_help": out.needs_help,
         },
     })

@@ -9,7 +9,7 @@
 import { Action, BackgroundAction, DeliveryMode, EventType,
          NetworkState } from "../generated/api";
 import {
-  DeviceMeta, DecisionRow, getActiveProfileSession, InstalledPack,
+  BloomMasteryRow, DeviceMeta, DecisionRow, getActiveProfileSession, InstalledPack,
   MasteryRow, openProfileSession, ProfileSession,
   SharedProfileMeta,
 } from "./profile_session";
@@ -197,7 +197,7 @@ export async function listProfiles(): Promise<SharedProfileMeta[]> {
 export async function recordAssessmentEvent(
   learner_id: string, device_id: string, event_id: string,
   concept_id: string, question: {
-    question_id?: string; chapter_id?: string; revision?: number;
+    question_id?: string; chapter_id?: string; revision?: number; bloom_level?: string;
   } | null, correct: boolean, attempt_id: string,
   selected_option?: number, answer_text?: string,
   duration_ms: number = 0,
@@ -209,6 +209,7 @@ export async function recordAssessmentEvent(
     conceptId: concept_id,
     chapterId: question?.chapter_id,
     questionId: question?.question_id,
+    bloomLevel: question?.bloom_level,
     correct,
     attemptId: attempt_id,
     revision: question?.revision ?? 1,
@@ -267,9 +268,13 @@ export async function listPendingOutbox(limit = 100): Promise<OutboxEvent[]> {
 export type SyncOutcome =
   | "ACCEPTED" | "DUPLICATE" | "RETRYABLE" | "REJECTED";
 
-export async function applySyncOutcomes(results: Array<{
-  event_id: string; seq: number; outcome: SyncOutcome; reason?: string | null;
-}>, serverMastery?: MasteryRow[]): Promise<{
+export async function applySyncOutcomes(
+  results: Array<{
+    event_id: string; seq: number; outcome: SyncOutcome; reason?: string | null;
+  }>,
+  serverMastery?: MasteryRow[],
+  serverBloomMastery?: BloomMasteryRow[],
+): Promise<{
   removed: number; quarantined: number; retried: number;
 }> {
   const session = requireSession();
@@ -280,7 +285,7 @@ export async function applySyncOutcomes(results: Array<{
     .map((r) => r.seq));
   const localEventsAfter = (await session.listPendingOutbox(100000))
     .filter((e) => e.seq > maxAcked);
-  return session.applySyncOutcomes({ results, serverMastery, localEventsAfter });
+  return session.applySyncOutcomes({ results, serverMastery, serverBloomMastery, localEventsAfter });
 }
 
 export async function listQuarantined() {
@@ -293,6 +298,12 @@ export async function listQuarantined() {
 export async function getMasterySnapshot(): Promise<LocalMastery[]> {
   return requireSession().getMasterySnapshot() as unknown as
     Promise<LocalMastery[]>;
+}
+
+export type LocalBloomMastery = BloomMasteryRow;
+
+export async function getBloomMasterySnapshot(): Promise<BloomMasteryRow[]> {
+  return requireSession().getBloomMasterySnapshot();
 }
 
 export async function recordDecision(d: LocalDecision): Promise<void> {

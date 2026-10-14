@@ -15,7 +15,9 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Any, Literal, Optional
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+
+from .bloom import BloomLevel, parse_bloom_level
 
 
 # --------------------------------------------------------------------------- #
@@ -235,6 +237,7 @@ class Question(BaseModel):
     question_id: QuestionId
     concept_id: ConceptId
     chapter_id: ChapterId
+    bloom_level: BloomLevel = BloomLevel.REMEMBER
     qtype: Literal["mcq", "short_answer"]
     prompt_or: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
     options: list[str] = Field(default_factory=list)
@@ -248,6 +251,13 @@ class Question(BaseModel):
     revision: int = 1
     answer_key_hash: str = ""
     status: Literal["active", "legacy"] = "active"
+
+    @field_validator("bloom_level", mode="before")
+    @classmethod
+    def _validate_bloom_level(cls, v: Any) -> BloomLevel:
+        if v is None:
+            return BloomLevel.REMEMBER
+        return parse_bloom_level(v)
 
 
 class Chapter(BaseModel):
@@ -275,6 +285,16 @@ class EnvironmentSnapshot(BaseModel):
 
 class MasteryRecord(BaseModel):
     concept_id: ConceptId
+    p_bp: int = Field(2000, ge=0, le=10000)
+    band: Literal["weak", "partial", "mastered"] = "weak"
+    attempts: int = 0
+    correct: int = 0
+    last_event_seq: int = 0
+
+
+class BloomMasteryRecord(BaseModel):
+    concept_id: ConceptId
+    bloom_level: BloomLevel
     p_bp: int = Field(2000, ge=0, le=10000)
     band: Literal["weak", "partial", "mastered"] = "weak"
     attempts: int = 0
@@ -349,6 +369,7 @@ class DecisionSummary(BaseModel):
     decision_id: str
     action: Action
     target_concept_id: str
+    target_bloom_level: Optional[BloomLevel] = None
     delivery_mode: DeliveryMode
     background_actions: list[BackgroundAction]
     reason_code: str
@@ -359,6 +380,7 @@ class DecisionSummary(BaseModel):
 class SyncResponse(BaseModel):
     results: list[PerEventResult]
     mastery: list[MasteryRecord]
+    bloom_mastery: list[BloomMasteryRecord] = Field(default_factory=list)
     decision: Optional[Decision] = None
     decision_status: Literal["computed", "deferred"] = "deferred"
     server_cursor: int
@@ -367,6 +389,7 @@ class SyncResponse(BaseModel):
     accepted: list[PerEventResult] = Field(default_factory=list)
     server_learner_seq: int = 0
     canonical_mastery: list[MasteryRecord] = Field(default_factory=list)
+    canonical_bloom_mastery: list[BloomMasteryRecord] = Field(default_factory=list)
     next_decision: Optional[Decision] = None
 
 
@@ -392,7 +415,9 @@ class AssessmentResult(BaseModel):
     evidence: EvidenceType
     explanation_or: str
     concept_id: ConceptId
+    bloom_level: Optional[BloomLevel] = None
     mastery_after: MasteryRecord
+    bloom_mastery_after: Optional[BloomMasteryRecord] = None
     next_decision_id: str
 
 
@@ -404,6 +429,7 @@ class Decision(BaseModel):
     learner_id: Optional[LearnerId] = None
     ruleset_version: str
     target_concept_id: str
+    target_bloom_level: Optional[BloomLevel] = None
     action: Action
     delivery_mode: DeliveryMode
     background_actions: list[BackgroundAction]
@@ -573,6 +599,7 @@ class LearnerState(BaseModel):
     learner_id: LearnerId
     device_id: DeviceId
     mastery: list[MasteryRecord]
+    bloom_mastery: list[BloomMasteryRecord] = Field(default_factory=list)
     active_pack_versions: dict[str, int]
     last_decision_id: Optional[str] = None
     outbox_depth: int = 0
@@ -619,6 +646,7 @@ __all__ = [
     "Outcome",
     "SyncEffect",
     "SyncReason",
+    "BloomLevel",
     # learner/auth
     "LearnerProfileCreate",
     "LearnerProfile",
@@ -639,6 +667,7 @@ __all__ = [
     # env/mastery/event
     "EnvironmentSnapshot",
     "MasteryRecord",
+    "BloomMasteryRecord",
     "LearnerEvent",
     "PerEventResult",
     "SyncRequest",

@@ -144,7 +144,8 @@
       "explanation_or": "ଟିସ୍ୟୁ ହେଉଛି ସମାନ କାର୍ଯ୍ୟରତ କୋଷ ଗୋଷ୍ଠୀ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1"
+      "source_ref": "ch03 §6.1",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch03_c0007_02",
@@ -161,7 +162,8 @@
       "explanation_or": "ଉଦ୍ଭିଦ ଓ ପ୍ରାଣୀ — 2 ମୁଖ୍ୟ ପ୍ରକାର।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1"
+      "source_ref": "ch03 §6.1",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch03_c0007_03",
@@ -178,7 +180,8 @@
       "explanation_or": "ଉଦ୍ଭିଦ ଟିସ୍ୟୁ କୋଷ ବିଭାଜନ ବହୁତ, ବୃଦ୍ଧି ସୀମିତ ନୁହେଁ; ପ୍ରାଣୀ ଟିସ୍ୟୁ କମ ବିଭାଜନ, ନିର୍ଦ୍ଦିଷ୍ଟ ସମୟରେ ବନ୍ଦ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1"
+      "source_ref": "ch03 §6.1",
+      "bloom_level": "analyze"
     },
     {
       "question_id": "q_ch03_c0008_01",
@@ -195,7 +198,8 @@
       "explanation_or": "ମେରିସ୍ଥେମାଟିକ କୋଷ ସକ୍ରିୟ ବିଭାଜନ କରେ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2"
+      "source_ref": "ch03 §6.2",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch03_c0008_02",
@@ -212,7 +216,8 @@
       "explanation_or": "ଜାଇଲମ ପାଣି ଓ ଖଣିଜ ପରିବହନ କରେ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2"
+      "source_ref": "ch03 §6.2",
+      "bloom_level": "understand"
     },
     {
       "question_id": "q_ch03_c0008_03",
@@ -230,7 +235,8 @@
       "explanation_or": "ପାରେନକାଇମା ସର୍ବାବିଧ; କୋଲେନକାଇମା ପେକ୍ଟିନ ଯୁକ୍ତ; ସ୍କ୍ଲେରେନକାଇମା ଲିଗ୍ନିନ ମୃତ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2"
+      "source_ref": "ch03 §6.2",
+      "bloom_level": "analyze"
     },
     {
       "question_id": "q_ch03_c0009_01",
@@ -247,7 +253,8 @@
       "explanation_or": "ସ୍ନାୟୁ ଟିସ୍ୟୁ ସୂଚନା ପ୍ରେରଣ କରେ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.3"
+      "source_ref": "ch03 §6.3",
+      "bloom_level": "understand"
     },
     {
       "question_id": "q_ch03_c0009_02",
@@ -264,7 +271,8 @@
       "explanation_or": "ମାଟ୍ରିକ୍ସ ସଂଯୋଜକ ଟିସ୍ୟୁର ଅଂଶ, ନିଉରନର ନୁହେଁ।",
       "difficulty": "medium",
       "misconception_tag": "neuron_vs_matrix",
-      "source_ref": "ch03 §6.3"
+      "source_ref": "ch03 §6.3",
+      "bloom_level": "analyze"
     },
     {
       "question_id": "q_ch03_c0009_03",
@@ -282,7 +290,8 @@
       "explanation_or": "ଅନିଚ୍ଛାଗତ (smooth), ହୃଦବେଶୀ (cardiac), ଐଚ୍ଛିକ (skeletal) — 3 ପ୍ରକାର ମାଂସପେଶୀ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.3"
+      "source_ref": "ch03 §6.3",
+      "bloom_level": "understand"
     },
     {
       "question_id": "q_ch003_c0007_ga1",
@@ -299,7 +308,8 @@
       "explanation_or": "ଟିସ୍ୟୁ (tissue): ସମାନ କାର୍ଯ୍ୟରତ କୋଷମାନଙ୍କ ଗୋଷ୍ଠୀ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.1 (draft: auto-cloze)",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch003_c0007_ga2",
@@ -316,7 +326,8 @@
       "explanation_or": "ଟିସ୍ୟୁ (tissue): ସମାନ କାର୍ଯ୍ୟରତ କୋଷମାନଙ୍କ ଗୋଷ୍ଠୀ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.1 (draft: auto-cloze)",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch003_c0007_ga3",
@@ -333,7 +344,8 @@
       "explanation_or": "ଟିସ୍ୟୁ (tissue): ସମାନ କାର୍ଯ୍ୟରତ କୋଷମାନଙ୍କ ଗୋଷ୍ଠୀ।",
       "difficulty": "hard",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.1 (draft: auto-cloze)",
+      "bloom_level": "understand"
     },
     {
       "question_id": "q_ch003_c0007_ga4",
@@ -350,7 +362,8 @@
       "explanation_or": "ଟିସ୍ୟୁ (tissue): ସମାନ କାର୍ଯ୍ୟରତ କୋଷମାନଙ୍କ ଗୋଷ୍ଠୀ।",
       "difficulty": "hard",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.1 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.1 (draft: auto-cloze)",
+      "bloom_level": "analyze"
     },
     {
       "question_id": "q_ch003_c0008_ga1",
@@ -367,7 +380,8 @@
       "explanation_or": "ଜାଇଲମ (xylem): ପାଣି ଓ ଖଣିଜ ପରିବହନ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.2 (draft: auto-cloze)",
+      "bloom_level": "understand"
     },
     {
       "question_id": "q_ch003_c0008_ga2",
@@ -384,7 +398,8 @@
       "explanation_or": "କୋଲେନକାଇମା (collenchyma): ପେକ୍ଟିନ ମୋଟା କୋଷ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.2 (draft: auto-cloze)",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch003_c0008_ga3",
@@ -401,7 +416,8 @@
       "explanation_or": "ସ୍କ୍ଲେରେନକାଇମା (sclerenchyma): ଲିଗ୍ନିନ ମୃତ କୋଷ।",
       "difficulty": "hard",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.2 (draft: auto-cloze)",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch003_c0008_ga4",
@@ -418,7 +434,8 @@
       "explanation_or": "ଟିସ୍ୟୁ (tissue): ସମାନ କାର୍ଯ୍ୟରତ କୋଷମାନଙ୍କ ଗୋଷ୍ଠୀ।",
       "difficulty": "hard",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.2 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.2 (draft: auto-cloze)",
+      "bloom_level": "understand"
     },
     {
       "question_id": "q_ch003_c0009_ga1",
@@ -435,7 +452,8 @@
       "explanation_or": "ନିଉରନ (neuron): ସ୍ନାୟୁ କୋଷ — କୋଷକାୟ, ଡେଣ୍ଡ୍ରାଇଟ, ଆକ୍ସନ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch03 §6.3 (draft: auto-cloze)"
+      "source_ref": "ch03 §6.3 (draft: auto-cloze)",
+      "bloom_level": "remember"
     }
   ]
 }

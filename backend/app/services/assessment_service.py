@@ -14,8 +14,9 @@ from ..content.pack_loader import PackContentIndex
 from ..domain.assess import evaluate_submission, evaluate_short_answer
 from ..domain.bkt import bkt_update_bp, mastery_band_bp
 from ..domain.ruleset import get_ruleset
+from ..domain.bloom import BloomLevel, parse_bloom_level
 from ..domain.schemas import (
-    AssessmentResult, AssessmentSubmission, EvidenceType, EventType,
+    AssessmentResult, AssessmentSubmission, BloomMasteryRecord, EvidenceType, EventType,
     MasteryRecord, Outcome, new_event_id,
 )
 from ..repositories import EventRepository, MasteryRepository
@@ -37,6 +38,7 @@ class AssessmentService:
         question = self.pack.get_question(sub.question_id)
         if not question:
             raise ValueError(f"unknown question: {sub.question_id}")
+        bloom_lvl = parse_bloom_level(getattr(question, "bloom_level", "remember"))
         if question.qtype == "mcq":
             correct, evidence = evaluate_submission(question, sub)
         else:
@@ -55,6 +57,7 @@ class AssessmentService:
                 "attempt_id": attempt_id,
                 "question_id": question.question_id,
                 "revision": getattr(question, "revision", 1),
+                "bloom_level": bloom_lvl.value,
                 "response": (sub.selected_option if question.qtype == "mcq"
                              else sub.answer_text),
                 "correct": correct,           # server-regraded result
@@ -86,17 +89,46 @@ class AssessmentService:
                 concept_id=question.concept_id, p_bp=p_new, band=band,
                 attempts=attempts, correct=correct_n, last_event_seq=seq,
             )
+
+            existing_bloom = await self.mastery.get_bloom_mastery(learner_id, question.concept_id)
+            bm = next((r for r in existing_bloom if r.bloom_level == bloom_lvl), None)
+            bm_p_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
+            bm_p_new = bkt_update_bp(bm_p_prior, bool(correct), ruleset, question.concept_id)
+            bm_band = mastery_band_bp(bm_p_new, ruleset)
+            bm_attempts = (bm.attempts if bm else 0) + 1
+            bm_correct_n = (bm.correct if bm else 0) + (1 if correct else 0)
+            await self.mastery.upsert_bloom_mastery(
+                learner_id=learner_id, concept_id=question.concept_id,
+                bloom_level=bloom_lvl.value,
+                p_bp=bm_p_new, band=bm_band, attempts=bm_attempts,
+                correct=bm_correct_n, last_event_seq=seq,
+                bkt_version=ruleset.bkt_version,
+            )
+            bm_after = BloomMasteryRecord(
+                concept_id=question.concept_id, bloom_level=bloom_lvl,
+                p_bp=bm_p_new, band=bm_band,
+                attempts=bm_attempts, correct=bm_correct_n, last_event_seq=seq,
+            )
         else:
             existing = await self.mastery.get_mastery(learner_id)
             m_after = next((r for r in existing if r.concept_id == question.concept_id),
                            MasteryRecord(concept_id=question.concept_id,
                                          p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
                                          band="weak", attempts=0, correct=0))
+            existing_bloom = await self.mastery.get_bloom_mastery(learner_id, question.concept_id)
+            bm_after = next((r for r in existing_bloom if r.bloom_level == bloom_lvl),
+                            BloomMasteryRecord(concept_id=question.concept_id,
+                                               bloom_level=bloom_lvl,
+                                               p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
+                                               band="weak", attempts=0, correct=0, last_event_seq=0))
         return AssessmentResult(
             question_id=question.question_id, attempt_id=attempt_id,
             correct=correct, evidence=evidence,
             explanation_or=question.explanation_or,
-            concept_id=question.concept_id, mastery_after=m_after,
+            concept_id=question.concept_id,
+            bloom_level=bloom_lvl,
+            mastery_after=m_after,
+            bloom_mastery_after=bm_after,
             next_decision_id="",  # filled by the route layer after DecisionService
         )
 

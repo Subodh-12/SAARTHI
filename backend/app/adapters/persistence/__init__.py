@@ -160,6 +160,10 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
      "ALTER TABLE questions ADD COLUMN answer_key_hash TEXT NOT NULL DEFAULT ''"),
     ("questions", "status",
      "ALTER TABLE questions ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"),
+    ("questions", "bloom_level",
+     "ALTER TABLE questions ADD COLUMN bloom_level TEXT NOT NULL DEFAULT 'remember'"),
+    ("decisions", "target_bloom_level",
+     "ALTER TABLE decisions ADD COLUMN target_bloom_level TEXT"),
     ("learner_devices", "status",
      "ALTER TABLE learner_devices ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"),
 ]
@@ -193,6 +197,21 @@ async def _migrate_prior_schema(conn) -> None:
         if column not in cols:
             await conn.execute(text(ddl))
             log.info("migrated %s.%s", table, column)
+    if not await _table_exists(conn, "learner_bloom_progress"):
+        await conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS learner_bloom_progress ("
+            "learner_id TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE, "
+            "concept_id TEXT NOT NULL REFERENCES concepts(concept_id) ON DELETE CASCADE, "
+            "bloom_level TEXT NOT NULL, "
+            "p_bp INTEGER NOT NULL DEFAULT 2000, "
+            "bkt_version TEXT NOT NULL DEFAULT '1', "
+            "band TEXT NOT NULL DEFAULT 'weak', "
+            "attempts INTEGER NOT NULL DEFAULT 0, "
+            "correct INTEGER NOT NULL DEFAULT 0, "
+            "last_event_seq INTEGER, "
+            "PRIMARY KEY (learner_id, concept_id, bloom_level))"
+        ))
+        log.info("migrated table learner_bloom_progress")
     # devices.public_key_spki / revoked_at / last_seen_at
     if await _table_exists(conn, "devices"):
         cols = await _columns(conn, "devices")

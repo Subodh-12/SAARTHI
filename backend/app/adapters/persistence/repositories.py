@@ -16,11 +16,12 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...domain.bloom import BloomLevel, parse_bloom_level
 from ...domain.schemas import (
     Action, BackgroundAction, DeliveryMode, Decision, DecisionTrace,
     GenerationRecord, LearnerEvent, LearnerProfile, MasteryRecord,
-    NetworkState, Outcome, PackManifest, PerEventResult, SyncEffect,
-    SyncReason, TraceStep, new_learner_id,
+    BloomMasteryRecord, NetworkState, Outcome, PackManifest, PerEventResult,
+    SyncEffect, SyncReason, TraceStep, new_learner_id,
 )
 from ...repositories.interfaces import (
     DecisionRepository, DeviceRepository, EventRepository,
@@ -44,11 +45,17 @@ _DECISION_COLS = (
     "decision_id, learner_id, ruleset_version, target_concept_id, action, "
     "delivery_mode, background_actions_json, reason_code, reason_or, "
     "needs_help, chapter_id, suggested_question_id, suggested_chunk_id, "
-    "network, source, produced_by, created_at"
+    "network, source, produced_by, created_at, target_bloom_level"
 )
 
 
 def _row_to_decision(row) -> Decision:
+    tbl = None
+    if len(row) > 17 and row[17]:
+        try:
+            tbl = parse_bloom_level(row[17])
+        except Exception:
+            tbl = None
     return Decision(
         decision_id=row[0], learner_id=row[1], ruleset_version=row[2],
         target_concept_id=row[3], action=Action(row[4]),
@@ -59,6 +66,7 @@ def _row_to_decision(row) -> Decision:
         suggested_question_id=row[11], suggested_chunk_id=row[12],
         network=NetworkState(row[13]), source=row[14] or "server",
         produced_by=row[15] or "server_engine", created_at=row[16] or 0,
+        target_bloom_level=tbl,
     )
 
 
@@ -602,6 +610,66 @@ class SqlMasteryRepository(MasteryRepository):
                 )
             await s.commit()
 
+    async def get_bloom_mastery(self, learner_id: str, concept_id: Optional[str] = None) -> list[BloomMasteryRecord]:
+        async with self.p.session() as s:
+            if concept_id:
+                res = await s.execute(
+                    text("SELECT concept_id, bloom_level, p_bp, band, attempts, correct, last_event_seq "
+                         "FROM learner_bloom_progress WHERE learner_id = :lid AND concept_id = :cid"),
+                    {"lid": learner_id, "cid": concept_id},
+                )
+            else:
+                res = await s.execute(
+                    text("SELECT concept_id, bloom_level, p_bp, band, attempts, correct, last_event_seq "
+                         "FROM learner_bloom_progress WHERE learner_id = :lid"),
+                    {"lid": learner_id},
+                )
+            return [BloomMasteryRecord(
+                concept_id=row[0],
+                bloom_level=parse_bloom_level(row[1]),
+                p_bp=int(row[2] if row[2] is not None else 2000),
+                band=row[3] or "weak",
+                attempts=int(row[4] or 0),
+                correct=int(row[5] or 0),
+                last_event_seq=int(row[6] or 0),
+            ) for row in res.fetchall()]
+
+    async def upsert_bloom_mastery(self, learner_id: str, concept_id: str,
+                                   bloom_level: str, p_bp: int, band: str,
+                                   attempts: int, correct: int, last_event_seq: int,
+                                   bkt_version: str = "1") -> None:
+        async with self.p.session() as s:
+            await s.execute(
+                text("INSERT INTO learner_bloom_progress (learner_id, concept_id, bloom_level, "
+                     "p_bp, bkt_version, band, attempts, correct, last_event_seq) "
+                     "VALUES (:lid, :cid, :bl, :p, :bv, :b, :a, :c, :seq) "
+                     "ON CONFLICT(learner_id, concept_id, bloom_level) DO UPDATE SET "
+                     " p_bp = :p, bkt_version = :bv, band = :b, attempts = :a, correct = :c, "
+                     " last_event_seq = :seq"),
+                {"lid": learner_id, "cid": concept_id,
+                 "bl": parse_bloom_level(bloom_level).value,
+                 "p": int(p_bp), "bv": bkt_version, "b": band, "a": attempts, "c": correct,
+                 "seq": last_event_seq},
+            )
+            await s.commit()
+
+    async def replace_bloom_mastery_snapshot(self, learner_id: str,
+                                             snapshot: list[BloomMasteryRecord]) -> None:
+        async with self.p.session() as s:
+            for m in snapshot:
+                await s.execute(
+                    text("INSERT INTO learner_bloom_progress (learner_id, concept_id, bloom_level, "
+                         "p_bp, band, attempts, correct, last_event_seq) "
+                         "VALUES (:lid, :cid, :bl, :p, :b, :a, :c, :seq) "
+                         "ON CONFLICT(learner_id, concept_id, bloom_level) DO UPDATE SET "
+                         " p_bp = :p, band = :b, attempts = :a, correct = :c, "
+                         " last_event_seq = :seq"),
+                    {"lid": learner_id, "cid": m.concept_id, "bl": m.bloom_level.value,
+                     "p": int(m.p_bp), "b": m.band, "a": m.attempts, "c": m.correct,
+                     "seq": int(m.last_event_seq or 0)},
+                )
+            await s.commit()
+
 
 # --------------------------------------------------------------------------- #
 # Decision repository
@@ -611,16 +679,18 @@ class SqlDecisionRepository(DecisionRepository):
         self.p = persistence
 
     async def save_decision(self, decision: Decision) -> None:
+        tbl_val = decision.target_bloom_level.value if decision.target_bloom_level else None
         async with self.p.session() as s:
             await s.execute(
                 text("INSERT INTO decisions (decision_id, learner_id, ruleset_version, "
-                     "target_concept_id, action, delivery_mode, background_actions_json, "
+                     "target_concept_id, target_bloom_level, action, delivery_mode, background_actions_json, "
                      "reason_code, reason_or, needs_help, chapter_id, suggested_question_id, "
                      "suggested_chunk_id, network, source, produced_by, created_at) "
-                     "VALUES (:did, :lid, :rv, :tcid, :a, :dm, :ba, :rc, :ro, :nh, :chid, :sq, :sc, :n, :src, :pb, :ts)"),
+                     "VALUES (:did, :lid, :rv, :tcid, :tbl, :a, :dm, :ba, :rc, :ro, :nh, :chid, :sq, :sc, :n, :src, :pb, :ts)"),
                 {"did": decision.decision_id,
                  "lid": decision.learner_id or "",
                  "rv": decision.ruleset_version, "tcid": decision.target_concept_id,
+                 "tbl": tbl_val,
                  "a": decision.action.value, "dm": decision.delivery_mode.value,
                  "ba": json.dumps([a.value for a in decision.background_actions]),
                  "rc": decision.reason_code, "ro": decision.reason_or,

@@ -16,6 +16,29 @@
     "weak_below_bp": 4000,
     "mastered_at_bp": 8500
   },
+  "bloom": {
+    "taxonomy_version": "1.0.0",
+    "levels": [
+      "remember",
+      "understand",
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+    ],
+    "foundational_levels": [
+      "remember",
+      "understand"
+    ],
+    "higher_order_levels": [
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+    ],
+    "proficient_at_bp": 7000,
+    "mastered_at_bp": 8500
+  },
   "guard": {
     "attempts_without_gain": 3,
     "min_gain_bp": 200

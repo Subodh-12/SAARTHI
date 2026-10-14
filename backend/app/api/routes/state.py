@@ -20,6 +20,7 @@ async def get_learner_state(
     decision_repo = request.app.state.decision_repository
 
     mastery = await mastery_repo.get_mastery(learner_id)
+    bloom_mastery = await mastery_repo.get_bloom_mastery(learner_id)
     installed = await pack_repo.list_installed_packs(device_id)
     recent = await decision_repo.list_recent_decisions(learner_id, limit=1)
     last_decision_id = recent[0].decision_id if recent else None
@@ -31,6 +32,7 @@ async def get_learner_state(
     return LearnerState(
         learner_id=learner_id, device_id=device_id,
         mastery=mastery,
+        bloom_mastery=bloom_mastery,
         active_pack_versions={pid: ver for pid, ver in installed},
         last_decision_id=last_decision_id, outbox_depth=outbox_depth,
     )

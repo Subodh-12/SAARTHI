@@ -50,7 +50,7 @@ async def test_mock_provider_returns_typed_unavailable():
 @pytest.mark.asyncio
 async def test_hf_provider_requires_token_typed_error():
     reset_settings_cache()
-    os.environ.pop("HF_TOKEN", None)
+    os.environ["HF_TOKEN"] = ""
     reset_settings_cache()
     provider = HuggingFaceTranslationProvider()
     result = await provider.translate("weather lesson", "en", "or")

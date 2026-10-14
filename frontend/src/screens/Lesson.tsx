@@ -8,6 +8,7 @@ import {
 import { t } from "../i18n/or";
 import { getInstalledPack } from "../lib/sync";
 import { RULESET } from "../engine/decide";
+import { bloomLabel, bloomDescription, isValidBloomLevel } from "../engine/bloom";
 
 interface Props {
   profile: { learner_id: string; device_id: string; display_label: string };
@@ -84,7 +85,8 @@ export function LessonScreen({ profile, network }: Props) {
       profile.learner_id, profile.device_id, eventId,
       question.concept_id,
       { question_id: question.question_id, chapter_id: question.chapter_id,
-        revision: (question as any).revision ?? 1 },
+        revision: (question as any).revision ?? 1,
+        bloom_level: question.bloom_level },
       correct, attemptId, selected, undefined, 0,
     );
     setSubmitted(true);
@@ -145,7 +147,22 @@ export function LessonScreen({ profile, network }: Props) {
       </div>
 
       <div className="card">
-        <h2 className="font-semibold mb-2 odia">{"ଆପଣଙ୍କ ପ୍ରଶ୍ନ"}</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-semibold odia">{"ଆପଣଙ୍କ ପ୍ରଶ୍ନ"}</h2>
+          {question.bloom_level && isValidBloomLevel(question.bloom_level) && (
+            <span
+              className="text-xs px-2 py-0.5 rounded bg-saarthi-100 text-saarthi-800 font-semibold odia"
+              title={bloomDescription(question.bloom_level, "or")}
+            >
+              🎯 {bloomLabel(question.bloom_level, "or")} ({bloomLabel(question.bloom_level, "en")})
+            </span>
+          )}
+        </div>
+        {question.bloom_level && isValidBloomLevel(question.bloom_level) && (
+          <p className="text-xs text-slate-500 mb-3 odia italic">
+            ଦକ୍ଷତା ଲକ୍ଷ୍ୟ: {bloomDescription(question.bloom_level, "or")}
+          </p>
+        )}
         <p className="odia mb-4">{question.prompt_or}</p>
         <div className="space-y-2">
           {question.options.map((opt, i) => {

@@ -18,7 +18,7 @@ from ..domain.decide import (
 )
 from ..domain.ruleset import get_ruleset
 from ..domain.schemas import (
-    Action, BackgroundAction, Decision, DeliveryMode, EventType,
+    Action, BackgroundAction, BloomLevel, Decision, DeliveryMode, EventType,
     LearnerEvent, MasteryRecord, NetworkState, new_decision_id,
 )
 from ..i18n.reasons_or import REASON_MESSAGES
@@ -49,6 +49,18 @@ class DecisionService:
                                        last_event_seq=m.last_event_seq)
             for m in mastery_records
         }
+        bloom_records = await self.mastery.get_bloom_mastery(learner_id)
+        bloom_dict: dict[str, dict[str, MasteryEntry]] = {}
+        for bm in bloom_records:
+            cid = bm.concept_id
+            bl = bm.bloom_level.value if hasattr(bm.bloom_level, "value") else str(bm.bloom_level)
+            bloom_dict.setdefault(cid, {})[bl] = MasteryEntry(
+                p_bp=bm.p_bp, attempts=bm.attempts, correct=bm.correct,
+                last_event_seq=bm.last_event_seq,
+            )
+        available_bloom: dict[str, list[str]] = {}
+        for cid in self.pack.concept_order:
+            available_bloom[cid] = self.pack.available_bloom_levels_for_concept(cid)
         recent: list[RecentEvent] = []
         for e in (recent_events or [])[-20:]:
             etype = e.event_type.value if hasattr(e.event_type, "value") else str(e.event_type)
@@ -82,6 +94,8 @@ class DecisionService:
             battery_saver=battery_saver,
             outbox_nonempty=outbox_nonempty,
             ruleset_version=ruleset.ruleset_version,
+            bloom_mastery=bloom_dict,
+            available_bloom_levels_for_concept=available_bloom,
         )
 
     async def next_decision(
@@ -113,6 +127,7 @@ class DecisionService:
             learner_id=learner_id,
             ruleset_version=ruleset.ruleset_version,
             target_concept_id=out.target_concept_id,
+            target_bloom_level=BloomLevel(out.target_bloom_level) if out.target_bloom_level else None,
             action=Action(out.action),
             delivery_mode=DeliveryMode(out.delivery_mode),
             background_actions=[BackgroundAction(a) for a in out.background_actions],

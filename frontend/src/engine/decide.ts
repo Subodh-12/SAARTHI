@@ -36,6 +36,7 @@ export interface Ruleset {
   retrieval: any;
   generation: any;
   validation: any;
+  bloom?: any;
 }
 
 export const SCALE = 10000;
@@ -73,6 +74,8 @@ export interface DecisionInput {
   battery_saver?: boolean;
   outbox_nonempty?: boolean;
   ruleset_version: string;
+  bloom_mastery?: Record<string, Record<string, MasteryEntry>>;
+  available_bloom_levels_for_concept?: Record<string, string[]>;
 }
 
 export interface DecisionOutput {
@@ -81,6 +84,7 @@ export interface DecisionOutput {
   delivery_mode: "cached" | "rich" | "prefetch_then_offline";
   background_actions: string[];
   reason_code: string;
+  target_bloom_level?: string | null;
   needs_help: boolean;
   rule_index: number;
   fallback: boolean;
@@ -353,6 +357,113 @@ export function selectBackgroundActions(inp: DecisionInput,
     (a, b) => ["PREFETCH", "SYNC"].indexOf(a) - ["PREFETCH", "SYNC"].indexOf(b));
 }
 
+export const CANONICAL_BLOOM_LEVELS = [
+  "remember", "understand", "apply", "analyze", "evaluate", "create",
+];
+
+export function selectTargetBloomLevel(
+  action: string,
+  targetConceptId: string,
+  reasonCode: string,
+  inp: DecisionInput,
+  ruleset: Ruleset,
+): string | null {
+  if (!targetConceptId) {
+    return null;
+  }
+
+  const bloomCfg = ruleset.bloom || {};
+  const levelsAll: string[] = bloomCfg.levels || CANONICAL_BLOOM_LEVELS;
+  const foundational: string[] = bloomCfg.foundational_levels || ["remember", "understand"];
+  const higherOrder: string[] = bloomCfg.higher_order_levels || ["apply", "analyze", "evaluate", "create"];
+  const proficientAtBp: number = Number(bloomCfg.proficient_at_bp ?? 7000);
+  const masteredAtBp: number = Number(bloomCfg.mastered_at_bp ?? 8500);
+
+  const conceptAvail = (inp.available_bloom_levels_for_concept || {})[targetConceptId];
+  let availLevels: string[];
+  if (conceptAvail && conceptAvail.length > 0) {
+    availLevels = levelsAll.filter((lvl) => conceptAvail.includes(lvl));
+    if (availLevels.length === 0) {
+      availLevels = [...conceptAvail];
+    }
+  } else {
+    availLevels = [...levelsAll];
+  }
+  if (availLevels.length === 0) {
+    availLevels = ["remember"];
+  }
+
+  const conceptBloomM = (inp.bloom_mastery || {})[targetConceptId] || {};
+
+  function getLevelBp(lvl: string): number {
+    if (conceptBloomM[lvl] && typeof conceptBloomM[lvl].p_bp === "number") {
+      return conceptBloomM[lvl].p_bp;
+    }
+    if (lvl === "remember" && inp.mastery[targetConceptId]) {
+      return inp.mastery[targetConceptId].p_bp;
+    }
+    const bktCfg = ruleset.bkt || {};
+    return Number(bktCfg.p_init_bp ?? 2000);
+  }
+
+  let chosen: string;
+  if (action === "ADVANCE") {
+    chosen = availLevels[0];
+  } else if (action === "REMEDIATE") {
+    let cand = availLevels.filter((lvl) => foundational.includes(lvl));
+    if (cand.length === 0) cand = availLevels;
+    const below = cand.filter((lvl) => getLevelBp(lvl) < proficientAtBp);
+    chosen = below.length > 0 ? below[0] : cand[0];
+  } else if (action === "REVISE") {
+    if (reasonCode === "SLICE_COMPLETE") {
+      const hoCand = availLevels.filter((lvl) => higherOrder.includes(lvl));
+      chosen = hoCand.length > 0 ? hoCand[hoCand.length - 1] : availLevels[availLevels.length - 1];
+    } else {
+      const cand = availLevels.filter((lvl) => foundational.includes(lvl));
+      chosen = cand.length > 0 ? cand[0] : availLevels[0];
+    }
+  } else if (action === "RETRY") {
+    let firstUnproficient: string | null = null;
+    for (const lvl of levelsAll) {
+      if (getLevelBp(lvl) < proficientAtBp) {
+        firstUnproficient = lvl;
+        break;
+      }
+    }
+    let desired: string;
+    if (firstUnproficient !== null) {
+      desired = firstUnproficient;
+    } else {
+      let firstUnmastered: string | null = null;
+      for (const lvl of levelsAll) {
+        if (getLevelBp(lvl) < masteredAtBp) {
+          firstUnmastered = lvl;
+          break;
+        }
+      }
+      desired = firstUnmastered !== null ? firstUnmastered : levelsAll[levelsAll.length - 1];
+    }
+
+    if (availLevels.includes(desired)) {
+      chosen = desired;
+    } else {
+      const desiredIdx = levelsAll.indexOf(desired);
+      const lowerAvail = availLevels.filter((lvl) => {
+        const idx = levelsAll.indexOf(lvl);
+        return (idx >= 0 ? idx : 0) <= (desiredIdx >= 0 ? desiredIdx : levelsAll.length - 1);
+      });
+      chosen = lowerAvail.length > 0 ? lowerAvail[lowerAvail.length - 1] : availLevels[availLevels.length - 1];
+    }
+  } else {
+    chosen = availLevels[0];
+  }
+
+  if (!availLevels.includes(chosen)) {
+    chosen = availLevels[0];
+  }
+  return chosen;
+}
+
 // --------------------------------------------------------------------------- //
 // Trajectory check
 // --------------------------------------------------------------------------- //
@@ -371,6 +482,7 @@ export function trajectoryCheck(out: DecisionOutput,
   const sorted = [...out.background_actions].sort(
     (a, b) => ["PREFETCH", "SYNC"].indexOf(a) - ["PREFETCH", "SYNC"].indexOf(b));
   if (out.background_actions.join(",") !== sorted.join(",")) return false;
+  if (out.target_bloom_level && !CANONICAL_BLOOM_LEVELS.includes(out.target_bloom_level)) return false;
   if (inp.ruleset_version !== RULESET.ruleset_version) return false;
   return true;
 }
@@ -415,16 +527,21 @@ function finish(inp: DecisionInput,
       return {
         action: "RETRY", target_concept_id: outTarget,
         delivery_mode: "cached", background_actions: [],
-        reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+        reason_code: "STATE_INVALID_FALLBACK",
+        target_bloom_level: outTarget ? "remember" : null,
+        needs_help: false,
         rule_index: 0, fallback: true,
       };
     }
   }
+  const targetBloom = selectTargetBloomLevel(action, outTarget, reason, inp, RULESET);
   const out: DecisionOutput = {
     action, target_concept_id: outTarget,
     delivery_mode: selectDeliveryMode(inp, outTarget),
     background_actions: selectBackgroundActions(inp, outTarget),
-    reason_code: reason, needs_help: needsHelp,
+    reason_code: reason,
+    target_bloom_level: targetBloom,
+    needs_help: needsHelp,
     rule_index: ruleIndex, fallback,
   };
   if (!trajectoryCheck(out, inp)) {
@@ -435,7 +552,9 @@ function finish(inp: DecisionInput,
     return {
       action: "RETRY", target_concept_id: tgt,
       delivery_mode: "cached", background_actions: [],
-      reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+      reason_code: "STATE_INVALID_FALLBACK",
+      target_bloom_level: tgt ? "remember" : null,
+      needs_help: false,
       rule_index: 0, fallback: true,
     };
   }
@@ -462,14 +581,18 @@ export function decide(inp: DecisionInput): DecisionOutput {
           action: "ADVANCE", target_concept_id: first,
           delivery_mode: selectDeliveryMode(inp, first),
           background_actions: selectBackgroundActions(inp, first),
-          reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+          reason_code: "STATE_INVALID_FALLBACK",
+          target_bloom_level: "remember",
+          needs_help: false,
           rule_index: 0, fallback: true,
         };
       }
       return {
         action: "RETRY", target_concept_id: "",
         delivery_mode: "cached", background_actions: [],
-        reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+        reason_code: "STATE_INVALID_FALLBACK",
+        target_bloom_level: null,
+        needs_help: false,
         rule_index: 0, fallback: true,
       };
     }
@@ -477,7 +600,9 @@ export function decide(inp: DecisionInput): DecisionOutput {
       action: "RETRY", target_concept_id: target,
       delivery_mode: selectDeliveryMode(inp, target),
       background_actions: selectBackgroundActions(inp, target),
-      reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+      reason_code: "STATE_INVALID_FALLBACK",
+      target_bloom_level: "remember",
+      needs_help: false,
       rule_index: 0, fallback: true,
     };
   }

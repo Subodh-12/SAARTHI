@@ -50,6 +50,11 @@ class Ruleset:
     retrieval: dict
     generation: dict
     validation: dict
+    bloom: dict = None  # type: ignore
+
+    def __post_init__(self):
+        if self.bloom is None:
+            self.bloom = self.raw.get("bloom", {})
 
     def is_known(self) -> bool:
         return bool(self.ruleset_version)
@@ -88,6 +93,7 @@ def _from_raw(raw: dict[str, Any]) -> Ruleset:
         retrieval=raw.get("retrieval", {}),
         generation=raw.get("generation", {}),
         validation=raw.get("validation", {}),
+        bloom=raw.get("bloom", {}),
     )
 
 

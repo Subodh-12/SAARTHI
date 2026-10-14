@@ -10,6 +10,7 @@ import abc
 from typing import Optional
 
 from ..domain.schemas import (
+    BloomMasteryRecord,
     Decision,
     DecisionTrace,
     GenerationRecord,
@@ -176,6 +177,30 @@ class MasteryRepository(abc.ABC):
     @abc.abstractmethod
     async def replace_mastery_snapshot(
         self, learner_id: str, snapshot: list[MasteryRecord]
+    ) -> None: ...
+
+    @abc.abstractmethod
+    async def get_bloom_mastery(
+        self, learner_id: str, concept_id: Optional[str] = None
+    ) -> list[BloomMasteryRecord]: ...
+
+    @abc.abstractmethod
+    async def upsert_bloom_mastery(
+        self,
+        learner_id: str,
+        concept_id: str,
+        bloom_level: str,
+        p_bp: int,
+        band: str,
+        attempts: int,
+        correct: int,
+        last_event_seq: int,
+        bkt_version: str = "1",
+    ) -> None: ...
+
+    @abc.abstractmethod
+    async def replace_bloom_mastery_snapshot(
+        self, learner_id: str, snapshot: list[BloomMasteryRecord]
     ) -> None: ...
 
 

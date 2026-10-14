@@ -134,7 +134,8 @@
       "explanation_or": "ବସ୍ତୁ ଆରମ୍ଭ ସ୍ଥାନକୁ ଫେରିଗଲେ ବିସ୍ଥାପନ ଶୂନ୍ୟ।",
       "difficulty": "medium",
       "misconception_tag": "displacement_zero_in_circular",
-      "source_ref": "ch02 §8.2"
+      "source_ref": "ch02 §8.2",
+      "bloom_level": "apply"
     },
     {
       "question_id": "q_ch02_c0004_02",
@@ -151,7 +152,8 @@
       "explanation_or": "ବିସ୍ଥାପନର SI ଏକକ ମିଟର।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.2"
+      "source_ref": "ch02 §8.2",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch02_c0004_03",
@@ -168,7 +170,8 @@
       "explanation_or": "ଦୂରତା ସ୍କାଲାର (କେବଳ ମାନ), ବିସ୍ଥାପନ ଭେକ୍ଟର (ମାନ+ଦିଗ)।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.2"
+      "source_ref": "ch02 §8.2",
+      "bloom_level": "analyze"
     },
     {
       "question_id": "q_ch02_c0005_01",
@@ -185,7 +188,8 @@
       "explanation_or": "ବେଗତାର SI ଏକକ ମିଟର ପ୍ରତି ସେକେଣ୍ଡ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.3"
+      "source_ref": "ch02 §8.3",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch02_c0005_02",
@@ -202,7 +206,8 @@
       "explanation_or": "୧୨୦/୨ = ୬୦ କିମି/ଘଣ୍ଟ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.3"
+      "source_ref": "ch02 §8.3",
+      "bloom_level": "apply"
     },
     {
       "question_id": "q_ch02_c0005_03",
@@ -219,7 +224,8 @@
       "explanation_or": "ବେଗ କେବଳ ମାନ; ବେଗତା ମାନ ଓ ଦିଗ ଉଭୟ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.3"
+      "source_ref": "ch02 §8.3",
+      "bloom_level": "analyze"
     },
     {
       "question_id": "q_ch02_c0006_01",
@@ -236,7 +242,8 @@
       "explanation_or": "ତ୍ୱରଣର SI ଏକକ ମିଟର ପ୍ରତି ସେକେଣ୍ଡ ବର୍ଗ।",
       "difficulty": "easy",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.4"
+      "source_ref": "ch02 §8.4",
+      "bloom_level": "remember"
     },
     {
       "question_id": "q_ch02_c0006_02",
@@ -253,7 +260,8 @@
       "explanation_or": "(୩୦-୧୦)/୫ = ୪ m/s²।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.4"
+      "source_ref": "ch02 §8.4",
+      "bloom_level": "apply"
     },
     {
       "question_id": "q_ch02_c0006_03",
@@ -271,7 +279,8 @@
       "explanation_or": "v = u + at, ଯେଉଁ v ଶେଷ ବେଗତା, u ଆରମ୍ଭ ବେଗତା, a ତ୍ୱରଣ, t ସମୟ।",
       "difficulty": "medium",
       "misconception_tag": null,
-      "source_ref": "ch02 §8.4"
+      "source_ref": "ch02 §8.4",
+      "bloom_level": "understand"
     }
   ]
 }

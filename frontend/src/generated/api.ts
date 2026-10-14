@@ -48,6 +48,15 @@ export enum EvidenceType {
   NONE = "none",
 }
 
+export enum BloomLevel {
+  REMEMBER = "remember",
+  UNDERSTAND = "understand",
+  APPLY = "apply",
+  ANALYZE = "analyze",
+  EVALUATE = "evaluate",
+  CREATE = "create",
+}
+
 // v2 per-event sync outcomes (frozen)
 export enum Outcome {
   ACCEPTED = "ACCEPTED",
@@ -171,6 +180,7 @@ export interface Question {
   question_id: string;
   concept_id: string;
   chapter_id: string;
+  bloom_level?: BloomLevel;
   qtype: "mcq" | "short_answer";
   prompt_or: string;
   options: string[];
@@ -216,6 +226,16 @@ export interface MasteryRecord {
   last_event_seq: number;
 }
 
+export interface BloomMasteryRecord {
+  concept_id: string;
+  bloom_level: BloomLevel;
+  p_bp: number;
+  band: "weak" | "partial" | "mastered";
+  attempts: number;
+  correct: number;
+  last_event_seq: number;
+}
+
 export interface LearnerEvent {
   event_id: string;
   device_id: string;
@@ -248,6 +268,7 @@ export interface SyncRequest {
 export interface SyncResponse {
   results: PerEventResult[];
   mastery: MasteryRecord[];
+  bloom_mastery?: BloomMasteryRecord[];
   decision?: Decision | null;
   decision_status: "computed" | "deferred";
   server_cursor: number;
@@ -256,6 +277,7 @@ export interface SyncResponse {
   accepted: PerEventResult[];
   server_learner_seq: number;
   canonical_mastery: MasteryRecord[];
+  canonical_bloom_mastery?: BloomMasteryRecord[];
   next_decision?: Decision | null;
 }
 
@@ -278,7 +300,9 @@ export interface AssessmentResult {
   evidence: EvidenceType;
   explanation_or: string;
   concept_id: string;
+  bloom_level?: BloomLevel | null;
   mastery_after: MasteryRecord;
+  bloom_mastery_after?: BloomMasteryRecord | null;
   next_decision_id: string;
 }
 
@@ -287,6 +311,7 @@ export interface Decision {
   learner_id?: string | null;
   ruleset_version: string;
   target_concept_id: string;
+  target_bloom_level?: BloomLevel | null;
   action: Action;
   delivery_mode: DeliveryMode;
   background_actions: BackgroundAction[];
@@ -412,6 +437,7 @@ export interface LearnerState {
   learner_id: string;
   device_id: string;
   mastery: MasteryRecord[];
+  bloom_mastery?: BloomMasteryRecord[];
   active_pack_versions: Record<string, number>;
   last_decision_id?: string | null;
   outbox_depth: number;

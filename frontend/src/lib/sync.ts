@@ -114,7 +114,8 @@ export async function trySyncNow(): Promise<SyncResult> {
     // Server-authoritative mastery + rebase of local events created after
     // the upload snapshot (v2 Section 9 step 5).
     const serverMastery = resp.mastery?.length ? resp.mastery : undefined;
-    const applied = await applySyncOutcomes(results, serverMastery);
+    const serverBloomMastery = resp.bloom_mastery?.length ? resp.bloom_mastery : undefined;
+    const applied = await applySyncOutcomes(results, serverMastery, serverBloomMastery as any);
     // Preserve local decisions; store the server decision as a separate
     // record (traceability: source stays distinct, v2 Section 9).
     if (resp.decision) {

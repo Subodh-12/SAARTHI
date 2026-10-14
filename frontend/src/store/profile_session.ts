@@ -62,6 +62,16 @@ export interface MasteryRow {
   last_event_seq: number;
 }
 
+export interface BloomMasteryRow {
+  concept_id: string;
+  bloom_level: string;
+  p_bp: number;
+  band: "weak" | "partial" | "mastered";
+  attempts: number;
+  correct: number;
+  last_event_seq: number;
+}
+
 export type OutboxState = "pending" | "inflight" | "acked" | "quarantined";
 
 export interface OutboxRow {
@@ -287,9 +297,12 @@ export class ProfileSession {
     if (this.profileDb) return this.profileDb;
     const name = `saarthi-profile-${this.learnerId}`;
     try {
-      this.profileDb = await openDatabase(name, 1, (db) => {
+      this.profileDb = await openDatabase(name, 2, (db) => {
         if (!db.objectStoreNames.contains("mastery")) {
           db.createObjectStore("mastery", { keyPath: "concept_id" });
+        }
+        if (!db.objectStoreNames.contains("bloom_mastery")) {
+          db.createObjectStore("bloom_mastery", { keyPath: ["concept_id", "bloom_level"] });
         }
         if (!db.objectStoreNames.contains("outbox")) {
           const os = db.createObjectStore("outbox", { keyPath: "event_id" });
@@ -465,6 +478,7 @@ export class ProfileSession {
     conceptId: string;
     chapterId?: string;
     questionId?: string;
+    bloomLevel?: string;
     correct: boolean;
     attemptId: string;
     revision?: number;
@@ -472,8 +486,9 @@ export class ProfileSession {
     durationMs?: number;
   }): Promise<OutboxRow> {
     const db = await this.openProfileDb();
-    const tx = db.transaction(["mastery", "outbox", "session"], "readwrite");
+    const tx = db.transaction(["mastery", "bloom_mastery", "outbox", "session"], "readwrite");
     const mastery = tx.objectStore("mastery");
+    const bloomMastery = tx.objectStore("bloom_mastery");
     const outbox = tx.objectStore("outbox");
     const session = tx.objectStore("session");
 
@@ -489,10 +504,28 @@ export class ProfileSession {
       correct: (existing?.correct ?? 0) + (args.correct ? 1 : 0),
       last_event_seq: 0, // patched below once the seq is assigned
     };
+
+    const bloomLvl = (args.bloomLevel || "remember").toLowerCase();
+    const existingBloom = await requestToPromise(
+      bloomMastery.get([args.conceptId, bloomLvl]) as IDBRequest<BloomMasteryRow | undefined>);
+    const priorBloomBp = existingBloom?.p_bp ?? (RULESET_BKT.p_init_bp ?? 2000);
+    const newBloomBp = bktUpdateBp(priorBloomBp, args.correct, args.conceptId);
+    const bloomRow: BloomMasteryRow = {
+      concept_id: args.conceptId,
+      bloom_level: bloomLvl,
+      p_bp: newBloomBp,
+      band: masteryBandBp(newBloomBp),
+      attempts: (existingBloom?.attempts ?? 0) + 1,
+      correct: (existingBloom?.correct ?? 0) + (args.correct ? 1 : 0),
+      last_event_seq: 0,
+    };
+
     const seq = this.nextSeqInTx();
     row.last_event_seq = seq;
+    bloomRow.last_event_seq = seq;
     session.put({ id: "seq", value: this._seqCounter });
     mastery.put(row);
+    bloomMastery.put(bloomRow);
 
     const event: OutboxRow = {
       event_id: args.eventId,
@@ -508,6 +541,7 @@ export class ProfileSession {
         attempt_id: args.attemptId,
         question_id: args.questionId,
         revision: args.revision ?? 1,
+        bloom_level: bloomLvl,
         response: args.response ?? null,
         correct_claim: args.correct,  // client claim; the server regrades
         correct: args.correct,
@@ -614,6 +648,14 @@ export class ProfileSession {
     return all;
   }
 
+  async getBloomMasterySnapshot(): Promise<BloomMasteryRow[]> {
+    const db = await this.openProfileDb();
+    const tx = db.transaction("bloom_mastery", "readonly");
+    const all = await requestToPromise(
+      tx.objectStore("bloom_mastery").getAll() as IDBRequest<BloomMasteryRow[]>);
+    return all;
+  }
+
   /**
    * Apply per-event sync outcomes (v2 Section 8):
    *   ACCEPTED / DUPLICATE  → remove from the outbox
@@ -629,10 +671,11 @@ export class ProfileSession {
       reason?: string | null;
     }>;
     serverMastery?: MasteryRow[];
+    serverBloomMastery?: BloomMasteryRow[];
     localEventsAfter?: OutboxRow[]; // rebase: re-apply events created after upload
   }): Promise<{ removed: number; quarantined: number; retried: number }> {
     const db = await this.openProfileDb();
-    const stores = ["outbox", "quarantine", "mastery"] as const;
+    const stores = ["outbox", "quarantine", "mastery", "bloom_mastery"] as const;
     const tx = db.transaction([...stores, "session"], "readwrite");
     const outbox = tx.objectStore("outbox");
     const quarantine = tx.objectStore("quarantine");
@@ -678,6 +721,28 @@ export class ProfileSession {
         const next = bktUpdateBp(prior, !!ev.payload.correct, ev.concept_id);
         mastery.put({
           concept_id: ev.concept_id, p_bp: next,
+          band: masteryBandBp(next),
+          attempts: (cur?.attempts ?? 0) + 1,
+          correct: (cur?.correct ?? 0) + (ev.payload.correct ? 1 : 0),
+          last_event_seq: ev.seq,
+        });
+      }
+    }
+    if (args.serverBloomMastery) {
+      const bloomStore = tx.objectStore("bloom_mastery");
+      bloomStore.clear();
+      for (const bm of args.serverBloomMastery) bloomStore.put(bm);
+      for (const ev of args.localEventsAfter || []) {
+        if (ev.event_type !== "ANSWER_SUBMITTED" || !ev.concept_id) continue;
+        const bl = (ev.payload.bloom_level || "remember").toLowerCase();
+        const cur = await requestToPromise(
+          bloomStore.get([ev.concept_id, bl]) as IDBRequest<BloomMasteryRow | undefined>);
+        const prior = cur?.p_bp ?? (RULESET_BKT.p_init_bp ?? 2000);
+        const next = bktUpdateBp(prior, !!ev.payload.correct, ev.concept_id);
+        bloomStore.put({
+          concept_id: ev.concept_id,
+          bloom_level: bl,
+          p_bp: next,
           band: masteryBandBp(next),
           attempts: (cur?.attempts ?? 0) + 1,
           correct: (cur?.correct ?? 0) + (ev.payload.correct ? 1 : 0),

@@ -46,6 +46,16 @@ const ICON={
 };
 const ic=n=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[n]||''}"/></svg>`;
 
+/* ================= Bloom's Taxonomy info ================= */
+const BLOOM_INFO={
+ remember:{or:'ମନେରଖିବା',en:'Remember',desc:'ତଥ୍ୟ, ସଂଜ୍ଞା ଓ ସୂତ୍ର ମନେପକାଅ'},
+ understand:{or:'ବୁଝିବା',en:'Understand',desc:'ଧାରଣା ବୁଝ ଓ ନିଜ ଭାଷାରେ ବ୍ୟାଖ୍ୟା କର'},
+ apply:{or:'ପ୍ରୟୋଗ',en:'Apply',desc:'ନୂତନ ପରିସ୍ଥିତିରେ ନିୟମ ଓ ସୂତ୍ର ପ୍ରୟୋଗ କର'},
+ analyze:{or:'ବିଶ୍ଳେଷଣ',en:'Analyze',desc:'ଅଂଶଗୁଡ଼ିକ ତୁଳନା କର ଓ ସମ୍ପର୍କ ଚିହ୍ନଟ କର'},
+ evaluate:{or:'ମୂଲ୍ୟାଙ୍କନ',en:'Evaluate',desc:'ପ୍ରମାଣ ଆଧାରରେ ଯୁକ୍ତି ଓ ସିଦ୍ଧାନ୍ତର ବିଚାର କର'},
+ create:{or:'ନିର୍ମାଣ',en:'Create',desc:'ନୂତନ ସମାଧାନ, ମଡେଲ ବା ପରିକଳ୍ପନା ତିଆରି କର'},
+};
+
 /* ================= i18n (English <-> Odia) ================= */
 const LANGS=[{id:'en',label:'English',idx:0},{id:'or',label:'ଓଡ଼ିଆ',idx:1}];
 let LANG='or';
@@ -303,7 +313,7 @@ function bktUpdate(pbp,correct){
 }
 const bandOf=p=>p<RULES.bands.weak_below_bp?'w':p<RULES.bands.mastered_at_bp?'p':'m';
 const newRow=()=>({p_bp:RULES.bkt.p_init_bp,attempts:0,correct:0,cycle_attempts:0,cycle_base_bp:RULES.bkt.p_init_bp,alt_shown:false,last_seen:0});
-const newSt=()=>({mastery:{},last_graded:null,doubt_hint:null,abandoned:0,seen:{}});
+const newSt=()=>({mastery:{},bloom_mastery:{},last_graded:null,doubt_hint:null,abandoned:0,seen:{}});
 function applyEvent(st,ev,regrade){
  const pl=ev.payload||{};
  switch(ev.type){
@@ -316,6 +326,11 @@ function applyEvent(st,ev,regrade){
    const row=st.mastery[q.c]||(st.mastery[q.c]=newRow());
    row.p_bp=bktUpdate(row.p_bp,correct);row.attempts++;if(correct)row.correct++;row.last_seen=ev.seq;row.cycle_attempts++;
    if(row.p_bp-row.cycle_base_bp>=RULES.guard.min_gain_bp){row.cycle_base_bp=row.p_bp;row.cycle_attempts=0;row.alt_shown=false}
+   if(!st.bloom_mastery)st.bloom_mastery={};
+   const bl=(q.bloom_level||q.bl||'remember').toLowerCase();
+   const bk=`${q.c}:${bl}`;
+   const brow=st.bloom_mastery[bk]||(st.bloom_mastery[bk]={concept_id:q.c,bloom_level:bl,p_bp:RULES.bkt.p_init_bp,attempts:0,correct:0});
+   brow.p_bp=bktUpdate(brow.p_bp,correct);brow.attempts++;if(correct)brow.correct++;
    st.last_graded={concept:q.c,correct};
    return{effect:'mastery_updated',reason:null,mismatch:!!regrade&&correct!==!!pl.correct_claim};
   }
@@ -395,7 +410,17 @@ function decideCore(ctx,lap){
  }else if(net==='online'&&env.latest[CMAP[target].pack]>(inst[CMAP[target].pack]||0))delivery='rich';
  if(canPre&&[target,...neighbors(target)].some(id=>!inst[CMAP[id].pack]))bg.add('PREFETCH');
  if((ctx.outbox_len||0)>0&&net!=='offline')bg.add('SYNC');
- const out={action:pl.action,target,delivery,background:[...bg].sort(),reason,needs_help:!!pl.needs_help,rule:pl.rule,alt:!!pl.alt};
+ const proficientBp=(RULES.bloom&&RULES.bloom.proficient_at_bp)||7000;
+ const pVal=P(target);
+ let target_bloom_level='remember';
+ if(pVal<proficientBp){
+  target_bloom_level=pVal<RULES.bands.weak_below_bp?'remember':'understand';
+ }else if(pVal<RULES.bands.mastered_at_bp){
+  target_bloom_level='apply';
+ }else{
+  target_bloom_level='analyze';
+ }
+ const out={action:pl.action,target,target_bloom_level,delivery,background:[...bg].sort(),reason,needs_help:!!pl.needs_help,rule:pl.rule,alt:!!pl.alt};
  lap('delivery',{delivery,background:out.background,substituted:reason==='CONTENT_NOT_AVAILABLE_OFFLINE'});
  return out;
 }
@@ -638,7 +663,7 @@ function ensureDecision(){
 }
 function mapServerDecision(d){
  if(!d)return null;
- return{id:d.decision_id,action:d.action,target:d.target_concept_id,reason:d.reason_code,delivery:d.delivery_mode,
+ return{id:d.decision_id,action:d.action,target:d.target_concept_id,target_bloom_level:d.target_bloom_level||null,reason:d.reason_code,delivery:d.delivery_mode,
   background:d.background_actions||[],source:'server',ts:Date.now(),steps:[],ruleset_version:d.ruleset_version,net:d.network};
 }
 
@@ -698,6 +723,14 @@ function applyServer(resp,batch,trigger){
     cycle_attempts:0,cycle_base_bp:bp,alt_shown:false,last_seen:Number(m.last_event_seq??m.last_updated_event_seq)||0};
   });
   p.mastery=nm;
+ }
+ if(Array.isArray(resp.bloom_mastery)){
+  const nbm={};
+  resp.bloom_mastery.forEach(bm=>{
+   const k=`${bm.concept_id}:${bm.bloom_level}`;
+   nbm[k]={concept_id:bm.concept_id,bloom_level:bm.bloom_level,p_bp:bm.p_bp,band:bm.band,attempts:bm.attempts,correct:bm.correct};
+  });
+  p.bloom_mastery=nbm;
  }
  p.outbox.slice().sort((a,b)=>a.seq-b.seq).forEach(ev=>applyEvent(p,ev,false));
  const serverCursor=Number(resp.server_learner_seq??resp.server_cursor);
@@ -937,9 +970,12 @@ function cmdItems(){
 function heroCard(d){
  const c=CMAP[d.target];
  const goKey=d.action==='RETRY'?'go.practice':'go.learn';
+ const tb=d.target_bloom_level||d.targetBloomLevel;
+ const bi=tb&&BLOOM_INFO[tb];
  return`<section class="leaf" aria-label="${t('home.next')}">
   <div class="kick">${t('home.next')}${d.adopted?` · <span class="tag info">${t('home.pending.upd')}</span>`:''}</div>
   <div class="act">${t('act.'+d.action)}</div><div class="con">${esc(L(c.t))}</div>
+  ${bi?`<div class="wrap" style="margin-top:4px"><span class="tag info" title="${esc(bi.desc)}">🎯 ${LANG==='or'?'ଲକ୍ଷ୍ୟ':'Target'}: ${esc(LANG==='or'?bi.or:bi.en)} (${esc(tb)})</span></div>`:''}
   <p class="why">${reasonOf(d)}</p>
   ${d.needs_help?`<div class="fb bad">${ic('alert')} ${t('home.needhelp')}</div>`:''}
   <div class="wrap"><button class="btn" data-a="follow">${t(goKey)} ${ic('arrow')}</button><span class="tag">${t('deliv.'+d.delivery)}</span><button class="link" data-a="go" data-v="agent">${t('home.why')}</button></div></section>`;
@@ -1063,11 +1099,13 @@ function practiceView(){
   return`<div class="card emp" style="max-width:560px;margin:30px auto"><div class="big">${t('prac.empty')}</div>${t('prac.empty.sub')}<div style="margin-top:16px"><button class="btn" data-a="practice" data-v="${d.target}">${ic('check')}${t('go.practice')} · ${esc(cT(d.target))}</button></div></div>`;
  }
  const q=QB[P.q],c=CMAP[q.c],b=bandOfId(c.id),done=P.sel!==null,ok=done&&P.sel===q.a;
+ const qbl=(q.bloom_level||q.bl||'').toLowerCase();
+ const bi=qbl&&BLOOM_INFO[qbl];
  const fb=done?(ok?`<div class="fb ok" role="status"><b>${t('prac.correct')}</b></div>`:`<div class="fb bad" role="status"><b>${t('prac.wrong')}</b> ${esc(q.f||'')}</div>`):'';
  const nd=P.dec;
  const next=done&&nd?`<div class="leaf" style="margin-top:16px;padding-top:16px;padding-bottom:16px"><div class="kick">${t('prac.next')}</div><div class="act" style="font-size:24px">${t('act.'+nd.action)}</div><div class="con" style="font-size:17px">${esc(cT(nd.target))}</div><p class="why" style="margin:4px 0 12px">${reasonOf(nd)}</p><div class="wrap"><button class="btn" data-a="pnext">${t('prac.cont')} ${ic('arrow')}</button><button class="btn ghost" data-a="pstop">${t('prac.stop')}</button></div></div>`:'';
  return`<div class="cols"><div class="stack"><div class="card">
-  <div class="wrap" style="justify-content:space-between"><span class="tag">${esc(L(c.t))}</span><span class="mut sm">${t('prac.q',{n:N(P.n)})}</span></div>
+  <div class="wrap" style="justify-content:space-between"><span class="tag">${esc(L(c.t))}</span>${bi?`<span class="tag info" title="${esc(bi.desc)}">🎯 ${esc(LANG==='or'?bi.or:bi.en)}</span>`:''}<span class="mut sm">${t('prac.q',{n:N(P.n)})}</span></div>
   <p class="q" style="margin:14px 0 6px">${esc(q.s)}</p>
   <div role="group" aria-label="${esc(q.s)}">${q.o.map((o,i)=>`<button class="opt ${done?(i===q.a?'ok':i===P.sel?'bad':''):''}" data-a="ans" data-v="${i}" ${done?'disabled':''}><span class="l">${'ABCD'[i]}</span><span>${esc(o)}</span></button>`).join('')}</div>
   ${fb}${done?`<p class="mut sm">${ic('check')} ${t('prac.saved')}${S.p.outbox.length?' · '+tn('sync.pending',{n:S.p.outbox.length}):''}</p>`:`<button class="btn ghost sm" data-a="skip">${t('prac.skip')}</button>`}
@@ -1075,6 +1113,7 @@ function practiceView(){
   <div class="stack"><div class="card"><h3>${ic('agent')}${t('prac.why')}</h3>
    <div class="li"><span class="tx"><span class="mut sm">${t('prac.concept')}</span><br><b>${esc(L(c.t))}</b></span></div>
    <div class="li"><span class="tx"><span class="mut sm">${t('prac.level')}</span><br>${dotsLvl(q.d)}</span></div>
+   ${bi?`<div class="li"><span class="tx"><span class="mut sm">${LANG==='or'?'ଜ୍ଞାନାତ୍ମକ ସ୍ତର (Bloom)':'Cognitive Objective'}</span><br><b>🎯 ${esc(LANG==='or'?bi.or:bi.en)}</b><br><span class="mut sm">${esc(bi.desc)}</span></span></div>`:''}
    ${P.why?`<div class="li"><span class="tx"><span class="mut sm">${t('home.why')}</span><br>${t('reason.'+P.why)}</span></div>`:''}
    <div class="li"><span class="tx"><span class="mut sm">${t('prac.mastery')}</span>${barH(pctOf(c.id),b)}${tagB(b)}</span></div></div>
    <div class="card"><h3>${t('prac.session')}</h3><div class="dots">${P.log.map(x=>`<i class="${x?'on':'x'}"></i>`).join('')||'<span class="mut">—</span>'}</div></div></div></div>`;

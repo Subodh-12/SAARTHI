@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, SaarthiApiError } from "../api/client";
 import {
-  listRecentDecisions, LocalDecision, getMasterySnapshot, recordDecision,
+  listRecentDecisions, LocalDecision, getMasterySnapshot, getBloomMasterySnapshot,
+  LocalBloomMastery, recordDecision,
 } from "../store/db";
 import { decide, RULESET } from "../engine/decide";
 import {
@@ -9,6 +10,7 @@ import {
 } from "../generated/api";
 import { t } from "../i18n/or";
 import { getInstalledPack } from "../lib/sync";
+import { bloomLabel, bloomDescription, isValidBloomLevel, BloomLevel } from "../engine/bloom";
 
 interface Props {
   profile: { learner_id: string; device_id: string; display_label: string };
@@ -22,6 +24,7 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mastery, setMastery] = useState<MasteryRecord[]>([]);
+  const [bloomMastery, setBloomMastery] = useState<LocalBloomMastery[]>([]);
   const [recentDecisions, setRecentDecisions] = useState<LocalDecision[]>([]);
 
   useEffect(() => {
@@ -99,6 +102,7 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
         await recordDecision({ ...d, trace_json: "[]" } as any);
       }
       setMastery((await getMasterySnapshot()) as any);
+      setBloomMastery(await getBloomMasterySnapshot());
       setRecentDecisions(await listRecentDecisions(5));
     } catch (e: any) {
       setError(e instanceof SaarthiApiError ? e.message : (e.message || String(e)));
@@ -130,8 +134,16 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
           <ActionBadge action={decision.action} />
           <span className="ml-2 odia">{decision.reason_or}</span>
         </div>
-        <div className="text-xs text-slate-600 odia">
-          {t("nav_lesson")}: {decision.chapter_id} · {decision.target_concept_id}
+        <div className="text-xs text-slate-600 odia flex items-center flex-wrap gap-1">
+          <span>{t("nav_lesson")}: {decision.chapter_id} · {decision.target_concept_id}</span>
+          {decision.target_bloom_level && isValidBloomLevel(decision.target_bloom_level) && (
+            <span
+              className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs bg-indigo-100 text-indigo-800 font-semibold"
+              title={bloomDescription(decision.target_bloom_level as BloomLevel, "or")}
+            >
+              🎯 ଲକ୍ଷ୍ୟ: {bloomLabel(decision.target_bloom_level as BloomLevel, "or")} ({bloomLabel(decision.target_bloom_level as BloomLevel, "en")})
+            </span>
+          )}
         </div>
         <div className="text-xs text-slate-500 mt-1 odia">
           ({decision.produced_by === "local_engine" ? "ସ୍ଥାନୀୟ" : "ସର୍ଭର"} ନିଷ୍ପତ୍ତି)
@@ -152,14 +164,42 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
         {mastery.length === 0 ? (
           <p className="text-sm text-slate-500 odia">{t("empty")}</p>
         ) : (
-          <ul className="text-sm space-y-1">
-            {mastery.map((m) => (
-              <li key={m.concept_id} className="flex justify-between">
-                <span>{m.concept_id}</span>
-                <span>{m.band} · {Math.round(m.p_bp / 100)}%</span>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            {mastery.map((m) => {
+              const bms = bloomMastery.filter((bm) => bm.concept_id === m.concept_id);
+              return (
+                <div key={m.concept_id} className="border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
+                  <div className="flex justify-between text-sm font-medium">
+                    <span>{m.concept_id}</span>
+                    <span>{m.band} · {Math.round(m.p_bp / 100)}%</span>
+                  </div>
+                  {bms.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {bms.map((bm) => {
+                        const lvl = bm.bloom_level as BloomLevel;
+                        const valid = isValidBloomLevel(lvl);
+                        return (
+                          <span
+                            key={bm.bloom_level}
+                            className={`text-xs px-1.5 py-0.5 rounded font-mono ${
+                              bm.band === "mastered"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : bm.band === "partial"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                            title={valid ? bloomDescription(lvl, "or") : undefined}
+                          >
+                            {valid ? bloomLabel(lvl, "or") : bm.bloom_level}: {Math.round(bm.p_bp / 100)}%
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 

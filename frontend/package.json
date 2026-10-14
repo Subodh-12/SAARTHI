@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint src tests --ext .ts,.tsx",
     "preview": "vite preview",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {

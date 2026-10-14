@@ -54,6 +54,7 @@ describe("atomic graded-answer writes", () => {
       deviceId, eventId: "evt_atomic0000000001",
       conceptId: "c0001", correct: true,
       attemptId: "att-1", questionId: "q_ch01_c0001_01",
+      bloomLevel: "apply",
     });
     // First correct answer: 2000 → 6000 bp (Appendix A).
     const mastery = await s.getMasterySnapshot();
@@ -61,10 +62,39 @@ describe("atomic graded-answer writes", () => {
     expect(mastery[0].p_bp).toBe(6000);
     expect(mastery[0].band).toBe("partial");
     expect(mastery[0].last_event_seq).toBe(ev.seq);
+
+    // Bloom mastery is tracked alongside concept mastery in the same transaction
+    const bloom = await s.getBloomMasterySnapshot();
+    expect(bloom).toHaveLength(1);
+    expect(bloom[0].concept_id).toBe("c0001");
+    expect(bloom[0].bloom_level).toBe("apply");
+    expect(bloom[0].p_bp).toBe(6000);
+    expect(bloom[0].band).toBe("partial");
+    expect(bloom[0].attempts).toBe(1);
+    expect(bloom[0].correct).toBe(1);
+    expect(bloom[0].last_event_seq).toBe(ev.seq);
+
+    // Another answer on a different cognitive level for the same concept
+    const ev2 = await s.recordGradedAnswer({
+      deviceId, eventId: "evt_atomic0000000002",
+      conceptId: "c0001", correct: false,
+      attemptId: "att-2", questionId: "q_ch01_c0001_02",
+      bloomLevel: "remember",
+    });
+    const bloom2 = await s.getBloomMasterySnapshot();
+    expect(bloom2).toHaveLength(2);
+    const applyRow = bloom2.find((r) => r.bloom_level === "apply");
+    const remRow = bloom2.find((r) => r.bloom_level === "remember");
+    expect(applyRow?.p_bp).toBe(6000);
+    expect(remRow?.p_bp).toBe(1758); // 2000 incorrect -> 1758
+    expect(remRow?.attempts).toBe(1);
+    expect(remRow?.correct).toBe(0);
+
     const pending = await s.listPendingOutbox();
-    expect(pending).toHaveLength(1);
+    expect(pending).toHaveLength(2);
     expect(pending[0].event_type).toBe("ANSWER_SUBMITTED");
     expect(pending[0].payload.attempt_id).toBe("att-1");
+    expect(pending[0].payload.bloom_level).toBe("apply");
     expect(pending[0].outbox_state).toBe("pending");
   });
 
@@ -116,6 +146,7 @@ describe("atomic graded-answer writes", () => {
     // No partial event, no partial mastery, seq counter not leaked.
     const s2 = await ProfileSession.open(learnerId);
     expect(await s2.getMasterySnapshot()).toHaveLength(0);
+    expect(await s2.getBloomMasterySnapshot()).toHaveLength(0);
     expect(await s2.listPendingOutbox()).toHaveLength(0);
     const next = await s2.recordGradedAnswer({
       deviceId, eventId: "evt_failtest000000002", conceptId: "c0001",
@@ -146,6 +177,7 @@ describe("shared-device profile isolation", () => {
     const ravi = await ProfileSession.open("lrn_ravi00000000001");
     // Ravi starts empty: Sunita's progress is in a DIFFERENT database.
     expect(await ravi.getMasterySnapshot()).toHaveLength(0);
+    expect(await ravi.getBloomMasterySnapshot()).toHaveLength(0);
     expect(await ravi.listPendingOutbox()).toHaveLength(0);
     expect(await ravi.listRecentDecisions()).toHaveLength(0);
     expect(await ravi.listQuarantine()).toHaveLength(0);
@@ -153,8 +185,10 @@ describe("shared-device profile isolation", () => {
     const ev = await ravi.recordGradedAnswer({
       deviceId: d, eventId: "evt_ravi000000000001",
       conceptId: "c0001", correct: false, attemptId: "att-r1",
+      bloomLevel: "remember",
     });
     expect(ev.seq).toBe(1);
+    expect(await ravi.getBloomMasterySnapshot()).toHaveLength(1);
     // And his write does not affect Sunita's store.
     await ravi.close();
     const sunita2 = await ProfileSession.open("lrn_sunita000000001");
@@ -162,6 +196,10 @@ describe("shared-device profile isolation", () => {
     expect(m).toHaveLength(1);
     expect(m[0].attempts).toBe(1);
     expect(m[0].correct).toBe(1);
+    const bm = await sunita2.getBloomMasterySnapshot();
+    expect(bm).toHaveLength(1);
+    expect(bm[0].attempts).toBe(1);
+    expect(bm[0].correct).toBe(1);
   });
 
   it("profile switch while offline keeps each outbox separate", async () => {
@@ -250,6 +288,10 @@ describe("sync outcome application (v2 Section 8)", () => {
         { concept_id: "c0001", p_bp: 5000, band: "partial",
           attempts: 1, correct: 1, last_event_seq: 1 },
       ],
+      serverBloomMastery: [
+        { concept_id: "c0001", bloom_level: "remember", p_bp: 5000, band: "partial",
+          attempts: 1, correct: 1, last_event_seq: 1 },
+      ],
       localEventsAfter: [e2, e3],
     });
     const m = await s.getMasterySnapshot();
@@ -258,6 +300,12 @@ describe("sync outcome application (v2 Section 8)", () => {
     // Server attempts (1) + two re-applied correct answers.
     expect(m[0].attempts).toBe(3);
     expect(m[0].correct).toBe(3);
+
+    const bm = await s.getBloomMasterySnapshot();
+    expect(bm).toHaveLength(1);
+    expect(bm[0].p_bp).toBeGreaterThan(5000);
+    expect(bm[0].attempts).toBe(3);
+    expect(bm[0].correct).toBe(3);
   });
 
   it("missing outcomes leave events untouched (lost response stays queued)", async () => {

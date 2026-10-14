@@ -69,6 +69,8 @@ class DecisionInput:
     battery_saver: bool = False
     outbox_nonempty: bool = False
     ruleset_version: str = "1.0.0"
+    bloom_mastery: dict[str, dict[str, MasteryEntry]] = field(default_factory=dict)
+    available_bloom_levels_for_concept: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -78,6 +80,7 @@ class DecisionOutput:
     delivery_mode: str                       # cached | rich | prefetch_then_offline
     background_actions: list[str]            # sorted subset of {SYNC, PREFETCH}
     reason_code: str
+    target_bloom_level: Optional[str] = None
     needs_help: bool = False
     rule_index: int = -1
     fallback: bool = False
@@ -335,6 +338,104 @@ def select_background_actions(inp: DecisionInput, ruleset: Ruleset,
     return sorted(set(actions), key=lambda a: ["PREFETCH", "SYNC"].index(a))
 
 
+CANONICAL_BLOOM_LEVELS = [
+    "remember", "understand", "apply", "analyze", "evaluate", "create",
+]
+
+
+def select_target_bloom_level(
+    action: str,
+    target_concept_id: str,
+    reason_code: str,
+    inp: DecisionInput,
+    ruleset: Ruleset,
+) -> Optional[str]:
+    """Select the target Bloom's Taxonomy cognitive level deterministically."""
+    if not target_concept_id:
+        return None
+
+    bloom_cfg = getattr(ruleset, "bloom", None) or {}
+    levels_all = bloom_cfg.get("levels") or CANONICAL_BLOOM_LEVELS
+    foundational = bloom_cfg.get("foundational_levels") or ["remember", "understand"]
+    higher_order = bloom_cfg.get("higher_order_levels") or ["apply", "analyze", "evaluate", "create"]
+    proficient_at_bp = int(bloom_cfg.get("proficient_at_bp", 7000))
+    mastered_at_bp = int(bloom_cfg.get("mastered_at_bp", 8500))
+
+    concept_avail = (inp.available_bloom_levels_for_concept or {}).get(target_concept_id)
+    if concept_avail:
+        avail_levels = [lvl for lvl in levels_all if lvl in concept_avail]
+        if not avail_levels:
+            avail_levels = list(concept_avail)
+    else:
+        avail_levels = list(levels_all)
+
+    if not avail_levels:
+        avail_levels = ["remember"]
+
+    concept_bloom_m = (inp.bloom_mastery or {}).get(target_concept_id, {})
+
+    def get_level_bp(lvl: str) -> int:
+        if lvl in concept_bloom_m:
+            return concept_bloom_m[lvl].p_bp
+        if lvl == "remember" and target_concept_id in inp.mastery:
+            return inp.mastery[target_concept_id].p_bp
+        bkt_cfg = getattr(ruleset, "bkt", None) or {}
+        return int(bkt_cfg.get("p_init_bp", 2000))
+
+    chosen: str
+    if action == "ADVANCE":
+        chosen = avail_levels[0]
+
+    elif action == "REMEDIATE":
+        cand = [lvl for lvl in avail_levels if lvl in foundational]
+        if not cand:
+            cand = avail_levels
+        below = [lvl for lvl in cand if get_level_bp(lvl) < proficient_at_bp]
+        chosen = below[0] if below else cand[0]
+
+    elif action == "REVISE":
+        if reason_code == "SLICE_COMPLETE":
+            ho_cand = [lvl for lvl in avail_levels if lvl in higher_order]
+            chosen = ho_cand[-1] if ho_cand else avail_levels[-1]
+        else:
+            cand = [lvl for lvl in avail_levels if lvl in foundational]
+            chosen = cand[0] if cand else avail_levels[0]
+
+    elif action == "RETRY":
+        first_unproficient: Optional[str] = None
+        for lvl in levels_all:
+            if get_level_bp(lvl) < proficient_at_bp:
+                first_unproficient = lvl
+                break
+
+        if first_unproficient is not None:
+            desired = first_unproficient
+        else:
+            first_unmastered: Optional[str] = None
+            for lvl in levels_all:
+                if get_level_bp(lvl) < mastered_at_bp:
+                    first_unmastered = lvl
+                    break
+            desired = first_unmastered or levels_all[-1]
+
+        if desired in avail_levels:
+            chosen = desired
+        else:
+            desired_idx = levels_all.index(desired) if desired in levels_all else len(levels_all) - 1
+            lower_avail = [
+                lvl for lvl in avail_levels
+                if (levels_all.index(lvl) if lvl in levels_all else 0) <= desired_idx
+            ]
+            chosen = lower_avail[-1] if lower_avail else avail_levels[-1]
+
+    else:
+        chosen = avail_levels[0]
+
+    if chosen not in avail_levels:
+        chosen = avail_levels[0]
+    return chosen
+
+
 # --------------------------------------------------------------------------- #
 # Trajectory check (v2 Section 6: validated before save/display)
 # --------------------------------------------------------------------------- #
@@ -359,6 +460,8 @@ def trajectory_check(out: DecisionOutput, inp: DecisionInput,
         return False
     if out.background_actions != sorted(
             out.background_actions, key=lambda a: ["PREFETCH", "SYNC"].index(a)):
+        return False
+    if out.target_bloom_level is not None and out.target_bloom_level not in CANONICAL_BLOOM_LEVELS:
         return False
     if inp.ruleset_version != ruleset.ruleset_version:
         return False
@@ -388,7 +491,9 @@ def decide(inp: DecisionInput, ruleset: Ruleset,
                     action="ADVANCE", target_concept_id=first,
                     delivery_mode=select_delivery_mode(inp, ruleset, first),
                     background_actions=select_background_actions(inp, ruleset, first),
-                    reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+                    reason_code="STATE_INVALID_FALLBACK",
+                    target_bloom_level="remember",
+                    needs_help=False,
                     rule_index=0, fallback=True,
                 )
                 return out
@@ -396,14 +501,18 @@ def decide(inp: DecisionInput, ruleset: Ruleset,
             return DecisionOutput(
                 action="RETRY", target_concept_id="",
                 delivery_mode="cached", background_actions=[],
-                reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+                reason_code="STATE_INVALID_FALLBACK",
+                target_bloom_level=None,
+                needs_help=False,
                 rule_index=0, fallback=True,
             )
         return DecisionOutput(
             action="RETRY", target_concept_id=target,
             delivery_mode=select_delivery_mode(inp, ruleset, target),
             background_actions=select_background_actions(inp, ruleset, target),
-            reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+            reason_code="STATE_INVALID_FALLBACK",
+            target_bloom_level="remember",
+            needs_help=False,
             rule_index=0, fallback=True,
         )
 
@@ -532,14 +641,19 @@ def _finish(inp: DecisionInput, ruleset: Ruleset, rm: dict[str, str],
             return DecisionOutput(
                 action="RETRY", target_concept_id=out_target,
                 delivery_mode="cached", background_actions=[],
-                reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+                reason_code="STATE_INVALID_FALLBACK",
+                target_bloom_level="remember" if out_target else None,
+                needs_help=False,
                 rule_index=0, fallback=True,
             )
+    target_bloom = select_target_bloom_level(action, out_target, reason, inp, ruleset)
     out = DecisionOutput(
         action=action, target_concept_id=out_target,
         delivery_mode=select_delivery_mode(inp, ruleset, out_target),
         background_actions=select_background_actions(inp, ruleset, out_target),
-        reason_code=reason, needs_help=needs_help,
+        reason_code=reason,
+        target_bloom_level=target_bloom,
+        needs_help=needs_help,
         rule_index=rule_index, fallback=fallback,
     )
     if not trajectory_check(out, inp, ruleset):
@@ -555,7 +669,9 @@ def _finish(inp: DecisionInput, ruleset: Ruleset, rm: dict[str, str],
             target_concept_id=tgt,
             delivery_mode="cached",
             background_actions=[],
-            reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+            reason_code="STATE_INVALID_FALLBACK",
+            target_bloom_level="remember" if tgt else None,
+            needs_help=False,
             rule_index=0, fallback=True,
         )
     return out
@@ -566,4 +682,5 @@ __all__ = [
     "decide", "engine_error", "state_is_valid", "trajectory_check",
     "select_delivery_mode", "select_background_actions",
     "guard_state", "mastery_band_bp",
+    "CANONICAL_BLOOM_LEVELS", "select_target_bloom_level",
 ]

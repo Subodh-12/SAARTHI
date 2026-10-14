@@ -23,6 +23,16 @@ function toInput(v: any): DecisionInput {
       last_event_seq: m.last_event_seq ?? 0,
     };
   }
+  const bloomMastery: Record<string, Record<string, MasteryEntry>> = {};
+  for (const [cid, levels] of Object.entries<any>(inp.bloom_mastery || {})) {
+    bloomMastery[cid] = {};
+    for (const [lvl, m] of Object.entries<any>(levels || {})) {
+      bloomMastery[cid][lvl] = {
+        p_bp: m.p_bp, attempts: m.attempts ?? 0, correct: m.correct ?? 0,
+        last_event_seq: m.last_event_seq ?? 0,
+      };
+    }
+  }
   return {
     trigger_event_type: inp.trigger_event_type,
     trigger_concept_id: inp.trigger_concept_id ?? null,
@@ -44,6 +54,8 @@ function toInput(v: any): DecisionInput {
     battery_saver: !!inp.battery_saver,
     outbox_nonempty: !!inp.outbox_nonempty,
     ruleset_version: inp.ruleset_version,
+    bloom_mastery: bloomMastery,
+    available_bloom_levels_for_concept: inp.available_bloom_levels_for_concept || {},
   };
 }
 
@@ -63,6 +75,7 @@ describe("golden vectors (hand-labelled, v2 Section 6)", () => {
       expect(out.action).toBe(expected.action);
       expect(out.target_concept_id).toBe(expected.target_concept_id);
       expect(out.reason_code).toBe(expected.reason_code);
+      expect(out.target_bloom_level).toBe(expected.target_bloom_level);
       expect(out.needs_help).toBe(expected.needs_help);
       expect(out.delivery_mode).toBe(expected.delivery_mode);
       expect(out.background_actions).toEqual(expected.background_actions);
@@ -95,6 +108,7 @@ describe("fuzz vectors (engine parity snapshots)", () => {
       expect(out.delivery_mode).toBe(expected.delivery_mode);
       expect(out.background_actions).toEqual(expected.background_actions);
       expect(out.reason_code).toBe(expected.reason_code);
+      expect(out.target_bloom_level).toBe(expected.target_bloom_level);
       expect(out.needs_help).toBe(expected.needs_help);
     },
   );

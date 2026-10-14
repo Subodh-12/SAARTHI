@@ -15,8 +15,7 @@ Run:  python scripts/gen_questions.py
 Idempotent: replaces previously generated items (same id prefix) in place.
 """
 
-from __future__ import annotations
-
+import argparse
 import json
 import random
 import re
@@ -25,6 +24,10 @@ import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "backend"))
+
+from app.domain.bloom import BloomLevel, is_valid_bloom_level
+
 CURR = ROOT / "curriculum"
 GEN_PREFIX = "ga"  # generated-answer cloze question ids: q_<ch>_<cid>_ga<d>
 PER_DIFFICULTY = 3  # generated per difficulty band; 3 existing + 9 new = 12/concept
@@ -49,7 +52,29 @@ def blank_sentence(sentence: str, term: str) -> tuple[str, str] | None:
     return sentence.replace(term, "____", 1), term
 
 
+def classify_cloze_bloom(prompt: str, term: dict) -> str:
+    """Classify cloze question cognitive level based on prompt semantics and pedagogical objective.
+
+    Recall of terminology/units/definitions -> remember.
+    Conceptual explanation/cause-and-effect/principles -> understand.
+    """
+    relational_markers = [
+        "କାରଣ", "ଯେହେତୁ", "ଫଳରେ", "ନିୟମ", "ଅନୁସାରେ", "ପ୍ରକାର", "ଉଦାହରଣ",
+        "ପରିବର୍ତ୍ତନ", "ପ୍ରଭାବ", "ଅର୍ଥାତ୍", "ବୋଲି କୁହାଯାଏ",
+    ]
+    if any(marker in prompt for marker in relational_markers):
+        return BloomLevel.UNDERSTAND.value
+    return BloomLevel.REMEMBER.value
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate Bloom-tagged MCQ question bank.")
+    parser.add_argument("--target-bloom", choices=["remember", "understand", "all"],
+                        default="all", help="Target specific Bloom level (default: all)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Validate generation without writing manifest files")
+    args = parser.parse_args()
+
     rng = random.Random(7)
     gloss = norm(json.dumps([], ensure_ascii=False))  # placeholder to keep flake quiet
     glossary = json.loads((CURR / "glossary.json").read_text(encoding="utf-8"))[
@@ -152,6 +177,12 @@ def main() -> int:
                         continue
                     options = [f"____ — {term['def']}"] + distractors
                     rng.shuffle(options)
+                    bl_level = classify_cloze_bloom(prompt, term)
+                    if args.target_bloom != "all" and bl_level != args.target_bloom:
+                        continue
+                    if not is_valid_bloom_level(bl_level):
+                        raise ValueError(f"invalid generated bloom level: {bl_level}")
+
                     qid = f"q_{chapter_id}_{cid}_{GEN_PREFIX}{seq}"
                     if qid in existing_ids:
                         continue
@@ -160,6 +191,7 @@ def main() -> int:
                         {
                             "question_id": qid,
                             "concept_id": cid,
+                            "bloom_level": bl_level,
                             "qtype": "mcq",
                             "prompt_or": f"ଖାଲି ଜାଗା ପୂରଣ କର: {prompt}",
                             "options": options,
@@ -175,7 +207,8 @@ def main() -> int:
                     total_new += 1
 
         m["questions"] = kept + new_qs
-        mpath.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+        if not args.dry_run:
+            mpath.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
         print(
             f"{chapter_id}: kept {len(kept)}, generated {len(new_qs)} → {len(m['questions'])} questions"
         )
