@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "./api/client";
 import {
-  getActiveProfile, db, listRecentDecisions, OutboxEvent,
-  setActiveProfile,
+  getActiveProfile, LocalProfile,
+  saveProfile, listPendingOutbox, ensureSession,
 } from "./store/db";
 import { networkMonitor } from "./lib/network";
-import { startSyncLoop, trySyncNow } from "./lib/sync";
-import { decide, RULESET } from "./engine/decide";
+import { startSyncLoop } from "./lib/sync";
 import {
-  Action, BackgroundAction, DeliveryMode, NetworkState,
+  NetworkState,
 } from "./generated/api";
-import { OR, t } from "./i18n/or";
+import { t } from "./i18n/or";
 import { OnboardingScreen } from "./screens/Onboarding";
 import { HomeScreen } from "./screens/Home";
 import { LessonScreen } from "./screens/Lesson";
@@ -34,11 +33,12 @@ export default function App() {
     (async () => {
       const active = await getActiveProfile();
       if (active) {
+        await ensureSession(active);
         setProfile({
           learner_id: active.learner_id, device_id: active.device_id,
           device_token: active.device_token, display_label: active.display_label,
         });
-        api.setAuth(active.device_token, active.device_id);
+        api.setAuth(active.device_token, active.device_id, active.refresh_token);
       }
       setReady(true);
     })();
@@ -51,10 +51,7 @@ export default function App() {
   useEffect(() => {
     if (!profile) return;
     const tick = async () => {
-      const pending = await db.outbox
-        .where({ device_id: profile.device_id, learner_id: profile.learner_id,
-                 outbox_state: "pending" as any })
-        .count();
+      const pending = (await listPendingOutbox(100000)).length;
       setOutboxDepth(pending);
     };
     tick();
@@ -75,18 +72,23 @@ export default function App() {
       <OnboardingScreen
         onCreated={async (p) => {
           const display_label = (p as any).display_label || "Student";
-          await db.profiles.put({
-            learner_id: p.learner_id, device_id: p.device_id,
-            device_token: p.device_token, token_expires_at: p.token_expires_at,
+          const local: LocalProfile = {
+            learner_id: p.learner_id!,
+            device_id: p.device_id,
+            device_token: p.device_token,
+            refresh_token: p.refresh_token ?? undefined,
+            token_expires_at: p.token_expires_at,
             display_label,
             created_at: Date.now(), active: true,
-          });
-          // Clear other active flags (multi-profile support)
-          await setActiveProfile(p.learner_id);
-          api.setAuth(p.device_token, p.device_id);
+          };
+          // Persist the profile registry entry + device token (shared DB),
+          // then open THIS profile's database (one open at a time).
+          await saveProfile(local);
+          await ensureSession(local);
+          api.setAuth(local.device_token, local.device_id, local.refresh_token);
           setProfile({
-            learner_id: p.learner_id, device_id: p.device_id,
-            device_token: p.device_token, display_label,
+            learner_id: local.learner_id, device_id: local.device_id,
+            device_token: local.device_token, display_label,
           });
         }}
       />
@@ -125,7 +127,7 @@ export default function App() {
           <PacksScreen />
         )}
         {tab === "dev" && (
-          <DevTraceScreen profile={profile} />
+          <DevTraceScreen />
         )}
       </section>
       <nav className="bg-white border-t border-slate-200 grid grid-cols-5 text-xs text-slate-700">

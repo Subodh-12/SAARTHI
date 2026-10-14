@@ -4,6 +4,7 @@ OpenAPI is generated from these models by FastAPI automatically. The
 TypeScript contracts in `frontend/src/generated/api.ts` are produced from
 the OpenAPI schema by `scripts/gen_types.py`.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -54,7 +55,7 @@ def new_session_id() -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Common enums
+# Common enums (frozen at the end of Milestone 1 — Design v2 Appendix A)
 # --------------------------------------------------------------------------- #
 class NetworkState(str, Enum):
     ONLINE = "online"
@@ -82,15 +83,16 @@ class BackgroundAction(str, Enum):
 
 
 class EventType(str, Enum):
-    LESSON_OPENED = "lesson_opened"
-    LESSON_COMPLETED = "lesson_completed"
-    CHUNK_VIEWED = "chunk_viewed"
-    MCQ_ANSWERED = "mcq_answered"
-    SHORT_ANSWER_ATTEMPTED = "short_answer_attempted"
-    DOUBT_ASKED = "doubt_asked"
-    NEXT_ACTION_SHOWN = "next_action_shown"
-    PACK_INSTALLED = "pack_installed"
-    SYNC_ACKED = "sync_acked"
+    SESSION_STARTED = "SESSION_STARTED"
+    SESSION_ENDED = "SESSION_ENDED"
+    CONTENT_VIEWED = "CONTENT_VIEWED"
+    ANSWER_SUBMITTED = "ANSWER_SUBMITTED"
+    QUESTION_ABANDONED = "QUESTION_ABANDONED"
+    DOUBT_ASKED = "DOUBT_ASKED"
+    DOUBT_ANSWERED = "DOUBT_ANSWERED"
+    PACK_INSTALLED = "PACK_INSTALLED"
+    DECISION_MADE_LOCAL = "DECISION_MADE_LOCAL"
+    NETWORK_STATE_CHANGED = "NETWORK_STATE_CHANGED"
 
 
 class EvidenceType(str, Enum):
@@ -101,21 +103,43 @@ class EvidenceType(str, Enum):
 
 
 class Outcome(str, Enum):
-    ACCEPTED = "accepted"
-    DUPLICATE = "duplicate"
-    RETRYABLE = "retryable"
-    REJECTED = "rejected"
+    """Per-event sync outcomes — Design v2 Section 8 (frozen)."""
+    ACCEPTED = "ACCEPTED"
+    DUPLICATE = "DUPLICATE"
+    RETRYABLE = "RETRYABLE"
+    REJECTED = "REJECTED"
+
+
+class SyncEffect(str, Enum):
+    MASTERY_UPDATED = "mastery_updated"
+    NONE = "none"
+
+
+# Stable sync rejection / no-effect reasons (never renamed, only added).
+class SyncReason(str, Enum):
+    REPEAT_SUBMISSION = "REPEAT_SUBMISSION"
+    LEGACY_QUESTION = "LEGACY_QUESTION"
+    INVALID_PAYLOAD = "INVALID_PAYLOAD"
+    UNKNOWN_EVENT_TYPE = "UNKNOWN_EVENT_TYPE"
+    LEARNER_NOT_LINKED = "LEARNER_NOT_LINKED"
+    DEVICE_REVOKED = "DEVICE_REVOKED"
+    PAYLOAD_CONFLICT = "PAYLOAD_CONFLICT"
+    SERVER_BUSY = "SERVER_BUSY"
+    DB_TIMEOUT = "DB_TIMEOUT"
 
 
 # --------------------------------------------------------------------------- #
-# Learner / device
+# Learner / device / auth
 # --------------------------------------------------------------------------- #
 class LearnerProfileCreate(BaseModel):
     display_label: Annotated[str, StringConstraints(min_length=0, max_length=64)] = ""
     locale: Literal["or", "en"] = "or"
     grade: Literal["class9"] = "class9"
     subject: Literal["science"] = "science"
-    pin_hash: Optional[str] = None  # only set if user opts into a local PIN
+    # Optional LOCAL profile PIN. Never sent to the server for verification;
+    # accepted only as an opaque, already-derived verifier string and stored
+    # for display sync. The authoritative verifier never leaves the phone.
+    pin_verifier: Optional[str] = None
 
 
 class LearnerProfile(LearnerProfileCreate):
@@ -125,7 +149,9 @@ class LearnerProfile(LearnerProfileCreate):
 
 class DeviceRegistration(BaseModel):
     device_id: DeviceId
-    hardware_label: Annotated[str, StringConstraints(max_length=64)] = "shared-android-low-end"
+    hardware_label: Annotated[str, StringConstraints(max_length=64)] = (
+        "shared-android-low-end"
+    )
 
 
 class DeviceToken(BaseModel):
@@ -185,6 +211,9 @@ class Question(BaseModel):
     difficulty: Literal["easy", "medium", "hard"]
     misconception_tag: Optional[str] = None
     source_ref: str
+    revision: int = 1
+    answer_key_hash: str = ""
+    status: Literal["active", "legacy"] = "active"
 
 
 class Chapter(BaseModel):
@@ -202,37 +231,85 @@ class Chapter(BaseModel):
 # --------------------------------------------------------------------------- #
 class EnvironmentSnapshot(BaseModel):
     network: NetworkState = NetworkState.ONLINE
-    measured_rt_ms: Optional[int] = None
-    measured_loss: Optional[float] = None
+    measured_rtt_ms: Optional[int] = None
+    measured_downlink_kbps: Optional[int] = None
     battery_saver: bool = False
-    free_storage_bytes: Optional[int] = None
-    installed_pack_versions: dict[PackId, str] = Field(default_factory=dict)
-    ruleset_version: str
+    free_storage_mb: Optional[int] = None
+    installed_pack_versions: dict[str, int] = Field(default_factory=dict)
+    ruleset_version: str = "1.0.0"
 
 
 class MasteryRecord(BaseModel):
     concept_id: ConceptId
-    p_known: float = Field(0.4, ge=0.0, le=1.0)
-    band: Literal["unstarted", "novice", "developing", "proficient", "mastered"]
+    p_bp: int = Field(2000, ge=0, le=10000)
+    band: Literal["weak", "partial", "mastered"] = "weak"
     attempts: int = 0
     correct: int = 0
-    last_updated_event_seq: Optional[int] = None
+    last_event_seq: int = 0
 
 
 class LearnerEvent(BaseModel):
+    """Event: created on the phone, immutable (Design v2 Section 8).
+
+    JSON uses the v2 wire name ``type``; Python uses ``event_type``."""
     event_id: str  # client-generated, idempotent
     device_id: DeviceId
-    seq: int  # monotonic per-device sequence
     learner_id: LearnerId
-    ts: int  # epoch ms, client clock
-    event_type: EventType
-    concept_id: Optional[ConceptId] = None
-    chapter_id: Optional[ChapterId] = None
-    question_id: Optional[QuestionId] = None
+    seq: int  # monotonic per-device sequence, persisted in the same txn
+    event_type: EventType = Field(alias="type")
+    client_ts: int  # epoch ms, client clock; display/analytics only
     payload: dict[str, Any] = Field(default_factory=dict)
-    # Sync metadata
-    outbox_state: Literal["pending", "inflight", "acked", "dead"] = "pending"
-    retry_count: int = 0
+    concept_id: Optional[str] = None
+    chapter_id: Optional[str] = None
+    question_id: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
+    # Back-compat alias for older call sites/tests that used `.ts`.
+    @property
+    def ts(self) -> int:
+        return self.client_ts
+
+
+class PerEventResult(BaseModel):
+    event_id: str
+    seq: int
+    outcome: Outcome
+    effect: Optional[SyncEffect] = None
+    reason: Optional[SyncReason] = None
+    detail: str = ""
+
+
+class SyncRequest(BaseModel):
+    device_id: DeviceId
+    learner_id: LearnerId
+    from_seq: int = 0  # exclusive lower bound; client cursor
+    events: list[LearnerEvent] = Field(default_factory=list)
+
+
+class DecisionSummary(BaseModel):
+    decision_id: str
+    action: Action
+    target_concept_id: str
+    delivery_mode: DeliveryMode
+    background_actions: list[BackgroundAction]
+    reason_code: str
+    needs_help: bool = False
+    ruleset_version: str
+
+
+class SyncResponse(BaseModel):
+    results: list[PerEventResult]
+    mastery: list[MasteryRecord]
+    decision: Optional[Decision] = None
+    decision_status: Literal["computed", "deferred"] = "deferred"
+    server_cursor: int
+    ruleset_version: str
+    # Back-compat fields for existing clients/tests
+    accepted: list[PerEventResult] = Field(default_factory=list)
+    server_learner_seq: int = 0
+    canonical_mastery: list[MasteryRecord] = Field(default_factory=list)
+    next_decision: Optional[Decision] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -240,15 +317,19 @@ class LearnerEvent(BaseModel):
 # --------------------------------------------------------------------------- #
 class AssessmentSubmission(BaseModel):
     question_id: QuestionId
+    revision: int = 1
+    attempt_id: Optional[str] = None
     selected_option: Optional[int] = None  # for MCQ
     answer_text: Optional[str] = None  # for short-answer
     duration_ms: int = 0
     submitted_at: int
-    evidence: EvidenceType = EvidenceType.NONE
+    correct_claim: Optional[bool] = None
+    seq: int = 0
 
 
 class AssessmentResult(BaseModel):
     question_id: QuestionId
+    attempt_id: Optional[str] = None
     correct: bool
     evidence: EvidenceType
     explanation_or: str
@@ -262,25 +343,28 @@ class AssessmentResult(BaseModel):
 # --------------------------------------------------------------------------- #
 class Decision(BaseModel):
     decision_id: str
-    learner_id: LearnerId
+    learner_id: Optional[LearnerId] = None
     ruleset_version: str
-    target_concept_id: ConceptId
+    target_concept_id: str
     action: Action
     delivery_mode: DeliveryMode
     background_actions: list[BackgroundAction]
     reason_code: str
     reason_or: str
-    chapter_id: ChapterId
+    needs_help: bool = False
+    chapter_id: str = ""
     suggested_question_id: Optional[QuestionId] = None
     suggested_chunk_id: Optional[ChunkId] = None
-    network: NetworkState
-    produced_by: Literal["local_engine", "server_engine"]
-    created_at: int
+    network: NetworkState = NetworkState.ONLINE
+    source: Literal["server", "local"] = "server"
+    produced_by: Literal["local_engine", "server_engine"] = "server_engine"
+    created_at: int = 0
 
 
 class TraceStep(BaseModel):
     step_id: str
     node: str
+    stage: Optional[str] = None
     tool: Optional[str] = None
     provider: Optional[str] = None
     ruleset_version: Optional[str] = None
@@ -307,6 +391,7 @@ class DoubtRequest(BaseModel):
     query: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
     learner_id: LearnerId
     pack_ids: list[PackId] = Field(default_factory=list)
+    concept_hint: Optional[str] = None
 
 
 class RetrievedChunk(BaseModel):
@@ -331,7 +416,9 @@ class GeneratedAnswer(BaseModel):
     citations: list[ChunkId] = Field(default_factory=list)
     confidence: float = 0.0
     provenance: Literal["extractive", "llm_grounded", "basic"]
-    basic_answer_status: Optional[str] = None  # e.g. "provider_unavailable" / "out_of_lessons"
+    basic_answer_status: Optional[str] = (
+        None  # e.g. "provider_unavailable" / "out_of_lessons"
+    )
 
 
 class DoubtResponse(BaseModel):
@@ -377,9 +464,6 @@ class PackManifest(BaseModel):
     language: Literal["or", "en"] = "or"
     byte_size: int
     checksum_sha256: str
-    # Integrity of the actually-served .srt.tar.gz download. The archive's
-    # inner copy of the manifest carries these blank (they cover the archive
-    # itself); the standalone JSON manifest carries the real values.
     archive_sha256: str = ""
     archive_byte_size: int = 0
     min_app_version: str
@@ -400,14 +484,27 @@ class PackDownloadInfo(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Typed tool error (LangGraph)
+# Typed tool error (provider contract — Design v2 Section 5)
 # --------------------------------------------------------------------------- #
 class ToolError(BaseModel):
-    error_code: str
-    detail: str = ""
+    error_code: Literal[
+        "TIMEOUT", "RATE_LIMITED", "UNAVAILABLE", "BAD_OUTPUT",
+        "LOW_CONFIDENCE", "UNSUPPORTED_LANGUAGE", "QUOTA_EXHAUSTED",
+        # granular orchestration codes retained for typed diagnostics
+        "ACCESS_RESTRICTED", "MODEL_DOWNLOAD_FAILED", "MISSING_WEIGHTS",
+        "NOT_GROUNDED", "SCHEMA_INVALID",
+    ] = "UNAVAILABLE"
+    detail_dev: str = ""  # never shown to learners
+    detail: str = ""      # back-compat alias of detail_dev
     provider: Optional[str] = None
     model_id: Optional[str] = None
     retryable: bool = False
+
+    def model_post_init(self, __ctx) -> None:
+        if self.detail_dev and not self.detail:
+            self.detail = self.detail_dev
+        elif self.detail and not self.detail_dev:
+            self.detail_dev = self.detail
 
 
 # --------------------------------------------------------------------------- #
@@ -417,7 +514,7 @@ class LearnerState(BaseModel):
     learner_id: LearnerId
     device_id: DeviceId
     mastery: list[MasteryRecord]
-    active_pack_versions: dict[PackId, str]
+    active_pack_versions: dict[str, int]
     last_decision_id: Optional[str] = None
     outbox_depth: int = 0
 
@@ -432,6 +529,7 @@ class HealthResponse(BaseModel):
     llm_provider: str
     retrieval_provider: str
     ruleset_version: str
+    bkt_version: str
     has_hf_token: bool
     has_llm_key: bool
     request_id: str
@@ -439,30 +537,65 @@ class HealthResponse(BaseModel):
 
 __all__ = [
     # ids
-    "LearnerId", "DeviceId", "ConceptId", "ChapterId", "ChunkId", "QuestionId", "PackId",
-    "new_request_id", "new_learner_id", "new_device_id", "new_decision_id",
-    "new_event_id", "new_session_id",
+    "LearnerId",
+    "DeviceId",
+    "ConceptId",
+    "ChapterId",
+    "ChunkId",
+    "QuestionId",
+    "PackId",
+    "new_request_id",
+    "new_learner_id",
+    "new_device_id",
+    "new_decision_id",
+    "new_event_id",
+    "new_session_id",
     # enums
-    "NetworkState", "Action", "DeliveryMode", "BackgroundAction",
-    "EventType", "EvidenceType", "Outcome",
+    "NetworkState",
+    "Action",
+    "DeliveryMode",
+    "BackgroundAction",
+    "EventType",
+    "EvidenceType",
+    "Outcome",
     # learner
-    "LearnerProfileCreate", "LearnerProfile", "DeviceRegistration",
-    "DeviceToken", "AuthResponse",
+    "LearnerProfileCreate",
+    "LearnerProfile",
+    "DeviceRegistration",
+    "DeviceToken",
+    "AuthResponse",
     # curriculum
-    "GlossaryEntry", "Concept", "Chunk", "Question", "Chapter",
+    "GlossaryEntry",
+    "Concept",
+    "Chunk",
+    "Question",
+    "Chapter",
     # env/mastery/event
-    "EnvironmentSnapshot", "MasteryRecord", "LearnerEvent",
+    "EnvironmentSnapshot",
+    "MasteryRecord",
+    "LearnerEvent",
     # assessment
-    "AssessmentSubmission", "AssessmentResult",
+    "AssessmentSubmission",
+    "AssessmentResult",
     # decision/trace
-    "Decision", "TraceStep", "DecisionTrace",
+    "Decision",
+    "TraceStep",
+    "DecisionTrace",
     # doubt/retrieval/generation/translation
-    "DoubtRequest", "RetrievedChunk", "RetrievedResult",
-    "GeneratedAnswer", "DoubtResponse", "ToolError",
+    "DoubtRequest",
+    "RetrievedChunk",
+    "RetrievedResult",
+    "GeneratedAnswer",
+    "DoubtResponse",
+    "ToolError",
     # sync
-    "SyncRequest", "PerEventResult", "SyncResponse",
+    "SyncRequest",
+    "PerEventResult",
+    "SyncResponse",
     # pack
-    "PackManifest", "PackDownloadInfo",
+    "PackManifest",
+    "PackDownloadInfo",
     # api
-    "LearnerState", "HealthResponse",
+    "LearnerState",
+    "HealthResponse",
 ]

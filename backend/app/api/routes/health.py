@@ -24,6 +24,7 @@ async def health(request: Request):
         persistence=s.persistence_backend, translation_provider=s.translation_provider,
         llm_provider=s.llm_provider, retrieval_provider=s.retrieval_provider,
         ruleset_version=get_ruleset().ruleset_version,
+        bkt_version=get_ruleset().bkt_version,
         has_hf_token=s.has_secret("hf_token"), has_llm_key=s.has_secret("llm_api_key"),
         request_id=request_id,
     )

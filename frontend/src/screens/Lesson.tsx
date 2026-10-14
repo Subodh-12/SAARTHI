@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, SaarthiApiError } from "../api/client";
-import { db, nextSeq, recordAssessmentEvent, getActiveProfile } from "../store/db";
-import { Action, AssessmentResult, Chapter, Chunk, Decision,
-         EvidenceType, EventType, MasteryRecord, NetworkState,
-         Question } from "../generated/api";
-import { OR, t } from "../i18n/or";
+import { recordAssessmentEvent, getMasterySnapshot } from "../store/db";
+import {
+  Action, AssessmentResult, Chapter, Chunk, Decision,
+  EvidenceType, NetworkState, Question,
+} from "../generated/api";
+import { t } from "../i18n/or";
 import { getInstalledPack } from "../lib/sync";
+import { RULESET } from "../engine/decide";
 
 interface Props {
   profile: { learner_id: string; device_id: string; display_label: string };
@@ -26,7 +28,7 @@ export function LessonScreen({ profile, network }: Props) {
 
   useEffect(() => { void loadNext(); }, []);
 
-  const loadNext = async () => {
+  async function loadNext() {
     setLoading(true); setError(""); setSubmitted(false); setSelected(null);
     setResult(null); setDecision(null); setChunkIdx(0);
     try {
@@ -43,10 +45,14 @@ export function LessonScreen({ profile, network }: Props) {
         setChapter(c); setChunks(ch); setQuestion(manifest.questions.find((q: any) => q.concept_id === firstConcept.concept_id));
         d = {
           decision_id: `local_${Date.now()}`, learner_id: profile.learner_id,
-          ruleset_version: "saarthi.rules.v1", target_concept_id: firstConcept.concept_id,
+          ruleset_version: RULESET.ruleset_version,
+          target_concept_id: firstConcept.concept_id,
           action: Action.REVISE, delivery_mode: "cached" as any, background_actions: [],
-          reason_code: "offline.fallback", reason_or: "ଅଫଲାଇନ — ସ୍ଥାନୀୟ ପାଠ",
+          reason_code: "CONTENT_NOT_AVAILABLE_OFFLINE",
+          reason_or: "ଅଫଲାଇନ — ସ୍ଥାନୀୟ ପାଠ",
+          needs_help: false,
           chapter_id: c.chapter_id, network, produced_by: "local_engine",
+          source: "local",
           created_at: Date.now(), suggested_chunk_id: ch[0]?.chunk_id ?? null,
           suggested_question_id: null,
         };
@@ -68,37 +74,50 @@ export function LessonScreen({ profile, network }: Props) {
 
   const submit = async () => {
     if (!question || selected === null || !decision) return;
-    // Build event + atomic state write
-    const seq = await nextSeq(profile.device_id, profile.learner_id);
     const eventId = `evt_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
     const correct = selected === question.correct_option;
     const evidence = correct ? EvidenceType.CORRECT : EvidenceType.INCORRECT;
-    // Local atomic write (state + event in one Dexie transaction)
-    await recordAssessmentEvent(
-      profile.learner_id, profile.device_id, eventId, seq,
-      question.concept_id, question.chapter_id, question.question_id,
-      (evidence as any).toString() as any, correct, selected, undefined, 0,
+    const attemptId = `att_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
+    // Atomic local write: mastery (basis points) + outbox event + seq counter
+    // in ONE IndexedDB transaction (ProfileSession).
+    const event = await recordAssessmentEvent(
+      profile.learner_id, profile.device_id, eventId,
+      question.concept_id,
+      { question_id: question.question_id, chapter_id: question.chapter_id,
+        revision: (question as any).revision ?? 1 },
+      correct, attemptId, selected, undefined, 0,
     );
     setSubmitted(true);
+    // Local mastery projection for instant feedback (the server regrades
+    // and its result wins at sync).
+    const snap = await getMasterySnapshot();
+    const local = snap.find((m) => m.concept_id === question.concept_id);
     setResult({
-      question_id: question.question_id, correct, evidence,
+      question_id: question.question_id, attempt_id: attemptId, correct,
+      evidence,
       explanation_or: question.explanation_or, concept_id: question.concept_id,
       mastery_after: {
-        concept_id: question.concept_id, p_known: 0, band: "novice",
-        attempts: 0, correct: 0,
-      } as MasteryRecord, next_decision_id: "",
+        concept_id: question.concept_id,
+        p_bp: local?.p_bp ?? 2000, band: local?.band ?? "weak",
+        attempts: local?.attempts ?? 1, correct: local?.correct ?? 0,
+        last_event_seq: (event as any).seq ?? 0,
+      } as any, next_decision_id: "",
     });
     // If online, also try to sync this event
     if (network !== NetworkState.OFFLINE) {
       try {
         await api.submitAssessment({
-          question_id: question.question_id, selected_option: selected,
+          question_id: question.question_id,
+          revision: (question as any).revision ?? 1,
+          attempt_id: attemptId,
+          selected_option: selected,
           answer_text: undefined, duration_ms: 0,
-          submitted_at: Date.now(), evidence,
-        }, seq);
+          submitted_at: Date.now(),
+          correct_claim: correct,
+        }, (event as any).seq ?? 1);
         const { trySyncNow } = await import("../lib/sync");
         await trySyncNow();
-      } catch (e) { /* offline-sync later */ }
+      } catch { /* offline-sync later */ }
     }
   };
 

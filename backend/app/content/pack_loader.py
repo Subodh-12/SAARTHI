@@ -70,6 +70,9 @@ class PackContentIndex:
                 difficulty=q["difficulty"],
                 misconception_tag=q.get("misconception_tag"),
                 source_ref=q.get("source_ref", ""),
+                revision=int(q.get("revision", 1)),
+                answer_key_hash=q.get("answer_key_hash", ""),
+                status=q.get("status", "active"),
             ) for q in payload["questions"]
         }
         self.glossary: list[GlossaryEntry] = [
@@ -90,6 +93,28 @@ class PackContentIndex:
         self.prereqs: dict[str, list[str]] = {
             c["concept_id"]: c.get("prerequisites", []) for c in payload["concepts"]
         }
+        # Concepts grouped by pack — every concept in this pack belongs to the
+        # single pack that carries it (v2 packs are chapter-scoped).
+        self._pack_id = m["pack_id"]
+
+    def required_pack_for_concept(self) -> dict[str, str]:
+        """concept_id -> pack_id that serves its content (v2 offline rule)."""
+        return {cid: self._pack_id for cid in self.concept_order}
+
+    def installed_pack_versions(self, device_packs: Optional[dict[str, str]] = None) -> dict[str, int]:
+        """Installed pack versions for the decision input.
+
+        The SERVER treats its own served packs as installed for decision
+        purposes (delivery feasibility is about the target device — when a
+        device pack list is supplied it wins)."""
+        try:
+            version_int = int(str(self.manifest.version).split(".")[0] or 1)
+        except ValueError:
+            version_int = 1
+        if device_packs is not None:
+            return {pid: int(v) for pid, v in device_packs.items()
+                    if str(v).split(".")[0].isdigit()}
+        return {self._pack_id: version_int}
 
     def get_chunk(self, chunk_id: str) -> Optional[Chunk]:
         return self.chunks.get(chunk_id)

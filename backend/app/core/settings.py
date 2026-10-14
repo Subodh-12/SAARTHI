@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     hf_translation_model_en2indic: str = "ai4bharat/indictrans2-en-indic-dist-200M"
     hf_translation_model_indic2en: str = "ai4bharat/indictrans2-indic-en-dist-200M"
     translation_cache_ttl_seconds: int = 86400
+    # IndicTrans2 runtime configuration (device/precision/cache are
+    # environment-specific; model identifiers are configurable).
+    hf_device: str = "auto"  # auto | cpu | cuda
+    hf_precision: str = "auto"  # auto (fp16 on cuda, fp32 on cpu) | fp16 | fp32
+    hf_cache_dir: str = ""  # defaults to HF_HOME / ~/.cache/huggingface
+    hf_timeout_seconds: float = 120.0  # model load / inference timeout
 
     # ---- LLM generation ----
     llm_provider: Literal["mock", "openai", "anthropic"] = "mock"
@@ -70,10 +76,11 @@ class Settings(BaseSettings):
     embeddings_provider: Literal["mock", "hf", "openai"] = "mock"
     embeddings_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-    # ---- Auth ----
+    # ---- Auth (lifetimes come from the shared ruleset: auth.access_ttl_h /
+    # auth.refresh_ttl_d — 24h access, 30d rotating refresh) ----
     device_token_bytes: int = 32
-    token_ttl_seconds: int = 7776000  # 90 days
-    pin_hash_iterations: int = 100_000
+    pin_hash_iterations: int = 150_000  # local PIN PBKDF2 verifier (client-side)
+    max_profiles_per_device: int = 8
 
     # ---- Rate limits / security ----
     rate_limit_per_minute: int = 120
@@ -142,6 +149,33 @@ class Settings(BaseSettings):
             "has_hf_token": self.has_secret("hf_token"),
             "has_llm_key": self.has_secret("llm_api_key"),
         }
+
+    def validate_startup(self) -> list[str]:
+        """Validate configuration at startup WITHOUT printing secrets.
+
+        Required configuration is enforced (hard failure); optional provider
+        credentials produce understandable diagnostics so missing HF/LLM keys
+        never break offline lessons, assessments or local decisions.
+        """
+        problems: list[str] = []
+        if self.persistence_backend == "postgres" and not self.database_url:
+            problems.append("PERSISTENCE_BACKEND=postgres requires DATABASE_URL")
+        if self.env == "prod":
+            if not self.cors_origin_list or "*" in self.cors_origin_list:
+                problems.append("ENV=prod requires an explicit CORS_ORIGINS allow-list")
+            if self.enable_secure_cookies is False:
+                problems.append("ENV=prod should set ENABLE_SECURE_COOKIES=true behind TLS")
+        # Optional provider credentials: diagnostics only, never fatal.
+        if self.translation_provider == "hf_local" and not self.has_secret("hf_token"):
+            problems.append(
+                "TRANSLATION_PROVIDER=hf_local set but HF_TOKEN missing; "
+                "translation will return a typed UNAVAILABLE error and the "
+                "offline path stays fully functional")
+        if self.llm_provider in ("openai", "anthropic") and not self.has_secret("llm_api_key"):
+            problems.append(
+                f"LLM_PROVIDER={self.llm_provider} set but LLM_API_KEY missing; "
+                "generation will use the extractive fallback")
+        return problems
 
 
 @lru_cache(maxsize=1)

@@ -1,216 +1,368 @@
-"""Deterministic decision engine — pure functions over explicit inputs.
+"""Deterministic decision engine v2 — pure functions over explicit inputs.
 
 This is the SHARED RULESET CONTRACT that runs identically in Python (server)
-and TypeScript (browser). The TypeScript implementation lives at
-`frontend/src/engine/decide.ts` and consumes the SAME `packages/ruleset/rules.json`.
+and TypeScript (browser, `frontend/src/engine/decide.ts`). Both load the SAME
+`packages/ruleset/rules.json` and must pass the SAME test vectors
+(`tests/fixtures/rule_vectors.json`) — Design v2 Sections 6 and 15.
 
-Rules:
-  - The LLM NEVER selects the action.
-  - First-match action rules; repetition guard; prerequisite-aware target selection.
-  - Returns exactly one REMEDIATE/RETRY/REVISE/ADVANCE action, a delivery mode
-    (rich/cached/prefetch_then_offline), and zero or more background actions.
-
-Inputs (pure data — no I/O):
-  - trigger: last event (event_type, evidence, concept_id, payload)
-  - mastery: dict[concept_id -> (p_known, band, attempts, correct)]
-  - recent_events: list of recent events (for repetition guard + last_concept)
-  - prereqs: dict[concept_id -> list[concept_id]]
-  - env: EnvironmentSnapshot (network, pack versions, ruleset_version)
-  - ruleset: Ruleset
-  - concept_order: list[concept_id] in canonical chapter order
-  - reason_messages_or: dict[reason_code -> Odia reason text]  (loaded from i18n)
+Rules (v2, Decided):
+  - The LLM NEVER selects the action. No network, no LLM, no process-local
+    memory: this module is a pure deterministic component.
+  - Mastery is an INTEGER in basis points (0..10000). Timestamps are never
+    inputs. Concept lists are sorted by canonical order / concept ID.
+  - First-match action rules with the corrected repeated-attempt guard:
+      1. REVISE with alternate content (NO_GAIN_ALT_CONTENT)
+      2. REMEDIATE the weakest prerequisite (NO_GAIN_REMEDIATE_PREREQ)
+      3. Terminal REVISE with needs_help (INTERVENTIONS_EXHAUSTED)
+    The guard NEVER advances a learner whose target is below the mastered
+    threshold just to escape a loop.
+  - Every output contains exactly one learning action, a feasible delivery
+    mode, zero or more sorted background actions, a stable reason code, the
+    ruleset version and the needs_help flag.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from .bkt import bkt_band
-from .ruleset import Ruleset, mastery_band
-from .schemas import (
-    Action,
-    BackgroundAction,
-    DeliveryMode,
-    NetworkState,
-)
+from .bkt import SCALE, mastery_band_bp
+from .ruleset import Ruleset, UnknownRulesetError
+
+
+# --------------------------------------------------------------------------- #
+# Input / output shapes (data-only; identical in TypeScript)
+# --------------------------------------------------------------------------- #
+@dataclass
+class MasteryEntry:
+    p_bp: int
+    attempts: int = 0
+    correct: int = 0
+    last_event_seq: int = 0
+
+
+@dataclass
+class RecentEvent:
+    """Minimal deterministic projection of a past event (oldest → newest)."""
+    seq: int
+    event_type: str
+    concept_id: Optional[str] = None
+    correct: Optional[bool] = None          # graded answers only
+    p_bp_after: Optional[int] = None        # mastery (bp) after a graded answer
+    last_action: Optional[str] = None       # decision that followed, e.g. REVISE
 
 
 @dataclass
 class DecisionInput:
     trigger_event_type: str
-    trigger_concept_id: Optional[str]
-    trigger_evidence: str  # "correct" | "incorrect" | "partial" | "none"
-    mastery: dict[str, tuple[float, str, int, int]]  # concept_id -> (p, band, attempts, correct)
-    recent_events: list[dict[str, Any]]  # ordered most-recent-last, small N (e.g. 10)
-    prereqs: dict[str, list[str]]  # concept_id -> list of prerequisite concept_ids
-    env_network: NetworkState
-    installed_pack_versions: dict[str, str]
-    ruleset_version: str
+    trigger_concept_id: Optional[str]       # concept of the last graded answer
+    trigger_correct: Optional[bool]         # last graded answer result (None = not graded)
+    mastery: dict[str, MasteryEntry]
+    recent_events: list[RecentEvent]
+    prereqs: dict[str, list[str]]
     concept_order: list[str]
-    suggested_chunk_id: Optional[str] = None
-    suggested_question_id: Optional[str] = None
     chapter_id_for_concept: dict[str, str] = field(default_factory=dict)
+    doubt_concept_hint: Optional[str] = None
+    env_network: str = "online"             # online | weak | offline | reconnected
+    installed_pack_versions: dict[str, int] = field(default_factory=dict)
+    required_pack_for_concept: dict[str, str] = field(default_factory=dict)
+    storage_free_mb: int = 1_000_000
+    battery_saver: bool = False
+    outbox_nonempty: bool = False
+    ruleset_version: str = "1.0.0"
 
 
 @dataclass
 class DecisionOutput:
-    action: Action
-    delivery_mode: DeliveryMode
-    background_actions: list[BackgroundAction]
+    action: str                              # REMEDIATE | RETRY | REVISE | ADVANCE
     target_concept_id: str
-    chapter_id: str
+    delivery_mode: str                       # cached | rich | prefetch_then_offline
+    background_actions: list[str]            # sorted subset of {SYNC, PREFETCH}
     reason_code: str
-    reason_or: str
-    suggested_chunk_id: Optional[str] = None
-    suggested_question_id: Optional[str] = None
+    needs_help: bool = False
+    rule_index: int = -1
+    fallback: bool = False
 
 
 # --------------------------------------------------------------------------- #
-# Repetition guard
+# Typed engine error + state validation (v2: "unknown ruleset version gives a
+# typed error and the fallback decision")
 # --------------------------------------------------------------------------- #
-def _recent_same_action_count(recent: list[dict], action: str) -> int:
-    n = 0
-    for ev in reversed(recent):
-        if ev.get("payload", {}).get("last_action") == action:
-            n += 1
-        else:
-            break
-    return n
+def engine_error(inp: DecisionInput, ruleset: Ruleset) -> Optional[str]:
+    """Return a typed error code when the input state cannot be trusted.
 
-
-def _recent_same_concept_count(recent: list[dict], concept_id: str) -> int:
-    n = 0
-    for ev in reversed(recent):
-        if ev.get("concept_id") == concept_id:
-            n += 1
-        else:
-            break
-    return n
-
-
-# --------------------------------------------------------------------------- #
-# Target-concept selection
-# --------------------------------------------------------------------------- #
-def select_target_concept(inp: DecisionInput, ruleset: Ruleset,
-                          reason_messages: dict[str, str]) -> tuple[str, str, str]:
-    """Return (target_concept_id, reason_code, reason_or).
-
-    Strategy: first unmastered concept whose prerequisites are mastered;
-    fall back to the lowest-mastery concept in canonical order (tie-break by
-    concept_id ascending — deterministic).
+    Returns None when the state is valid. The caller logs the error at high
+    severity; `decide` still returns the safe fallback decision.
     """
-    th = ruleset.mastery["thresholds"]
-    advance_threshold = ruleset.actions["advance_threshold"]
-    # First pass: first unmastered with prereqs satisfied
-    for cid in inp.concept_order:
-        if cid not in inp.mastery:
-            return cid, "target.unstarted_no_prereqs_needed", reason_messages.get(
-                "target.unstarted_no_prereqs_needed", "ନୂଆ ଧାରଣା ଆରମ୍ଭ କରିବା।")
-        p, band, _, _ = inp.mastery[cid]
-        if band in ("mastered",):
-            continue
-        if p >= advance_threshold:
-            continue
-        # check prereqs
-        ok = True
-        for pre in inp.prereqs.get(cid, []):
-            if pre not in inp.mastery:
-                # prereq unstarted — select the prereq instead
-                return pre, "target.prerequisite_unstarted", reason_messages.get(
-                    "target.prerequisite_unstarted", "ପ୍ରଥମ ଆଧାର ଧାରଣା ଶିଖ।")
-            pre_p, pre_band, _, _ = inp.mastery[pre]
-            if pre_p < ruleset.actions["advance_threshold"]:
-                return pre, "target.prerequisite_not_mastered", reason_messages.get(
-                    "target.prerequisite_not_mastered", "ପ୍ରଥମ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।")
-        if ok:
-            return cid, "target.first_unmastered_with_prereqs", reason_messages.get(
-                "target.first_unmastered_with_prereqs", "ଏହି ଧାରଣା ଉପରେ କାମ କର।")
-    # Fallback: lowest-mastery concept, tie-break by concept_id
-    if not inp.mastery:
-        # nothing mastered yet, nothing in order — pick first concept
-        if inp.concept_order:
-            return inp.concept_order[0], "target.fallback_first_concept", reason_messages.get(
-                "target.fallback_first_concept", "ପ୍ରଥମ ଧାରଣା ଆରମ୍ଭ କର।")
-        return "", "target.no_concepts_available", reason_messages.get(
-            "target.no_concepts_available", "କୌଣସି ଧାରଣା ନାହିଁ।")
-    sorted_concepts = sorted(
-        inp.mastery.items(),
-        key=lambda kv: (kv[1][0], kv[0]),
+    if inp.ruleset_version != ruleset.ruleset_version:
+        return "RULESET_UNKNOWN"
+    for cid, m in inp.mastery.items():
+        if not isinstance(m.p_bp, int) or m.p_bp < 0 or m.p_bp > SCALE:
+            return "STATE_INVALID"
+    if inp.trigger_correct is not None and inp.trigger_concept_id is None:
+        return "STATE_INVALID"
+    return None
+
+
+def state_is_valid(inp: DecisionInput, ruleset: Ruleset) -> bool:
+    return engine_error(inp, ruleset) is None
+
+
+# --------------------------------------------------------------------------- #
+# Reason-code → Odia strings (developer fallbacks; i18n dict overrides)
+# --------------------------------------------------------------------------- #
+DEFAULT_REASON_OR = {
+    "STATE_INVALID_FALLBACK": "ଅସ୍ଥାୟୀ ସମସ୍ୟା। ପୁଣି ଚେଷ୍ଟା କର।",
+    "COLD_START": "ପ୍ରଥମ ଧାରଣା ଆରମ୍ଭ କର।",
+    "WEAK_PREREQ_GAP": "ପ୍ରଥମେ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
+    "WEAK_CONCEPT": "ଏହି ଧାରଣା ପୁଣି ଶିଖ।",
+    "WRONG_RETRY": "ଉତ୍ତର ଭୁଲ ଥିଲା। ପୁଣି ଚେଷ୍ଟା କର।",
+    "PARTIAL_PRACTICE": "ଭଲ ହେଲା! ଆଉ ଏକ ଅଭ୍ୟାସ କର।",
+    "MASTERED_ADVANCE": "ବାହ୍! ପରବର୍ତ୍ତୀ ଧାରଣା କୁ ଯାଅ।",
+    "NO_GAIN_ALT_CONTENT": "ଅନ୍ୟ ଉପାୟରେ ପାଠ ପଢ।",
+    "NO_GAIN_REMEDIATE_PREREQ": "ପ୍ରଥମେ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
+    "INTERVENTIONS_EXHAUSTED": "ଶିକ୍ଷକଙ୍କ ସହିତ ଯୋଗାଯୋଗ କର।",
+    "SLICE_COMPLETE": "ସମସ୍ତ ପାଠ ସମ୍ପୂର୍ଣ୍ଣ! ପୁଣି ରିଭିଜନ୍ କର।",
+    "BLOCKED_BY_PREREQ": "ପ୍ରଥମେ ଆଧାର ଧାରଣା ଶିଖ।",
+    "CONTENT_NOT_AVAILABLE_OFFLINE": "ଏହି ପାଠ ଅଫଲାଇନ୍ ଉପଲବ୍ଧ ନାହିଁ। ଅନ୍ୟ ପାଠ ପଢ।",
+}
+
+
+def _reason_or(reason_code: str, reason_messages: dict[str, str]) -> str:
+    if reason_messages.get(reason_code):
+        return reason_messages[reason_code]
+    return DEFAULT_REASON_OR.get(reason_code, "ଆଗାମୀ କାମ ଜାରି ରଖ।")
+
+
+# --------------------------------------------------------------------------- #
+# Deterministic helpers
+# --------------------------------------------------------------------------- #
+def _weakest_prereq(concept_id: str, inp: DecisionInput) -> Optional[str]:
+    """Weakest prerequisite of concept_id: lowest p_bp, ties by concept ID."""
+    best: Optional[tuple[int, str]] = None
+    for pre in inp.prereqs.get(concept_id, []) or []:
+        p = inp.mastery[pre].p_bp if pre in inp.mastery else 0
+        key = (p, pre)
+        if best is None or key < best:
+            best = key
+    return best[1] if best else None
+
+
+def _prereqs_mastered(concept_id: str, inp: DecisionInput, ruleset: Ruleset) -> bool:
+    mastered_at = int(ruleset.bands.get("mastered_at_bp", 8500))
+    return all(
+        inp.mastery.get(pre, MasteryEntry(0)).p_bp >= mastered_at
+        for pre in inp.prereqs.get(concept_id, []) or []
     )
-    cid, (p, band, _, _) = sorted_concepts[0]
-    return cid, "target.lowest_mastery_fallback", reason_messages.get(
-        "target.lowest_mastery_fallback", "ସବୁଠା ଦୁର୍ବଳ ଧାରଣା ଉପରେ ମନ୍ଦନ କର।")
+
+
+def _first_concept_without_prereqs(inp: DecisionInput) -> Optional[str]:
+    for cid in inp.concept_order:
+        if not (inp.prereqs.get(cid) or []):
+            return cid
+    return None
+
+
+def _next_eligible_concept(inp: DecisionInput, ruleset: Ruleset,
+                           after_concept: Optional[str] = None) -> Optional[str]:
+    """First concept in chapter order that is not mastered and whose
+    prerequisites are all at or above the mastered threshold (v2)."""
+    mastered_at = int(ruleset.bands.get("mastered_at_bp", 8500))
+    started = after_concept is None
+    for cid in inp.concept_order:
+        if not started:
+            if cid == after_concept:
+                started = True
+            continue
+        if inp.mastery.get(cid, MasteryEntry(0)).p_bp >= mastered_at:
+            continue
+        if _prereqs_mastered(cid, inp, ruleset):
+            return cid
+    return None
+
+
+def _lowest_mastery_with_mastered_prereqs(inp: DecisionInput,
+                                          ruleset: Ruleset) -> Optional[str]:
+    """Lowest-mastery concept among those whose prereqs are all mastered;
+    ties by chapter order then concept ID (deterministic)."""
+    best: Optional[tuple[int, int, str]] = None
+    for idx, cid in enumerate(inp.concept_order):
+        if not _prereqs_mastered(cid, inp, ruleset):
+            continue
+        m = inp.mastery.get(cid)
+        p = m.p_bp if m else 0
+        key = (p, idx, cid)
+        if best is None or key < best:
+            best = key
+    return best[2] if best else None
+
+
+def _graph_distance(from_cid: str, to_cid: str, inp: DecisionInput, max_depth: int = 6) -> int:
+    """BFS distance over the prerequisite graph (undirected), capped."""
+    if from_cid == to_cid:
+        return 0
+    # Undirected adjacency: prereqs + reverse edges
+    adj: dict[str, set[str]] = {}
+    for cid, pres in (inp.prereqs or {}).items():
+        for pre in pres or []:
+            adj.setdefault(cid, set()).add(pre)
+            adj.setdefault(pre, set()).add(cid)
+    frontier = {from_cid}
+    seen = {from_cid}
+    for depth in range(1, max_depth + 1):
+        nxt: set[str] = set()
+        for node in frontier:
+            for nb in adj.get(node, ()):  # deterministic set iteration order does not
+                if nb in seen:            # affect the *distance* value
+                    continue
+                if nb == to_cid:
+                    return depth
+                seen.add(nb)
+                nxt.add(nb)
+        frontier = nxt
+        if not frontier:
+            break
+    return max_depth + 1
+
+
+def _nearest_installed_concept(inp: DecisionInput, ruleset: Ruleset) -> Optional[str]:
+    """Nearest concept whose pack IS installed, by graph distance from the
+    target, ties by chapter order (v2: CONTENT_NOT_AVAILABLE_OFFLINE)."""
+    target = inp.trigger_concept_id or _select_target_concept(inp, ruleset)[0]
+    if not target:
+        return None
+    best: Optional[tuple[int, int, str]] = None
+    for idx, cid in enumerate(inp.concept_order):
+        pack_id = inp.required_pack_for_concept.get(cid)
+        if not pack_id or pack_id in inp.installed_pack_versions:
+            dist = _graph_distance(target, cid, inp)
+            key = (dist, idx, cid)
+            if best is None or key < best:
+                best = key
+    return best[2] if best else None
+
+
+def _target_pack_installed(cid: str, inp: DecisionInput) -> bool:
+    pack_id = inp.required_pack_for_concept.get(cid)
+    if not pack_id:
+        return True
+    return pack_id in inp.installed_pack_versions
 
 
 # --------------------------------------------------------------------------- #
-# Action selection — first-match rules
+# Target-concept selection (v2 Section 6)
 # --------------------------------------------------------------------------- #
-def select_action(inp: DecisionInput, target_cid: str, ruleset: Ruleset) -> tuple[Action, str]:
-    """First-match rule selection over the *target* concept.
+def _select_target_concept(inp: DecisionInput,
+                           ruleset: Ruleset) -> tuple[str, str]:
+    """Return (target_concept_id, reason_code_used_for_selection).
 
-    Returns (action, reason_code).
-
-    Rules (in order):
-      1. If trigger evidence was incorrect OR mastery < remediate_threshold: REMEDIATE
-      2. Else if mastery < retry_threshold: RETRY
-      3. Else if mastery < revise_threshold: REVISE
-      4. Else if mastery >= advance_threshold: ADVANCE
-      5. Else: REVISE (safe default that doesn't escape loops)
-
-    The repetition guard (see below) overrides any action that has been taken
-    `max_consecutive_same_action` times in a row by switching to `escape_action`.
+    The target is the concept of the last graded answer or, failing that,
+    the doubt's concept hint; otherwise the concept with the lowest mastery
+    among those whose prerequisites are all mastered, ties by chapter order.
     """
-    p_known, band, attempts, correct = (inp.mastery.get(target_cid) or (0.4, "novice", 0, 0))
-    th = ruleset.actions
-    evidence = inp.trigger_evidence
-
-    if evidence == "incorrect" or p_known < th["remediate_threshold"]:
-        return Action.REMEDIATE, "action.remediate_low_mastery_or_incorrect"
-    if p_known < th["retry_threshold"]:
-        return Action.RETRY, "action.retry_below_threshold"
-    if p_known < th["revise_threshold"]:
-        return Action.REVISE, "action.revise_below_threshold"
-    if p_known >= th["advance_threshold"]:
-        return Action.ADVANCE, "action.advance_mastered"
-    return Action.REVISE, "action.revise_safe_default"
+    if inp.trigger_concept_id and inp.trigger_concept_id in inp.concept_order:
+        return inp.trigger_concept_id, "last_graded"
+    if inp.doubt_concept_hint and inp.doubt_concept_hint in inp.concept_order:
+        return inp.doubt_concept_hint, "doubt_hint"
+    cid = _lowest_mastery_with_mastered_prereqs(inp, ruleset)
+    return (cid or ""), "lowest_mastery"
 
 
-def apply_repetition_guard(action: Action, inp: DecisionInput,
-                            ruleset: Ruleset) -> tuple[Action, str]:
-    """If the proposed action has been taken N times in a row, switch to escape_action.
+# --------------------------------------------------------------------------- #
+# Repeated-attempt guard (v2 Section 6, corrected)
+# --------------------------------------------------------------------------- #
+def _graded_on_target(inp: DecisionInput, target: str) -> list[RecentEvent]:
+    return [e for e in inp.recent_events
+            if e.event_type == "ANSWER_SUBMITTED" and e.concept_id == target
+            and e.p_bp_after is not None]
 
-    The guard does NOT bypass prerequisite/mastery requirements: if the escape
-    action is ADVANCE but mastery is below the advance_threshold, fall back to
-    REVISE instead. (See prompt M4.3: "do not advance merely to escape a loop.")
+
+def guard_state(inp: DecisionInput, target: str, ruleset: Ruleset) -> tuple[int, bool]:
+    """Return (attempts_without_gain, alt_content_shown).
+
+    attempts_without_gain: graded answers on the target since its mastery
+    last rose by at least min_gain_bp. alt_content_shown: an alternate
+    content REVISE for the target within the current guard cycle.
     """
-    guard = ruleset.repetition_guard
-    n_same = _recent_same_action_count(inp.recent_events, action.value)
-    if n_same < guard["max_consecutive_same_action"]:
-        return action, "guard.no_override"
-
-    escape = Action(guard["escape_action"])
-    target_cid = inp.trigger_concept_id or ""
-    p_known = (inp.mastery.get(target_cid) or (0.4, "novice", 0, 0))[0]
-    advance_threshold = ruleset.actions["advance_threshold"]
-    if escape == Action.ADVANCE and p_known < advance_threshold:
-        # Don't escape to ADVANCE when not ready — REVISE instead.
-        return Action.REVISE, "guard.escape_to_revise_not_ready_to_advance"
-    n_same_concept = _recent_same_concept_count(inp.recent_events, target_cid) if target_cid else 0
-    if n_same_concept >= guard["max_consecutive_same_concept"] and escape == Action.ADVANCE:
-        return Action.REVISE, "guard.escape_loop_on_same_concept"
-    return escape, "guard.escape_action"
+    min_gain = int(ruleset.guard.get("min_gain_bp",
+                                     ruleset.repetition_guard.get("min_gain_bp", 200)))
+    graded = _graded_on_target(inp, target)
+    # Find the last index k where mastery rose by >= min_gain between
+    # graded[k-1] and graded[k]; the cycle starts at k.
+    cycle_start = 0
+    for k in range(1, len(graded)):
+        if (graded[k].p_bp_after or 0) - (graded[k - 1].p_bp_after or 0) >= min_gain:
+            cycle_start = k
+    attempts_without_gain = max(0, len(graded) - cycle_start)
+    cycle_start_seq = graded[cycle_start].seq if graded else 0
+    alt = any(
+        e.concept_id == target and e.last_action == "REVISE"
+        and e.seq >= cycle_start_seq
+        for e in inp.recent_events
+    )
+    return attempts_without_gain, alt
 
 
 # --------------------------------------------------------------------------- #
-# Delivery mode + background actions
+# Delivery mode + background actions (v2 Sections 6 and 10)
 # --------------------------------------------------------------------------- #
-def select_delivery_mode(network: NetworkState, ruleset: Ruleset) -> DeliveryMode:
-    return DeliveryMode(ruleset.delivery.get(network.value, "cached"))
+def select_delivery_mode(inp: DecisionInput, ruleset: Ruleset,
+                         target: str) -> str:
+    network = inp.env_network
+    if network in ("offline",):
+        return "cached"
+    if _target_pack_installed(target, inp):
+        return ruleset.delivery.get(network, "cached")
+    # Target pack missing: prefetch_then_offline only on a good network.
+    if network in ("online", "reconnected"):
+        return "prefetch_then_offline"
+    return "cached"
 
 
-def select_background_actions(network: NetworkState, ruleset: Ruleset) -> list[BackgroundAction]:
-    raw = ruleset.background_actions.get(network.value, [])
-    return [BackgroundAction(a) for a in raw]
+def select_background_actions(inp: DecisionInput, ruleset: Ruleset,
+                              target: str) -> list[str]:
+    network = inp.env_network
+    actions: list[str] = []
+    if network != "offline" and inp.outbox_nonempty:
+        actions.append("SYNC")
+    prefetch_ok = (
+        network in ("online", "reconnected")
+        and not inp.battery_saver
+        and inp.storage_free_mb >= int(ruleset.prefetch.get("min_free_mb", 150))
+        and not _target_pack_installed(target, inp)
+    )
+    if prefetch_ok:
+        actions.append("PREFETCH")
+    return sorted(set(actions), key=lambda a: ["PREFETCH", "SYNC"].index(a))
+
+
+# --------------------------------------------------------------------------- #
+# Trajectory check (v2 Section 6: validated before save/display)
+# --------------------------------------------------------------------------- #
+VALID_ACTIONS = ("REMEDIATE", "RETRY", "REVISE", "ADVANCE")
+VALID_DELIVERY = ("cached", "rich", "prefetch_then_offline")
+VALID_BACKGROUND = ("SYNC", "PREFETCH")
+
+
+def trajectory_check(out: DecisionOutput, inp: DecisionInput,
+                     ruleset: Ruleset) -> bool:
+    if out.target_concept_id and out.target_concept_id not in inp.concept_order:
+        return False
+    if out.action not in VALID_ACTIONS:
+        return False
+    if out.reason_code not in DEFAULT_REASON_OR:
+        return False
+    if out.delivery_mode not in VALID_DELIVERY:
+        return False
+    if out.delivery_mode == "rich" and inp.env_network == "offline":
+        return False
+    if any(a not in VALID_BACKGROUND for a in out.background_actions):
+        return False
+    if out.background_actions != sorted(
+            out.background_actions, key=lambda a: ["PREFETCH", "SYNC"].index(a)):
+        return False
+    if inp.ruleset_version != ruleset.ruleset_version:
+        return False
+    return True
 
 
 # --------------------------------------------------------------------------- #
@@ -219,60 +371,199 @@ def select_background_actions(network: NetworkState, ruleset: Ruleset) -> list[B
 def decide(inp: DecisionInput, ruleset: Ruleset,
            reason_messages: Optional[dict[str, str]] = None) -> DecisionOutput:
     rm = reason_messages or {}
-    target_cid, reason_code, reason_or = select_target_concept(inp, ruleset, rm)
-    if not target_cid:
+    weak_below = int(ruleset.bands.get("weak_below_bp", 4000))
+    mastered_at = int(ruleset.bands.get("mastered_at_bp", 8500))
+    guard_cfg = ruleset.guard or ruleset.repetition_guard
+    attempts_allowed = int(guard_cfg.get("attempts_without_gain", 3))
+
+    # --- Rule 0: invalid state or unknown ruleset → safe fallback decision.
+    err = engine_error(inp, ruleset)
+    if err is not None:
+        target = (inp.trigger_concept_id
+                  if inp.trigger_concept_id in inp.concept_order else "")
+        if not target:
+            first = _first_concept_without_prereqs(inp) or (inp.concept_order[0] if inp.concept_order else "")
+            if first:
+                out = DecisionOutput(
+                    action="ADVANCE", target_concept_id=first,
+                    delivery_mode=select_delivery_mode(inp, ruleset, first),
+                    background_actions=select_background_actions(inp, ruleset, first),
+                    reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+                    rule_index=0, fallback=True,
+                )
+                return out
+            # No concepts at all: nothing sensible to point at.
+            return DecisionOutput(
+                action="RETRY", target_concept_id="",
+                delivery_mode="cached", background_actions=[],
+                reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+                rule_index=0, fallback=True,
+            )
         return DecisionOutput(
-            action=Action.REVISE,
-            delivery_mode=select_delivery_mode(inp.env_network, ruleset),
-            background_actions=select_background_actions(inp.env_network, ruleset),
-            target_concept_id="",
-            chapter_id=inp.chapter_id_for_concept.get("", ""),
-            reason_code=reason_code,
-            reason_or=reason_or,
+            action="RETRY", target_concept_id=target,
+            delivery_mode=select_delivery_mode(inp, ruleset, target),
+            background_actions=select_background_actions(inp, ruleset, target),
+            reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+            rule_index=0, fallback=True,
         )
-    action, action_reason = select_action(inp, target_cid, ruleset)
-    action, guard_reason = apply_repetition_guard(action, inp, ruleset)
-    final_reason_code = guard_reason if guard_reason != "guard.no_override" else action_reason
-    chapter_id = inp.chapter_id_for_concept.get(target_cid, "")
-    return DecisionOutput(
-        action=action,
-        delivery_mode=select_delivery_mode(inp.env_network, ruleset),
-        background_actions=select_background_actions(inp.env_network, ruleset),
-        target_concept_id=target_cid,
-        chapter_id=chapter_id,
-        reason_code=final_reason_code,
-        reason_or=rm.get(final_reason_code, _default_reason_or(final_reason_code, action, target_cid)),
-        suggested_chunk_id=inp.suggested_chunk_id,
-        suggested_question_id=inp.suggested_question_id,
+
+    # --- Rule 1: cold start (no mastery rows at all).
+    if not inp.mastery:
+        first = _first_concept_without_prereqs(inp)
+        if first is not None:
+            return _finish(inp, ruleset, rm, "ADVANCE", first,
+                           "COLD_START", rule_index=1)
+        # Every concept has prerequisites: remediate the weakest unmet one.
+        weakest = _most_blocked_prereq(inp)
+        if weakest is not None:
+            return _finish(inp, ruleset, rm, "REMEDIATE", weakest,
+                           "BLOCKED_BY_PREREQ", rule_index=1)
+        return _finish(inp, ruleset, rm, "RETRY", "",
+                       "STATE_INVALID_FALLBACK", rule_index=1, fallback=True)
+
+    # --- Target selection.
+    target, _why = _select_target_concept(inp, ruleset)
+    if not target:
+        return _finish(inp, ruleset, rm, "RETRY", "",
+                       "STATE_INVALID_FALLBACK", rule_index=0, fallback=True)
+    m = inp.mastery.get(target, MasteryEntry(ruleset.bkt.get("p_init_bp", 2000)))
+    p = m.p_bp
+
+    # --- Rule 2: repeated-attempt guard (3+ graded answers on T without a
+    # gain of at least min_gain_bp).
+    attempts_without_gain, alt_shown = guard_state(inp, target, ruleset)
+    if attempts_without_gain >= attempts_allowed:
+        if not alt_shown:
+            return _finish(inp, ruleset, rm, "REVISE", target,
+                           "NO_GAIN_ALT_CONTENT", rule_index=2)
+        weakest = _weakest_prereq(target, inp)
+        if weakest is not None:
+            pre_p = inp.mastery.get(weakest, MasteryEntry(0)).p_bp
+            if pre_p < mastered_at:
+                return _finish(inp, ruleset, rm, "REMEDIATE", weakest,
+                               "NO_GAIN_REMEDIATE_PREREQ", rule_index=2)
+        # Terminal: interventions exhausted. The learner is never advanced
+        # while T is below mastered.
+        return _finish(inp, ruleset, rm, "REVISE", target,
+                       "INTERVENTIONS_EXHAUSTED", needs_help=True, rule_index=2)
+
+    # --- Rules 3-4: weak concept / weak prerequisite.
+    if p < weak_below:
+        weakest = _weakest_prereq(target, inp)
+        if weakest is not None:
+            pre_p = inp.mastery.get(weakest, MasteryEntry(0)).p_bp
+            if pre_p < weak_below:
+                return _finish(inp, ruleset, rm, "REMEDIATE", weakest,
+                               "WEAK_PREREQ_GAP", rule_index=3)
+        return _finish(inp, ruleset, rm, "REMEDIATE", target,
+                       "WEAK_CONCEPT", rule_index=4)
+
+    # --- Rules 5-6: partial mastery, retry.
+    if p < mastered_at:
+        last_correct = inp.trigger_correct
+        if last_correct is None and inp.recent_events:
+            for e in reversed(inp.recent_events):
+                if e.event_type == "ANSWER_SUBMITTED" and e.correct is not None:
+                    last_correct = e.correct
+                    break
+        if last_correct is False:
+            return _finish(inp, ruleset, rm, "RETRY", target,
+                           "WRONG_RETRY", rule_index=5)
+        return _finish(inp, ruleset, rm, "RETRY", target,
+                       "PARTIAL_PRACTICE", rule_index=6)
+
+    # --- Rule 7: mastered → advance to the next eligible concept.
+    nxt = _next_eligible_concept(inp, ruleset, after_concept=target)
+    if nxt is not None:
+        return _finish(inp, ruleset, rm, "ADVANCE", nxt,
+                       "MASTERED_ADVANCE", rule_index=7)
+    # No eligible concept: slice complete (everything mastered) or blocked.
+    all_mastered = all(
+        inp.mastery.get(cid, MasteryEntry(0)).p_bp >= mastered_at
+        for cid in inp.concept_order
     )
+    if all_mastered:
+        oldest = min(
+            inp.concept_order,
+            key=lambda cid: (inp.mastery.get(cid, MasteryEntry(0)).last_event_seq, cid),
+        )
+        return _finish(inp, ruleset, rm, "REVISE", oldest,
+                       "SLICE_COMPLETE", rule_index=7)
+    weakest_unmet = _most_blocked_prereq(inp)
+    if weakest_unmet is not None:
+        return _finish(inp, ruleset, rm, "REMEDIATE", weakest_unmet,
+                       "BLOCKED_BY_PREREQ", rule_index=7)
+    return _finish(inp, ruleset, rm, "RETRY", target,
+                   "STATE_INVALID_FALLBACK", rule_index=7, fallback=True)
 
 
-def _default_reason_or(reason_code: str, action: Action, target_cid: str) -> str:
-    """Hard fallback Odia reasons — used when i18n dict is missing keys.
+def _most_blocked_prereq(inp: DecisionInput) -> Optional[str]:
+    """The weakest prerequisite that blocks any concept (lowest mastery)."""
+    blocked: set[str] = set()
+    for cid, pres in (inp.prereqs or {}).items():
+        blocked.update(pres or [])
+    best: Optional[tuple[int, str]] = None
+    for cid in blocked:
+        p = inp.mastery.get(cid, MasteryEntry(0)).p_bp
+        key = (p, cid)
+        if best is None or key < best:
+            best = key
+    return best[1] if best else None
 
-    NOTE: These are NOT generated by an LLM. They are fixed educational
-    strings shipped with the app and localised via the i18n dictionary.
-    """
-    defaults = {
-        "action.remediate_low_mastery_or_incorrect": "ଆଜି ଉତ୍ତର ଭୁଲ୍ ଥିଲା। ପୁଣି ଶିଖ।",
-        "action.retry_below_threshold": "ଆଉକି ଚେଷ୍ଟା କର।",
-        "action.revise_below_threshold": "ପୁଣି ରିଭିଜନ୍ କର।",
-        "action.revise_safe_default": "ପୁଣି ରିଭିଜନ୍ କର।",
-        "action.advance_mastered": "ସାବଧାନ! ପରବର୍ତ୍ତୀ ଧାରଣା କୁ ଯାଅ।",
-        "guard.escape_to_revise_not_ready_to_advance": "ବାରମ୍ବାର ଉନ୍ନତି ପାଇଁ ରିଭିଜନ୍ କର।",
-        "guard.escape_action": "ପୁଣି ରିଭିଜନ୍ କର।",
-        "guard.escape_loop_on_same_concept": "ଏହି ଧାରଣା କୁ ବାରମ୍ବାର ବଦ୍ଧ କର।",
-    }
-    return defaults.get(reason_code, f"ଆଗାମୀ କାମ: {action.value}")
+
+def _finish(inp: DecisionInput, ruleset: Ruleset, rm: dict[str, str],
+            action: str, target: str, reason_code: str,
+            needs_help: bool = False, rule_index: int = -1,
+            fallback: bool = False) -> DecisionOutput:
+    """Assemble the output, applying the offline-missing-pack substitution
+    (CONTENT_NOT_AVAILABLE_OFFLINE) and the trajectory check."""
+    out_target = target
+    reason = reason_code
+    if out_target and not _target_pack_installed(out_target, inp) \
+            and inp.env_network == "offline":
+        nearest = _nearest_installed_concept(inp, ruleset)
+        if nearest is not None and nearest != out_target:
+            out_target = nearest
+            reason = "CONTENT_NOT_AVAILABLE_OFFLINE"
+        else:
+            # No pack installed at all (v2: storage corruption removed the
+            # seed pack): the fallback decision is returned and the UI asks
+            # the learner to reconnect and download.
+            return DecisionOutput(
+                action="RETRY", target_concept_id=out_target,
+                delivery_mode="cached", background_actions=[],
+                reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+                rule_index=0, fallback=True,
+            )
+    out = DecisionOutput(
+        action=action, target_concept_id=out_target,
+        delivery_mode=select_delivery_mode(inp, ruleset, out_target),
+        background_actions=select_background_actions(inp, ruleset, out_target),
+        reason_code=reason, needs_help=needs_help,
+        rule_index=rule_index, fallback=fallback,
+    )
+    if not trajectory_check(out, inp, ruleset):
+        # Fallback decision (v2): reason STATE_INVALID_FALLBACK, logged by caller.
+        # RETRY on the last concept, or on the first concept when no graded
+        # concept exists. With NO concepts at all, RETRY with an empty target
+        # is the only safe output (there is nothing to advance to).
+        tgt = (inp.trigger_concept_id
+               if inp.trigger_concept_id in inp.concept_order else
+               (inp.concept_order[0] if inp.concept_order else ""))
+        return DecisionOutput(
+            action="RETRY",
+            target_concept_id=tgt,
+            delivery_mode="cached",
+            background_actions=[],
+            reason_code="STATE_INVALID_FALLBACK", needs_help=False,
+            rule_index=0, fallback=True,
+        )
+    return out
 
 
 __all__ = [
-    "DecisionInput",
-    "DecisionOutput",
-    "decide",
-    "select_target_concept",
-    "select_action",
-    "apply_repetition_guard",
-    "select_delivery_mode",
-    "select_background_actions",
+    "MasteryEntry", "RecentEvent", "DecisionInput", "DecisionOutput",
+    "decide", "engine_error", "state_is_valid", "trajectory_check",
+    "select_delivery_mode", "select_background_actions",
+    "guard_state", "mastery_band_bp",
 ]

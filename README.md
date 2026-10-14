@@ -110,10 +110,16 @@ No Docker required for the MVP (SQLite is the default). Docker is optional for P
 ```
 
 This will:
-1. Create a Python venv at `./.venv` and install backend deps.
+1. Create a Python venv at `./.venv` and install backend deps (never the
+   system Python).
 2. Install frontend Node deps.
-3. Build the curriculum pack (3 chapters × 9 concepts × 27 questions).
-4. Generate 240 deterministic rule test vectors.
+3. Build the curriculum pack (3 chapters × 9 concepts, revised question
+   revisions + answer-key hashes).
+4. Generate the shared v2 rule vectors (golden + BKT + invalid + fuzz).
+
+If Python, Node.js or npm are missing the script fails with actionable
+diagnostics instead of improvising; `./run.sh doctor` reports the same
+environment and configuration check (without printing secrets).
 
 ### Run the app
 
@@ -132,7 +138,12 @@ Press `Ctrl+C` in the terminal to stop both servers cleanly.
 ### Run the tests
 
 ```bash
-./run.sh test   # runs pytest (286 tests) + vitest (242 tests) + e2e smoke
+./run.sh test    # pytest + decision parity (both engines) + vitest + e2e smoke
+./run.sh check   # frontend typecheck + lint + production build + backend import
+./run.sh parity  # regenerate shared vectors; run Python AND TypeScript engines
+./run.sh migrate # verify schema on a fresh DB and a prior-schema DB
+./run.sh health  # API liveness + readiness probe
+./run.sh smoke   # e2e smoke + optional real-provider probe when HF_TOKEN is set
 ```
 
 ### Diagnose the environment
@@ -151,10 +162,15 @@ Versioned under `/api/v1`. Stable error format is RFC 7807 `application/problem+
 | `GET /api/v1/readiness` | Per-provider readiness (translation/generation/retrieval) | None |
 | `GET /api/v1/diagnostics` | Public settings subset | None |
 | `GET /api/v1/metrics` | Prometheus metrics | None |
-| `POST /api/v1/learners` | Create learner + issue device-bound token | None |
+| `POST /api/v1/devices` | Register device (non-extractable ECDSA P-256 public key) → token pair | None |
+| `POST /api/v1/auth/refresh` | Rotate refresh tokens (normal renewal) | None |
+| `POST /api/v1/auth/challenge` | Signed-nonce challenge after prolonged offline | None |
+| `POST /api/v1/auth/renew` | Exchange the nonce signature for fresh tokens | None |
+| `POST /api/v1/learners` | Create learner + issue device-bound tokens | Bearer/None |
 | `GET /api/v1/learners/me` | Get current learner profile | Bearer |
-| `POST /api/v1/learners/{id}/activate` | Switch active learner on device | Bearer |
-| `POST /api/v1/learners/auth/renew` | Renew expired token | Bearer |
+| `GET /api/v1/learners` | List learners on THIS device only | Bearer |
+| `POST /api/v1/learners/{id}/activate` | Switch active learner on THIS device | Bearer |
+| `POST /api/v1/learners/auth/renew` | Renew expired access token | Bearer |
 | `GET /api/v1/content/chapters` | List chapters | None |
 | `GET /api/v1/content/concepts/{id}` | Get concept | None |
 | `GET /api/v1/content/concepts/{id}/chunks` | List chunks for concept | None |

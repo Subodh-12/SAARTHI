@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint src/*.js",
-    "preview": "vite preview"
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",
@@ -26,6 +27,7 @@
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^17.12.0",
     "postcss": "^8.5.29",
     "tailwindcss": "^3.4.19",

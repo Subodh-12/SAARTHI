@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, SaarthiApiError } from "../api/client";
-import { db, listRecentDecisions, LocalDecision, nextSeq,
-        recordAssessmentEvent, getMasterySnapshot } from "../store/db";
-import { decide, RULESET, masteryBand } from "../engine/decide";
 import {
-  Action, BackgroundAction, Decision, DeliveryMode, LearnerEvent,
-  MasteryRecord, NetworkState, Outcome,
+  listRecentDecisions, LocalDecision, getMasterySnapshot, recordDecision,
+} from "../store/db";
+import { decide, RULESET } from "../engine/decide";
+import {
+  Action, Decision, MasteryRecord, NetworkState,
 } from "../generated/api";
-import { OR, t } from "../i18n/or";
-import { offlineRetrieve } from "../lib/offline_retrieval";
+import { t } from "../i18n/or";
 import { getInstalledPack } from "../lib/sync";
 
 interface Props {
@@ -29,38 +28,48 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
     void loadHome();
   }, []);
 
-  const loadHome = async () => {
+  async function loadHome() {
     setLoading(true); setError("");
     try {
       if (network === NetworkState.OFFLINE) {
-        // Use local decision engine
+        // Local decision engine (pure, no network) — v2 input shape with
+        // integer basis-point mastery.
         const snap = await getMasterySnapshot();
-        const masteryDict: Record<string, { p: number; band: string; attempts: number; correct: number }> = {};
+        const masteryDict: Record<string, { p_bp: number; attempts: number; correct: number }> = {};
         for (const m of snap) masteryDict[m.concept_id] = {
-          p: m.p_known, band: m.band, attempts: m.attempts, correct: m.correct,
+          p_bp: m.p_bp, attempts: m.attempts, correct: m.correct,
         };
         // Concept order from installed pack
         const pack = await getInstalledPack();
         let concept_order: string[] = [];
-        let chapter_for_concept: Record<string, string> = {};
-        let prereqs: Record<string, string[]> = {};
+        const chapter_for_concept: Record<string, string> = {};
+        const prereqs: Record<string, string[]> = {};
+        let packId: string | undefined;
         if (pack) {
           const m = JSON.parse(pack.manifest_json);
+          packId = m.manifest?.pack_id ?? pack.pack_id;
           concept_order = m.concepts.map((c: any) => c.concept_id);
           for (const c of m.concepts) {
             chapter_for_concept[c.concept_id] = c.chapter_id;
             prereqs[c.concept_id] = c.prerequisites || [];
           }
         }
+        const recent = await listRecentDecisions(10);
         const out = decide({
-          trigger_event_type: "next_action_shown",
+          trigger_event_type: "SESSION_STARTED",
           trigger_concept_id: null,
-          trigger_evidence: "none",
+          trigger_correct: null,
           mastery: masteryDict,
-          recent_events: (await db.decisions.orderBy("created_at").reverse().limit(10).toArray())
-            .map((d) => ({ concept_id: d.target_concept_id, payload: { last_action: d.action } })),
+          recent_events: recent.map((d, i) => ({
+            seq: i + 1, event_type: "DECISION_MADE_LOCAL",
+            concept_id: d.target_concept_id, correct: null,
+            p_bp_after: null, last_action: d.action,
+          })),
           prereqs, env_network: network,
-          installed_pack_versions: pack ? { [pack.pack_id]: pack.version } : {},
+          installed_pack_versions: pack && packId
+            ? { [packId]: parseInt(pack.version.split(".")[0], 10) || 1 } : {},
+          required_pack_for_concept: Object.fromEntries(
+            concept_order.map((cid) => [cid, packId || ""])),
           ruleset_version: RULESET.ruleset_version,
           concept_order,
           chapter_id_for_concept: chapter_for_concept,
@@ -70,21 +79,24 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
           learner_id: profile.learner_id,
           ruleset_version: RULESET.ruleset_version,
           target_concept_id: out.target_concept_id,
-          action: out.action, delivery_mode: out.delivery_mode,
-          background_actions: out.background_actions,
-          reason_code: out.reason_code, reason_or: out.reason_or,
-          chapter_id: out.chapter_id,
-          network, produced_by: "local_engine",
+          action: out.action as Action,
+          delivery_mode: out.delivery_mode as any,
+          background_actions: out.background_actions as any,
+          reason_code: out.reason_code,
+          reason_or: out.reason_code,
+          needs_help: out.needs_help,
+          chapter_id: (chapter_for_concept[out.target_concept_id] || ""),
+          network, produced_by: "local_engine", source: "local",
           created_at: Date.now(),
-          suggested_chunk_id: out.suggested_chunk_id ?? null,
-          suggested_question_id: out.suggested_question_id ?? null,
+          suggested_chunk_id: null,
+          suggested_question_id: null,
         };
         setDecision(localDecision);
-        await db.decisions.put({ ...localDecision, trace_json: "[]" });
+        await recordDecision({ ...localDecision, trace_json: "[]" } as any);
       } else {
         const d = await api.nextDecision(network);
         setDecision(d);
-        await db.decisions.put({ ...d, trace_json: "[]" });
+        await recordDecision({ ...d, trace_json: "[]" } as any);
       }
       setMastery((await getMasterySnapshot()) as any);
       setRecentDecisions(await listRecentDecisions(5));
@@ -124,6 +136,11 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
         <div className="text-xs text-slate-500 mt-1 odia">
           ({decision.produced_by === "local_engine" ? "ସ୍ଥାନୀୟ" : "ସର୍ଭର"} ନିଷ୍ପତ୍ତି)
         </div>
+        {decision.needs_help && (
+          <div className="banner-warn text-sm px-3 py-2 rounded mt-2 odia">
+            {t("ask_teacher_prompt")}
+          </div>
+        )}
         <button className="btn-primary w-full mt-4"
                 onClick={() => onNavigate("lesson")}>
           {t("lesson_read")}
@@ -139,7 +156,7 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
             {mastery.map((m) => (
               <li key={m.concept_id} className="flex justify-between">
                 <span>{m.concept_id}</span>
-                <span>{m.band} · {(m.p_known * 100).toFixed(0)}%</span>
+                <span>{m.band} · {Math.round(m.p_bp / 100)}%</span>
               </li>
             ))}
           </ul>

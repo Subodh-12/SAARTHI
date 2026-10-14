@@ -14,6 +14,7 @@ a human-authoring task.
 Run:  python scripts/gen_questions.py
 Idempotent: replaces previously generated items (same id prefix) in place.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,7 +52,9 @@ def blank_sentence(sentence: str, term: str) -> tuple[str, str] | None:
 def main() -> int:
     rng = random.Random(7)
     gloss = norm(json.dumps([], ensure_ascii=False))  # placeholder to keep flake quiet
-    glossary = json.loads((CURR / "glossary.json").read_text(encoding="utf-8"))["glossary"]
+    glossary = json.loads((CURR / "glossary.json").read_text(encoding="utf-8"))[
+        "glossary"
+    ]
     glossary = [norm(json.dumps(g, ensure_ascii=False)) and g for g in glossary]
     terms = []
     for g in glossary:
@@ -69,7 +72,9 @@ def main() -> int:
         chapter_id = m["chapter_id"]
         chunk_by_concept: dict[str, list[str]] = {}
         for ck in m["chunks"]:
-            chunk_by_concept.setdefault(ck["concept_id"], []).extend(split_sentences(norm(ck["text_or"])))
+            chunk_by_concept.setdefault(ck["concept_id"], []).extend(
+                split_sentences(norm(ck["text_or"]))
+            )
         gloss_in_chapter = set()
         for ck in m["chunks"]:
             for t in terms:
@@ -77,7 +82,11 @@ def main() -> int:
                     gloss_in_chapter.add(t["or"])
 
         existing_ids = {q["question_id"] for q in m.get("questions", [])}
-        kept = [q for q in m.get("questions", []) if not q["question_id"].split("_")[-1].startswith(GEN_PREFIX)]
+        kept = [
+            q
+            for q in m.get("questions", [])
+            if not q["question_id"].split("_")[-1].startswith(GEN_PREFIX)
+        ]
         for q in kept:
             existing_ids.add(q["question_id"])
 
@@ -86,10 +95,14 @@ def main() -> int:
             cid = concept["concept_id"]
             sents = chunk_by_concept.get(cid, [])
             # candidate (sentence, term) pairs, ordered shortest→longest sentence
-            cand: list[tuple[int, str, str, str]] = []  # (len, sentence, term, source_ref)
+            cand: list[
+                tuple[int, str, str, str]
+            ] = []  # (len, sentence, term, source_ref)
             src_ref = concept.get("source_refs", [""])[0]
             for s in sents:
-                for t in sorted(terms, key=lambda x: -len(x["or"])):  # longest term match first
+                for t in sorted(
+                    terms, key=lambda x: -len(x["or"])
+                ):  # longest term match first
                     hit = blank_sentence(s, t["or"])
                     if not hit:
                         continue
@@ -101,8 +114,8 @@ def main() -> int:
             n = len(cand)
             bands = {
                 "easy": cand[: max(1, n // 3)],
-                "medium": cand[max(1, n // 3): 2 * max(1, n // 3)],
-                "hard": cand[2 * max(1, n // 3):],
+                "medium": cand[max(1, n // 3) : 2 * max(1, n // 3)],
+                "hard": cand[2 * max(1, n // 3) :],
             }
             seq = 1
             for difficulty in ("easy", "medium", "hard"):
@@ -118,8 +131,14 @@ def main() -> int:
                     term = term_lookup[answer]
                     # distractors: definitions of other terms present in this
                     # chapter, never mentioning the answer itself
-                    pool = [o for o in terms if o["or"] != answer and o["or"] in gloss_in_chapter
-                            and o["or"] not in prompt and o["def"] != term["def"]]
+                    pool = [
+                        o
+                        for o in terms
+                        if o["or"] != answer
+                        and o["or"] in gloss_in_chapter
+                        and o["or"] not in prompt
+                        and o["def"] != term["def"]
+                    ]
                     rng.shuffle(pool)
                     distractors: list[str] = []
                     for o in pool:
@@ -137,25 +156,29 @@ def main() -> int:
                     if qid in existing_ids:
                         continue
                     existing_ids.add(qid)
-                    new_qs.append({
-                        "question_id": qid,
-                        "concept_id": cid,
-                        "qtype": "mcq",
-                        "prompt_or": f"ଖାଲି ଜାଗା ପୂରଣ କର: {prompt}",
-                        "options": options,
-                        "correct_option": options.index(f"____ — {term['def']}"),
-                        "explanation_or": f"{term['or']} ({term['en']}): {term['def']}",
-                        "difficulty": difficulty,
-                        "misconception_tag": None,
-                        "source_ref": f"{src} (draft: auto-cloze)",
-                    })
+                    new_qs.append(
+                        {
+                            "question_id": qid,
+                            "concept_id": cid,
+                            "qtype": "mcq",
+                            "prompt_or": f"ଖାଲି ଜାଗା ପୂରଣ କର: {prompt}",
+                            "options": options,
+                            "correct_option": options.index(f"____ — {term['def']}"),
+                            "explanation_or": f"{term['or']} ({term['en']}): {term['def']}",
+                            "difficulty": difficulty,
+                            "misconception_tag": None,
+                            "source_ref": f"{src} (draft: auto-cloze)",
+                        }
+                    )
                     seq += 1
                     made += 1
                     total_new += 1
 
         m["questions"] = kept + new_qs
         mpath.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"{chapter_id}: kept {len(kept)}, generated {len(new_qs)} → {len(m['questions'])} questions")
+        print(
+            f"{chapter_id}: kept {len(kept)}, generated {len(new_qs)} → {len(m['questions'])} questions"
+        )
 
     print(f"total generated: {total_new}")
     return 0

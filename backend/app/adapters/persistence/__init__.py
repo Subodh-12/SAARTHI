@@ -45,7 +45,8 @@ class Persistence:
         return cls(engine, factory)
 
     async def apply_schema(self) -> None:
-        """Apply schema.sql to the connected DB. Idempotent."""
+        """Apply schema.sql to the connected DB, then migrate a prior
+        schema in place (guarded column additions). Idempotent."""
         sql = SCHEMA_PATH.read_text(encoding="utf-8")
         # SQLite + async: use raw_connection for batch DDL.
         async with self.engine.begin() as conn:
@@ -55,12 +56,28 @@ class Persistence:
                 if not stmt:
                     continue
                 await conn.exec_driver_sql(stmt) if hasattr(conn, "exec_driver_sql") else await conn.execute(_text(stmt))
+            await _migrate_prior_schema(conn)
         log.info("schema_applied path=%s", SCHEMA_PATH)
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
         async with self.factory() as session:
             yield session
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[AsyncSession]:
+        """One explicit database transaction (Design v2 Section 5).
+
+        The sync batch uses this so event inserts, the mastery projection
+        and the cursor advance commit together — or not at all.
+        """
+        async with self.factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     async def dispose(self) -> None:
         await self.engine.dispose()
@@ -86,6 +103,107 @@ def _split_statements(sql: str) -> list[str]:
 def _text(stmt: str):
     from sqlalchemy import text
     return text(stmt)
+
+
+# --------------------------------------------------------------------------- #
+# Prior-schema migrations (guarded, idempotent column additions)
+# --------------------------------------------------------------------------- #
+async def _table_exists(conn, table: str) -> bool:
+    from sqlalchemy import text
+    if "sqlite" in str(conn.dialect.name):
+        res = await conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=:t"),
+            {"t": table})
+    else:
+        res = await conn.execute(text(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = current_schema() AND table_name = :t"),
+            {"t": table})
+    return res.fetchone() is not None
+
+
+async def _columns(conn, table: str) -> set[str]:
+    from sqlalchemy import text
+    if "sqlite" in str(conn.dialect.name):
+        res = await conn.execute(text(f"PRAGMA table_info({table})"))
+        return {row[1] for row in res.fetchall()}
+    res = await conn.execute(text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema = current_schema() AND table_name = :t"),
+        {"t": table})
+    return {row[0] for row in res.fetchall()}
+
+
+_MIGRATIONS: list[tuple[str, str, str]] = [
+    # (table, column, DDL to add it when missing)
+    ("learner_progress", "p_bp",
+     "ALTER TABLE learner_progress ADD COLUMN p_bp INTEGER"),
+    ("learner_progress", "bkt_version",
+     "ALTER TABLE learner_progress ADD COLUMN bkt_version TEXT NOT NULL DEFAULT '1'"),
+    ("learner_progress", "last_event_seq",
+     "ALTER TABLE learner_progress ADD COLUMN last_event_seq INTEGER"),
+    ("learner_events", "status",
+     "ALTER TABLE learner_events ADD COLUMN status TEXT NOT NULL DEFAULT 'accepted'"),
+    ("learner_events", "effect", "ALTER TABLE learner_events ADD COLUMN effect TEXT"),
+    ("learner_events", "reason", "ALTER TABLE learner_events ADD COLUMN reason TEXT"),
+    ("learner_events", "client_ts",
+     "ALTER TABLE learner_events ADD COLUMN client_ts INTEGER"),
+    ("decisions", "needs_help",
+     "ALTER TABLE decisions ADD COLUMN needs_help INTEGER NOT NULL DEFAULT 0"),
+    ("decisions", "source",
+     "ALTER TABLE decisions ADD COLUMN source TEXT NOT NULL DEFAULT 'server'"),
+    ("decisions", "trigger_event_id",
+     "ALTER TABLE decisions ADD COLUMN trigger_event_id TEXT"),
+    ("questions", "revision",
+     "ALTER TABLE questions ADD COLUMN revision INTEGER NOT NULL DEFAULT 1"),
+    ("questions", "answer_key_hash",
+     "ALTER TABLE questions ADD COLUMN answer_key_hash TEXT NOT NULL DEFAULT ''"),
+    ("questions", "status",
+     "ALTER TABLE questions ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"),
+    ("learner_devices", "status",
+     "ALTER TABLE learner_devices ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"),
+]
+
+
+async def _migrate_prior_schema(conn) -> None:
+    """Apply guarded column additions for databases created by the prior
+    (v1) schema. Backfills integer mastery from the old float column."""
+    from sqlalchemy import text
+    if not await _table_exists(conn, "learner_progress"):
+        return  # fresh database — schema.sql already created everything
+    existing = await _columns(conn, "learner_progress")
+    if "p_known" in existing and "p_bp" not in existing:
+        await conn.execute(text(
+            "ALTER TABLE learner_progress ADD COLUMN p_bp INTEGER"))
+        # Backfill: half-up rounding of the stored float — floor(x + 0.5)
+        # is exactly half-up for this domain (values live in [0.01, 0.99],
+        # so the float product never sits on a .5 boundary of its own).
+        await conn.execute(text(
+            "UPDATE learner_progress SET p_bp = "
+            "CAST(p_known * 10000 + 0.5 AS INTEGER)"))
+        log.info("migrated learner_progress.p_known -> p_bp")
+    for table, column, ddl in _MIGRATIONS:
+        cols = await _columns(conn, table)
+        if table == "learner_progress" and "p_bp" in cols:
+            if column in cols:
+                continue
+            await conn.execute(text(ddl))
+            log.info("migrated %s.%s", table, column)
+            continue
+        if column not in cols:
+            await conn.execute(text(ddl))
+            log.info("migrated %s.%s", table, column)
+    # devices.public_key_spki / revoked_at / last_seen_at
+    if await _table_exists(conn, "devices"):
+        cols = await _columns(conn, "devices")
+        for column, ddl in (
+            ("public_key_spki", "ALTER TABLE devices ADD COLUMN public_key_spki TEXT"),
+            ("revoked_at", "ALTER TABLE devices ADD COLUMN revoked_at INTEGER"),
+            ("last_seen_at", "ALTER TABLE devices ADD COLUMN last_seen_at INTEGER"),
+        ):
+            if column not in cols:
+                await conn.execute(text(ddl))
+                log.info("migrated devices.%s", column)
 
 
 # --------------------------------------------------------------------------- #

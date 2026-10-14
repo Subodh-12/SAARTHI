@@ -1,15 +1,25 @@
-// Deterministic decision engine — TypeScript mirror of backend/app/domain/decide.py
+// Deterministic decision engine v2 — TypeScript mirror of
+// backend/app/domain/decide.py (Design v2 Sections 6 + Appendix A).
 // Consumes the SAME packages/ruleset/rules.json as the Python engine.
-// Both implementations must pass the exact same test vectors.
+// Both implementations must pass the SAME test vectors
+// (tests/fixtures/rule_vectors.json) with IDENTICAL outputs.
+//
+// Pure functions: no network, no LLM, no process-local memory. Mastery is
+// an INTEGER in basis points (0..10000); the BKT update is exact integer
+// arithmetic so Python and JavaScript cannot disagree through floats.
 
-import { Action, BackgroundAction, DeliveryMode, NetworkState } from "../generated/api";
 import rulesetRaw from "../generated/ruleset.json";
 
+export const RULESET: Ruleset = rulesetRaw as Ruleset;
+
 export interface Ruleset {
+  version: string;
   ruleset_version: string;
+  bkt_version: string;
   bkt: any;
+  bands: any;
+  guard: any;
   mastery: any;
-  actions: any;
   repetition_guard: any;
   target_selection: any;
   network: any;
@@ -19,6 +29,8 @@ export interface Ruleset {
   sync: any;
   pack: any;
   prefetch: any;
+  doubt: any;
+  auth: any;
   orchestration: any;
   translation: any;
   retrieval: any;
@@ -26,257 +38,562 @@ export interface Ruleset {
   validation: any;
 }
 
-export const RULESET: Ruleset = rulesetRaw as Ruleset;
+export const SCALE = 10000;
 
-export interface MasteryEntry { p: number; band: string; attempts: number; correct: number; }
-export interface RecentEvent { concept_id?: string; payload?: { last_action?: string }; }
+export interface MasteryEntry {
+  p_bp: number;
+  attempts?: number;
+  correct?: number;
+  last_event_seq?: number;
+}
+
+export interface RecentEvent {
+  seq: number;
+  event_type: string;
+  concept_id?: string | null;
+  correct?: boolean | null;
+  p_bp_after?: number | null;
+  last_action?: string | null;
+}
 
 export interface DecisionInput {
   trigger_event_type: string;
   trigger_concept_id: string | null;
-  trigger_evidence: "correct" | "incorrect" | "partial" | "none";
+  trigger_correct: boolean | null;
   mastery: Record<string, MasteryEntry>;
   recent_events: RecentEvent[];
   prereqs: Record<string, string[]>;
-  env_network: NetworkState;
-  installed_pack_versions: Record<string, string>;
-  ruleset_version: string;
   concept_order: string[];
-  suggested_chunk_id?: string | null;
-  suggested_question_id?: string | null;
   chapter_id_for_concept?: Record<string, string>;
+  doubt_concept_hint?: string | null;
+  env_network: "online" | "weak" | "offline" | "reconnected";
+  installed_pack_versions: Record<string, number>;
+  required_pack_for_concept?: Record<string, string>;
+  storage_free_mb?: number;
+  battery_saver?: boolean;
+  outbox_nonempty?: boolean;
+  ruleset_version: string;
 }
 
 export interface DecisionOutput {
-  action: Action;
-  delivery_mode: DeliveryMode;
-  background_actions: BackgroundAction[];
+  action: "REMEDIATE" | "RETRY" | "REVISE" | "ADVANCE";
   target_concept_id: string;
-  chapter_id: string;
+  delivery_mode: "cached" | "rich" | "prefetch_then_offline";
+  background_actions: string[];
   reason_code: string;
-  reason_or: string;
-  suggested_chunk_id?: string | null;
-  suggested_question_id?: string | null;
+  needs_help: boolean;
+  rule_index: number;
+  fallback: boolean;
 }
 
-export function masteryBand(p: number): string {
-  const th = RULESET.mastery.thresholds;
-  if (p < th.unstarted_lo) return "unstarted";
-  if (p < th.novice_hi) return "novice";
-  if (p < th.developing_hi) return "developing";
-  if (p < th.proficient_hi) return "proficient";
+// --------------------------------------------------------------------------- //
+// BKT — exact integer arithmetic (Appendix A)
+// --------------------------------------------------------------------------- //
+export function toBp(x: number): number {
+  return Math.round(x * SCALE);
+}
+
+export interface BKTParams {
+  p_init_bp: number;
+  learn_bp: number;
+  slip_bp: number;
+  guess_bp: number;
+  clamp_lo_bp: number;
+  clamp_hi_bp: number;
+}
+
+export function bktParams(conceptId?: string): BKTParams {
+  const b = RULESET.bkt;
+  const overrides = (b.per_concept_overrides || {})[conceptId || ""] || {};
+  const clamp = overrides.clamp_bp || b.clamp_bp || [100, 9900];
+  return {
+    p_init_bp: overrides.p_init_bp ?? b.p_init_bp ?? 2000,
+    learn_bp: toBp(overrides.learn ?? b.learn ?? 0.15),
+    slip_bp: toBp(overrides.slip ?? b.slip ?? 0.10),
+    guess_bp: toBp(overrides.guess ?? b.guess ?? 0.20),
+    clamp_lo_bp: clamp[0],
+    clamp_hi_bp: clamp[1],
+  };
+}
+
+/** Half-up rounding of the positive integer division n/d — the identical
+ * formula lives in Python (`round_half_up_div`). */
+export function roundHalfUpDiv(n: number, d: number): number {
+  if (d <= 0) throw new Error("denominator must be positive");
+  return Math.floor((2 * n + d) / (2 * d));
+}
+
+/** Exact Appendix A update from the stored integer mastery (basis points). */
+export function bktUpdateBp(pBp: number, correct: boolean,
+                            conceptId?: string): number {
+  const params = bktParams(conceptId);
+  const p = Math.max(0, Math.min(SCALE, Math.floor(pBp)));
+  const S = params.slip_bp, G = params.guess_bp, L = params.learn_bp;
+  let num: number, den: number;
+  if (correct) {
+    num = p * (SCALE - S);
+    den = num + (SCALE - p) * G;
+  } else {
+    num = p * S;
+    den = num + (SCALE - p) * (SCALE - G);
+  }
+  let posteriorNum = num, posteriorDen = den;
+  if (den <= 0) { posteriorNum = p; posteriorDen = SCALE; }
+  const n = posteriorNum * SCALE + (posteriorDen - posteriorNum) * L;
+  const d = posteriorDen;
+  const q = roundHalfUpDiv(n, d);
+  return Math.max(params.clamp_lo_bp, Math.min(params.clamp_hi_bp, q));
+}
+
+/** Back-compat alias (v2 integer contract). */
+export function bktUpdate(pBp: number, correct: boolean,
+                          conceptId?: string): number {
+  return bktUpdateBp(pBp, correct, conceptId);
+}
+
+export function masteryBandBp(pBp: number): "weak" | "partial" | "mastered" {
+  if (pBp < (RULESET.bands.weak_below_bp ?? 4000)) return "weak";
+  if (pBp < (RULESET.bands.mastered_at_bp ?? 8500)) return "partial";
   return "mastered";
 }
 
-export function bktParams(conceptId?: string): [number, number, number, number] {
-  const p = RULESET.bkt.priors;
-  const overrides = (RULESET.bkt.per_concept_overrides || {})[conceptId || ""] || {};
-  return [
-    overrides.default_prior ?? p.default_prior,
-    overrides.default_learn ?? p.default_learn,
-    overrides.default_slip ?? p.default_slip,
-    overrides.default_guess ?? p.default_guess,
-  ];
-}
-
-export function bktUpdate(
-  pKnown: number,
-  evidence: "correct" | "incorrect" | "partial" | "none",
-  weight: number,
-  conceptId?: string,
-): number {
-  const [prior, learn, slip, guess] = bktParams(conceptId);
-  const bounds = RULESET.bkt.update_bounds;
-  let posterior = pKnown;
-  const w = Math.max(0, Math.min(1, weight));
-  if (evidence === "correct") {
-    const num = pKnown * (1 - slip);
-    const den = pKnown * (1 - slip) + (1 - pKnown) * guess;
-    posterior = den > 0 ? num / den : pKnown;
-  } else if (evidence === "incorrect") {
-    const num = pKnown * slip;
-    const den = pKnown * slip + (1 - pKnown) * (1 - guess);
-    posterior = den > 0 ? num / den : pKnown;
-  } else if (evidence === "partial") {
-    const num = pKnown * (1 - slip);
-    const den = pKnown * (1 - slip) + (1 - pKnown) * guess;
-    const posteriorCorrect = den > 0 ? num / den : pKnown;
-    posterior = pKnown + (posteriorCorrect - pKnown) * w;
-  }
-  // learning transition
-  posterior = posterior + (1 - posterior) * learn;
-  // weighting for partial evidence
-  posterior = pKnown + (posterior - pKnown) * (evidence === "correct" || evidence === "incorrect" ? 1 : w);
-  return Math.max(bounds.min_p, Math.min(bounds.max_p, posterior));
-}
-
-function recentSameActionCount(recent: RecentEvent[], action: string): number {
-  let n = 0;
-  for (let i = recent.length - 1; i >= 0; i--) {
-    if (recent[i].payload?.last_action === action) n++;
-    else break;
-  }
-  return n;
-}
-
-function recentSameConceptCount(recent: RecentEvent[], conceptId: string): number {
-  let n = 0;
-  for (let i = recent.length - 1; i >= 0; i--) {
-    if (recent[i].concept_id === conceptId) n++;
-    else break;
-  }
-  return n;
-}
-
-export interface ReasonMessages { [code: string]: string }
-
-export function selectTargetConcept(
-  inp: DecisionInput,
-  reasonMessages: ReasonMessages = {},
-): { target: string; reasonCode: string; reasonOr: string } {
-  const th = RULESET.mastery.thresholds;
-  const advanceThreshold = RULESET.actions.advance_threshold;
-  // First pass: first unmastered with prereqs satisfied
-  for (const cid of inp.concept_order) {
-    const entry = inp.mastery[cid];
-    if (!entry) {
-      return { target: cid, reasonCode: "target.unstarted_no_prereqs_needed",
-        reasonOr: reasonMessages["target.unstarted_no_prereqs_needed"] || "ନୂଆ ଧାରଣା ଆରମ୍ଭ କରିବା।" };
-    }
-    const { p, band } = entry;
-    if (band === "mastered") continue;
-    if (p >= advanceThreshold) continue;
-    let ok = true;
-    const prereqs = inp.prereqs[cid] || [];
-    for (const pre of prereqs) {
-      if (!inp.mastery[pre]) {
-        return { target: pre, reasonCode: "target.prerequisite_unstarted",
-          reasonOr: reasonMessages["target.prerequisite_unstarted"] || "ପ୍ରଥମ ଆଧାର ଧାରଣା ଶିଖ।" };
-      }
-      const preP = inp.mastery[pre].p;
-      if (preP < RULESET.actions.advance_threshold) {
-        return { target: pre, reasonCode: "target.prerequisite_not_mastered",
-          reasonOr: reasonMessages["target.prerequisite_not_mastered"] || "ପ୍ରଥମ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।" };
-      }
-    }
-    if (ok) {
-      return { target: cid, reasonCode: "target.first_unmastered_with_prereqs",
-        reasonOr: reasonMessages["target.first_unmastered_with_prereqs"] || "ଏହି ଧାରଣା ଉପରେ କାମ କର।" };
-    }
-  }
-  if (Object.keys(inp.mastery).length === 0) {
-    if (inp.concept_order.length) {
-      return { target: inp.concept_order[0], reasonCode: "target.fallback_first_concept",
-        reasonOr: reasonMessages["target.fallback_first_concept"] || "ପ୍ରଥମ ଧାରଣା ଆରମ୍ଭ କର।" };
-    }
-    return { target: "", reasonCode: "target.no_concepts_available",
-      reasonOr: reasonMessages["target.no_concepts_available"] || "କୌଣସି ଧାରଣା ନାହିଁ।" };
-  }
-  const sorted = Object.entries(inp.mastery).sort(
-    (a, b) => (a[1].p - b[1].p) || a[0].localeCompare(b[0]),
-  );
-  const [cid, entry] = sorted[0];
-  return { target: cid, reasonCode: "target.lowest_mastery_fallback",
-    reasonOr: reasonMessages["target.lowest_mastery_fallback"] || "ସବୁଠା ଦୁର୍ବଳ ଧାରଣା ଉପରେ ମନ୍ଦନ କର।" };
-}
-
-export function selectAction(
-  inp: DecisionInput, targetCid: string,
-): { action: Action; reasonCode: string } {
-  const entry = inp.mastery[targetCid] || { p: 0.4, band: "novice", attempts: 0, correct: 0 };
-  const pKnown: number = entry.p;
-  const th = RULESET.actions;
-  const evidence = inp.trigger_evidence;
-  if (evidence === "incorrect" || pKnown < th.remediate_threshold) {
-    return { action: Action.REMEDIATE, reasonCode: "action.remediate_low_mastery_or_incorrect" };
-  }
-  if (pKnown < th.retry_threshold) {
-    return { action: Action.RETRY, reasonCode: "action.retry_below_threshold" };
-  }
-  if (pKnown < th.revise_threshold) {
-    return { action: Action.REVISE, reasonCode: "action.revise_below_threshold" };
-  }
-  if (pKnown >= th.advance_threshold) {
-    return { action: Action.ADVANCE, reasonCode: "action.advance_mastered" };
-  }
-  return { action: Action.REVISE, reasonCode: "action.revise_safe_default" };
-}
-
-export function applyRepetitionGuard(
-  action: Action, inp: DecisionInput,
-): { action: Action; reasonCode: string } {
-  const guard = RULESET.repetition_guard;
-  const nSame = recentSameActionCount(inp.recent_events, action);
-  if (nSame < guard.max_consecutive_same_action) {
-    return { action, reasonCode: "guard.no_override" };
-  }
-  const escape = guard.escape_action as Action;
-  const targetCid = inp.trigger_concept_id || "";
-  const pKnown = (inp.mastery[targetCid] || { p: 0.4 }).p;
-  const advanceThreshold = RULESET.actions.advance_threshold;
-  if (escape === Action.ADVANCE && pKnown < advanceThreshold) {
-    return { action: Action.REVISE, reasonCode: "guard.escape_to_revise_not_ready_to_advance" };
-  }
-  const nSameConcept = targetCid ? recentSameConceptCount(inp.recent_events, targetCid) : 0;
-  if (nSameConcept >= guard.max_consecutive_same_concept && escape === Action.ADVANCE) {
-    return { action: Action.REVISE, reasonCode: "guard.escape_loop_on_same_concept" };
-  }
-  return { action: escape, reasonCode: "guard.escape_action" };
-}
-
-export function selectDeliveryMode(network: NetworkState): DeliveryMode {
-  // String enums do not support reverse lookup (DeliveryMode["rich"] is undefined),
-  // so cast the ruleset string directly — values are validated by the enum contract.
-  return (RULESET.delivery[network] || "cached") as DeliveryMode;
-}
-
-export function selectBackgroundActions(network: NetworkState): BackgroundAction[] {
-  return ((RULESET.background_actions[network] || []) as string[]).map(
-    (s) => s as BackgroundAction,
-  );
-}
+// --------------------------------------------------------------------------- //
+// Reason strings (developer fallbacks; i18n dict overrides)
+// --------------------------------------------------------------------------- //
+export const REASON_MESSAGES: Record<string, string> = {};
 
 const DEFAULT_REASON_OR: Record<string, string> = {
-  "action.remediate_low_mastery_or_incorrect": "ଆଜି ଉତ୍ତର ଭୁଲ୍ ଥିଲା। ପୁଣି ଶିଖ।",
-  "action.retry_below_threshold": "ଆଉକି ଚେଷ୍ଟା କର।",
-  "action.revise_below_threshold": "ପୁଣି ରିଭିଜନ୍ କର।",
-  "action.revise_safe_default": "ପୁଣି ରିଭିଜନ୍ କର।",
-  "action.advance_mastered": "ସାବଧାନ! ପରବର୍ତ୍ତୀ ଧାରଣା କୁ ଯାଅ।",
-  "guard.escape_to_revise_not_ready_to_advance": "ବାରମ୍ବାର ଉନ୍ନତି ପାଇଁ ରିଭିଜନ୍ କର।",
-  "guard.escape_action": "ପୁଣି ରିଭିଜନ୍ କର।",
-  "guard.escape_loop_on_same_concept": "ଏହି ଧାରଣା କୁ ବାରମ୍ବାର ବଦ୍ଧ କର।",
+  STATE_INVALID_FALLBACK: "ଅସ୍ଥାୟୀ ସମସ୍ୟା। ପୁଣି ଚେଷ୍ଟା କର।",
+  COLD_START: "ପ୍ରଥମ ଧାରଣା ଆରମ୍ଭ କର।",
+  WEAK_PREREQ_GAP: "ପ୍ରଥମେ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
+  WEAK_CONCEPT: "ଏହି ଧାରଣା ପୁଣି ଶିଖ।",
+  WRONG_RETRY: "ଉତ୍ତର ଭୁଲ ଥିଲା। ପୁଣି ଚେଷ୍ଟା କର।",
+  PARTIAL_PRACTICE: "ଭଲ ହେଲା! ଆଉ ଏକ ଅଭ୍ୟାସ କର।",
+  MASTERED_ADVANCE: "ବାହ୍! ପରବର୍ତ୍ତୀ ଧାରଣା କୁ ଯାଅ।",
+  NO_GAIN_ALT_CONTENT: "ଅନ୍ୟ ଉପାୟରେ ପାଠ ପଢ।",
+  NO_GAIN_REMEDIATE_PREREQ: "ପ୍ରଥମେ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
+  INTERVENTIONS_EXHAUSTED: "ଶିକ୍ଷକଙ୍କ ସହିତ ଯୋଗାଯୋଗ କର।",
+  SLICE_COMPLETE: "ସମସ୍ତ ପାଠ ସମ୍ପୂର୍ଣ୍ଣ! ପୁଣି ରିଭିଜନ୍ କର।",
+  BLOCKED_BY_PREREQ: "ପ୍ରଥମେ ଆଧାର ଧାରଣା ଶିଖ।",
+  CONTENT_NOT_AVAILABLE_OFFLINE: "ଏହି ପାଠ ଅଫଲାଇନ୍ ଉପଲବ୍ଧ ନାହିଁ। ଅନ୍ୟ ପାଠ ପଢ।",
 };
 
-export function decide(
-  inp: DecisionInput,
-  reasonMessages: ReasonMessages = {},
-): DecisionOutput {
-  const { target, reasonCode, reasonOr } = selectTargetConcept(inp, reasonMessages);
-  if (!target) {
+function reasonOr(code: string): string {
+  return REASON_MESSAGES[code] || DEFAULT_REASON_OR[code] || "ଆଗାମୀ କାମ ଜାରି ରଖ।";
+}
+
+// --------------------------------------------------------------------------- //
+// Deterministic helpers
+// --------------------------------------------------------------------------- //
+function weakestPrereq(cid: string, inp: DecisionInput): string | null {
+  let best: [number, string] | null = null;
+  for (const pre of inp.prereqs[cid] || []) {
+    const p = inp.mastery[pre]?.p_bp ?? 0;
+    const key: [number, string] = [p, pre];
+    if (best === null || key < best) best = key;
+  }
+  return best ? best[1] : null;
+}
+
+function prereqsMastered(cid: string, inp: DecisionInput): boolean {
+  const masteredAt = RULESET.bands.mastered_at_bp ?? 8500;
+  return (inp.prereqs[cid] || []).every(
+    (pre) => (inp.mastery[pre]?.p_bp ?? 0) >= masteredAt);
+}
+
+function firstConceptWithoutPrereqs(inp: DecisionInput): string | null {
+  for (const cid of inp.concept_order) {
+    if (!(inp.prereqs[cid] || []).length) return cid;
+  }
+  return null;
+}
+
+function nextEligibleConcept(inp: DecisionInput,
+                             after?: string | null): string | null {
+  const masteredAt = RULESET.bands.mastered_at_bp ?? 8500;
+  let started = after === undefined || after === null;
+  for (const cid of inp.concept_order) {
+    if (!started) {
+      if (cid === after) started = true;
+      continue;
+    }
+    if ((inp.mastery[cid]?.p_bp ?? 0) >= masteredAt) continue;
+    if (prereqsMastered(cid, inp)) return cid;
+  }
+  return null;
+}
+
+function lowestMasteryWithMasteredPrereqs(inp: DecisionInput): string | null {
+  let best: [number, number, string] | null = null;
+  inp.concept_order.forEach((cid, idx) => {
+    if (!prereqsMastered(cid, inp)) return;
+    const p = inp.mastery[cid]?.p_bp ?? 0;
+    const key: [number, number, string] = [p, idx, cid];
+    if (best === null || key < best) best = key;
+  });
+  return best ? best[2] : null;
+}
+
+function graphDistance(fromCid: string, toCid: string,
+                       inp: DecisionInput, maxDepth = 6): number {
+  if (fromCid === toCid) return 0;
+  const adj: Record<string, Set<string>> = {};
+  for (const [cid, pres] of Object.entries(inp.prereqs || {})) {
+    for (const pre of pres || []) {
+      (adj[cid] ||= new Set()).add(pre);
+      (adj[pre] ||= new Set()).add(cid);
+    }
+  }
+  let frontier = new Set([fromCid]);
+  const seen = new Set([fromCid]);
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const nxt = new Set<string>();
+    for (const node of frontier) {
+      for (const nb of adj[node] || []) {
+        if (seen.has(nb)) continue;
+        if (nb === toCid) return depth;
+        seen.add(nb);
+        nxt.add(nb);
+      }
+    }
+    frontier = nxt;
+    if (!frontier.size) break;
+  }
+  return maxDepth + 1;
+}
+
+function targetPackInstalled(cid: string, inp: DecisionInput): boolean {
+  const packId = (inp.required_pack_for_concept || {})[cid];
+  if (!packId) return true;
+  return packId in (inp.installed_pack_versions || {});
+}
+
+function nearestInstalledConcept(inp: DecisionInput): string | null {
+  const target = inp.trigger_concept_id ||
+    (selectTargetConcept(inp)[0] as string);
+  if (!target) return null;
+  let best: [number, number, string] | null = null;
+  inp.concept_order.forEach((cid, idx) => {
+    if (!targetPackInstalled(cid, inp)) return;
+    const dist = graphDistance(target, cid, inp);
+    const key: [number, number, string] = [dist, idx, cid];
+    if (best === null || key < best) best = key;
+  });
+  return best ? best[2] : null;
+}
+
+// --------------------------------------------------------------------------- //
+// Target selection + guard state
+// --------------------------------------------------------------------------- //
+function selectTargetConcept(inp: DecisionInput): [string, string] {
+  if (inp.trigger_concept_id && inp.concept_order.includes(inp.trigger_concept_id)) {
+    return [inp.trigger_concept_id, "last_graded"];
+  }
+  if (inp.doubt_concept_hint && inp.concept_order.includes(inp.doubt_concept_hint)) {
+    return [inp.doubt_concept_hint, "doubt_hint"];
+  }
+  const cid = lowestMasteryWithMasteredPrereqs(inp);
+  return [cid || "", "lowest_mastery"];
+}
+
+function gradedOnTarget(inp: DecisionInput, target: string): RecentEvent[] {
+  return inp.recent_events.filter(
+    (e) => e.event_type === "ANSWER_SUBMITTED" && e.concept_id === target
+      && e.p_bp_after !== null && e.p_bp_after !== undefined);
+}
+
+export function guardState(inp: DecisionInput,
+                           target: string): [number, boolean] {
+  const guard = RULESET.guard || RULESET.repetition_guard || {};
+  const minGain = guard.min_gain_bp ?? 200;
+  const graded = gradedOnTarget(inp, target);
+  let cycleStart = 0;
+  for (let k = 1; k < graded.length; k++) {
+    if ((graded[k].p_bp_after || 0) - (graded[k - 1].p_bp_after || 0) >= minGain) {
+      cycleStart = k;
+    }
+  }
+  const attemptsWithoutGain = Math.max(0, graded.length - cycleStart);
+  const cycleStartSeq = graded.length ? graded[cycleStart].seq : 0;
+  const alt = inp.recent_events.some(
+    (e) => e.concept_id === target && e.last_action === "REVISE"
+      && e.seq >= cycleStartSeq);
+  return [attemptsWithoutGain, alt];
+}
+
+// --------------------------------------------------------------------------- //
+// Delivery + background actions
+// --------------------------------------------------------------------------- //
+export function selectDeliveryMode(inp: DecisionInput,
+                                   target: string):
+  "cached" | "rich" | "prefetch_then_offline" {
+  const network = inp.env_network;
+  if (network === "offline") return "cached";
+  if (targetPackInstalled(target, inp)) {
+    return (RULESET.delivery[network] || "cached");
+  }
+  if (network === "online" || network === "reconnected") {
+    return "prefetch_then_offline";
+  }
+  return "cached";
+}
+
+export function selectBackgroundActions(inp: DecisionInput,
+                                        target: string): string[] {
+  const network = inp.env_network;
+  const actions = new Set<string>();
+  if (network !== "offline" && inp.outbox_nonempty) actions.add("SYNC");
+  const prefetchOk =
+    (network === "online" || network === "reconnected")
+    && !inp.battery_saver
+    && (inp.storage_free_mb ?? 1_000_000) >= (RULESET.prefetch.min_free_mb ?? 150)
+    && !targetPackInstalled(target, inp);
+  if (prefetchOk) actions.add("PREFETCH");
+  return Array.from(actions).sort(
+    (a, b) => ["PREFETCH", "SYNC"].indexOf(a) - ["PREFETCH", "SYNC"].indexOf(b));
+}
+
+// --------------------------------------------------------------------------- //
+// Trajectory check
+// --------------------------------------------------------------------------- //
+const VALID_ACTIONS = ["REMEDIATE", "RETRY", "REVISE", "ADVANCE"];
+const VALID_DELIVERY = ["cached", "rich", "prefetch_then_offline"];
+const VALID_BACKGROUND = ["SYNC", "PREFETCH"];
+
+export function trajectoryCheck(out: DecisionOutput,
+                                inp: DecisionInput): boolean {
+  if (out.target_concept_id && !inp.concept_order.includes(out.target_concept_id)) return false;
+  if (!VALID_ACTIONS.includes(out.action)) return false;
+  if (!(out.reason_code in DEFAULT_REASON_OR)) return false;
+  if (!VALID_DELIVERY.includes(out.delivery_mode)) return false;
+  if (out.delivery_mode === "rich" && inp.env_network === "offline") return false;
+  if (out.background_actions.some((a) => !VALID_BACKGROUND.includes(a))) return false;
+  const sorted = [...out.background_actions].sort(
+    (a, b) => ["PREFETCH", "SYNC"].indexOf(a) - ["PREFETCH", "SYNC"].indexOf(b));
+  if (out.background_actions.join(",") !== sorted.join(",")) return false;
+  if (inp.ruleset_version !== RULESET.ruleset_version) return false;
+  return true;
+}
+
+// --------------------------------------------------------------------------- //
+// Typed engine error (unknown ruleset / invalid state)
+// --------------------------------------------------------------------------- //
+export function engineError(inp: DecisionInput): string | null {
+  if (inp.ruleset_version !== RULESET.ruleset_version) return "RULESET_UNKNOWN";
+  for (const m of Object.values(inp.mastery)) {
+    if (!Number.isInteger(m.p_bp) || m.p_bp < 0 || m.p_bp > SCALE) {
+      return "STATE_INVALID";
+    }
+  }
+  if (inp.trigger_correct !== null && inp.trigger_correct !== undefined
+      && !inp.trigger_concept_id) return "STATE_INVALID";
+  return null;
+}
+
+export function stateIsValid(inp: DecisionInput): boolean {
+  return engineError(inp) === null;
+}
+
+// --------------------------------------------------------------------------- //
+// Top-level decide()
+// --------------------------------------------------------------------------- //
+function finish(inp: DecisionInput,
+                action: DecisionOutput["action"],
+                target: string, reasonCode: string,
+                needsHelp: boolean, ruleIndex: number, fallback = false):
+  DecisionOutput {
+  let outTarget = target;
+  let reason = reasonCode;
+  if (outTarget && !targetPackInstalled(outTarget, inp)
+      && inp.env_network === "offline") {
+    const nearest = nearestInstalledConcept(inp);
+    if (nearest && nearest !== outTarget) {
+      outTarget = nearest;
+      reason = "CONTENT_NOT_AVAILABLE_OFFLINE";
+    } else {
+      // No pack installed at all → fallback decision (v2 edge behaviour).
+      return {
+        action: "RETRY", target_concept_id: outTarget,
+        delivery_mode: "cached", background_actions: [],
+        reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+        rule_index: 0, fallback: true,
+      };
+    }
+  }
+  const out: DecisionOutput = {
+    action, target_concept_id: outTarget,
+    delivery_mode: selectDeliveryMode(inp, outTarget),
+    background_actions: selectBackgroundActions(inp, outTarget),
+    reason_code: reason, needs_help: needsHelp,
+    rule_index: ruleIndex, fallback,
+  };
+  if (!trajectoryCheck(out, inp)) {
+    const tgt = (inp.trigger_concept_id
+      && inp.concept_order.includes(inp.trigger_concept_id))
+      ? inp.trigger_concept_id
+      : (inp.concept_order[0] || "");
     return {
-      action: Action.REVISE,
-      delivery_mode: selectDeliveryMode(inp.env_network),
-      background_actions: selectBackgroundActions(inp.env_network),
-      target_concept_id: "",
-      chapter_id: "",
-      reason_code: reasonCode,
-      reason_or: reasonOr,
+      action: "RETRY", target_concept_id: tgt,
+      delivery_mode: "cached", background_actions: [],
+      reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+      rule_index: 0, fallback: true,
     };
   }
-  const { action: a1, reasonCode: r1 } = selectAction(inp, target);
-  const { action, reasonCode: r2 } = applyRepetitionGuard(a1, inp);
-  const finalReasonCode = r2 !== "guard.no_override" ? r2 : r1;
-  const reasonOr2 = reasonMessages[finalReasonCode] || DEFAULT_REASON_OR[finalReasonCode] || `ଆଗାମୀ କାମ: ${action}`;
-  const chapterId = (inp.chapter_id_for_concept || {})[target] || "";
-  return {
-    action,
-    delivery_mode: selectDeliveryMode(inp.env_network),
-    background_actions: selectBackgroundActions(inp.env_network),
-    target_concept_id: target,
-    chapter_id: chapterId,
-    reason_code: finalReasonCode,
-    reason_or: reasonOr2,
-    suggested_chunk_id: inp.suggested_chunk_id ?? null,
-    suggested_question_id: inp.suggested_question_id ?? null,
-  };
+  return out;
+}
+
+export function decide(inp: DecisionInput): DecisionOutput {
+  const weakBelow = RULESET.bands.weak_below_bp ?? 4000;
+  const masteredAt = RULESET.bands.mastered_at_bp ?? 8500;
+  const guardCfg = RULESET.guard || RULESET.repetition_guard || {};
+  const attemptsAllowed = guardCfg.attempts_without_gain ?? 3;
+
+  // Rule 0: invalid state or unknown ruleset → safe fallback.
+  const err = engineError(inp);
+  if (err !== null) {
+    const target = (inp.trigger_concept_id
+      && inp.concept_order.includes(inp.trigger_concept_id))
+      ? inp.trigger_concept_id : "";
+    if (!target) {
+      const first = firstConceptWithoutPrereqs(inp)
+        || inp.concept_order[0] || "";
+      if (first) {
+        return {
+          action: "ADVANCE", target_concept_id: first,
+          delivery_mode: selectDeliveryMode(inp, first),
+          background_actions: selectBackgroundActions(inp, first),
+          reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+          rule_index: 0, fallback: true,
+        };
+      }
+      return {
+        action: "RETRY", target_concept_id: "",
+        delivery_mode: "cached", background_actions: [],
+        reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+        rule_index: 0, fallback: true,
+      };
+    }
+    return {
+      action: "RETRY", target_concept_id: target,
+      delivery_mode: selectDeliveryMode(inp, target),
+      background_actions: selectBackgroundActions(inp, target),
+      reason_code: "STATE_INVALID_FALLBACK", needs_help: false,
+      rule_index: 0, fallback: true,
+    };
+  }
+
+  // Rule 1: cold start.
+  if (Object.keys(inp.mastery).length === 0) {
+    const first = firstConceptWithoutPrereqs(inp);
+    if (first !== null) {
+      return finish(inp, "ADVANCE", first, "COLD_START", false, 1);
+    }
+    // Every concept has prereqs: remediate the weakest blocked one.
+    const blocked = mostBlockedPrereq(inp);
+    if (blocked !== null) {
+      return finish(inp, "REMEDIATE", blocked, "BLOCKED_BY_PREREQ", false, 1);
+    }
+    return finish(inp, "RETRY", "", "STATE_INVALID_FALLBACK", false, 1, true);
+  }
+
+  // Target selection.
+  const [target] = selectTargetConcept(inp);
+  if (!target) {
+    return finish(inp, "RETRY", "", "STATE_INVALID_FALLBACK", false, 0, true);
+  }
+  const p = inp.mastery[target]?.p_bp ?? (RULESET.bkt.p_init_bp ?? 2000);
+
+  // Rule 2: repeated-attempt guard.
+  const [attemptsWithoutGain, altShown] = guardState(inp, target);
+  if (attemptsWithoutGain >= attemptsAllowed) {
+    if (!altShown) {
+      return finish(inp, "REVISE", target, "NO_GAIN_ALT_CONTENT", false, 2);
+    }
+    const weakest = weakestPrereq(target, inp);
+    if (weakest !== null) {
+      const preP = inp.mastery[weakest]?.p_bp ?? 0;
+      if (preP < masteredAt) {
+        return finish(inp, "REMEDIATE", weakest,
+                      "NO_GAIN_REMEDIATE_PREREQ", false, 2);
+      }
+    }
+    // Terminal: never advance while T is below mastered.
+    return finish(inp, "REVISE", target, "INTERVENTIONS_EXHAUSTED", true, 2);
+  }
+
+  // Rules 3-4: weak concept / weak prerequisite.
+  if (p < weakBelow) {
+    const weakest = weakestPrereq(target, inp);
+    if (weakest !== null) {
+      const preP = inp.mastery[weakest]?.p_bp ?? 0;
+      if (preP < weakBelow) {
+        return finish(inp, "REMEDIATE", weakest, "WEAK_PREREQ_GAP", false, 3);
+      }
+    }
+    return finish(inp, "REMEDIATE", target, "WEAK_CONCEPT", false, 4);
+  }
+
+  // Rules 5-6: partial mastery.
+  if (p < masteredAt) {
+    let lastCorrect = inp.trigger_correct;
+    if (lastCorrect === null || lastCorrect === undefined) {
+      for (let i = inp.recent_events.length - 1; i >= 0; i--) {
+        const e = inp.recent_events[i];
+        if (e.event_type === "ANSWER_SUBMITTED" && e.correct !== null
+            && e.correct !== undefined) {
+          lastCorrect = e.correct;
+          break;
+        }
+      }
+    }
+    if (lastCorrect === false) {
+      return finish(inp, "RETRY", target, "WRONG_RETRY", false, 5);
+    }
+    return finish(inp, "RETRY", target, "PARTIAL_PRACTICE", false, 6);
+  }
+
+  // Rule 7: mastered → advance.
+  const nxt = nextEligibleConcept(inp, target);
+  if (nxt !== null) {
+    return finish(inp, "ADVANCE", nxt, "MASTERED_ADVANCE", false, 7);
+  }
+  const allMastered = inp.concept_order.every(
+    (cid) => (inp.mastery[cid]?.p_bp ?? 0) >= masteredAt);
+  if (allMastered) {
+    let oldest = inp.concept_order[0];
+    let oldestSeq = inp.mastery[oldest]?.last_event_seq ?? 0;
+    for (const cid of inp.concept_order) {
+      const seq = inp.mastery[cid]?.last_event_seq ?? 0;
+      if (seq < oldestSeq || (seq === oldestSeq && cid < oldest)) {
+        oldest = cid;
+        oldestSeq = seq;
+      }
+    }
+    return finish(inp, "REVISE", oldest, "SLICE_COMPLETE", false, 7);
+  }
+  const unmet = mostBlockedPrereq(inp);
+  if (unmet !== null) {
+    return finish(inp, "REMEDIATE", unmet, "BLOCKED_BY_PREREQ", false, 7);
+  }
+  return finish(inp, "RETRY", target, "STATE_INVALID_FALLBACK", false, 7, true);
+}
+
+function mostBlockedPrereq(inp: DecisionInput): string | null {
+  const blocked = new Set<string>();
+  for (const pres of Object.values(inp.prereqs || {})) {
+    for (const pre of pres || []) blocked.add(pre);
+  }
+  let best: [number, string] | null = null;
+  for (const cid of blocked) {
+    const p = inp.mastery[cid]?.p_bp ?? 0;
+    const key: [number, string] = [p, cid];
+    if (best === null || key < best) best = key;
+  }
+  return best ? best[1] : null;
+}
+
+/** Convenience wrapper for the reason string (parity with Python's
+ * `_reason_or` via the shipped i18n dict). */
+export function reasonText(code: string): string {
+  return reasonOr(code);
 }

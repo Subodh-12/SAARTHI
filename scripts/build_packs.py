@@ -247,6 +247,17 @@ def build_pack(strict: bool = True) -> dict:
         "questions": questions_data,
         "glossary": glossary_data,
     }
+    # Question revisions: every question gets a stable revision number and an
+    # answer-key hash so events made against a specific revision can be
+    # interpreted after upgrades (Design v2 Section 7 "Stable identifiers").
+    import hashlib as _hashlib
+    for q in payload["questions"]:
+        q.setdefault("revision", 1)
+        key_src = json.dumps({"correct_option": q.get("correct_option"),
+                              "rubric_or": q.get("rubric_or")},
+                             ensure_ascii=False, sort_keys=True)
+        q["answer_key_hash"] = _hashlib.sha256(key_src.encode("utf-8")).hexdigest()[:32]
+        q["status"] = "active"
     # Step 1: serialise with byte_size=0 placeholder to measure true size
     payload["manifest"]["byte_size"] = 0
     blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -262,10 +273,14 @@ def build_pack(strict: bool = True) -> dict:
             blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         else:
             break
-    # Step 3: compute checksum on the blob with the checksum field set to a
-    # fixed-length placeholder (empty string). This makes the stored checksum
-    # verifiable: a client reads the file, replaces checksum_sha256 with "",
-    # re-serialises canonically, and computes SHA-256 — which matches the stored value.
+    # Step 3: compute checksum over the FINAL manifest shape with
+    # checksum_sha256 blanked AND archive_sha256=""/archive_byte_size=0 in
+    # their final key positions. This makes the stored checksum canonically
+    # verifiable from the published JSON: a client blanks checksum_sha256,
+    # blanks the archive fields, re-serialises canonically, and computes
+    # SHA-256 — which matches the stored value.
+    payload["manifest"]["archive_sha256"] = ""
+    payload["manifest"]["archive_byte_size"] = 0
     payload["manifest"]["checksum_sha256"] = ""
     blob_no_checksum = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     checksum = hashlib.sha256(blob_no_checksum).hexdigest()
@@ -274,8 +289,6 @@ def build_pack(strict: bool = True) -> dict:
     # Step 4: build the download archive. The archive's inner manifest carries
     # archive_sha256/archive_byte_size blank (they cover the archive itself);
     # the standalone JSON manifest gets the real values after hashing.
-    payload["manifest"]["archive_sha256"] = ""
-    payload["manifest"]["archive_byte_size"] = 0
     inner_blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     if len(inner_blob) > MAX_BYTES:
         raise ValidationError(f"pack payload {len(inner_blob)} > max {MAX_BYTES}")

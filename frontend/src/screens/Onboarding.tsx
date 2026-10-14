@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
-import { OR, t } from "../i18n/or";
+import { t } from "../i18n/or";
 import { AuthResponse, LearnerProfileCreate } from "../generated/api";
 
 interface Props {
