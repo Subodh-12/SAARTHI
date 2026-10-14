@@ -47,6 +47,51 @@ def _have_venv() -> bool:
     return (VENV / "bin" / "python").exists() or (VENV / "Scripts" / "python.exe").exists()
 
 
+def _ensure_venv() -> str:
+    """Create and validate the project venv; never install into system Python."""
+    if not _have_venv():
+        bootstrap_python = sys.executable or shutil.which("python3") or shutil.which("python")
+        if not bootstrap_python:
+            raise RuntimeError("Python was not found. Install Python 3, then rerun setup.")
+        print(f"[setup] creating virtual environment at {VENV}…")
+        try:
+            subprocess.check_call([bootstrap_python, "-m", "venv", str(VENV)])
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RuntimeError(
+                "Could not create the project virtual environment. On Arch Linux, "
+                "ensure the system Python/venv support is installed, then rerun ./run.sh setup."
+            ) from exc
+
+    if not _have_venv():
+        raise RuntimeError(f"Virtual environment was not created at {VENV}.")
+
+    python = _py()
+    try:
+        # A path existing is not enough: reject broken/stale venvs before pip is run.
+        subprocess.check_call(
+            [python, "-c", "import sys; assert sys.prefix != sys.base_prefix"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(
+            f"The project virtual environment at {VENV} is not usable. "
+            "Remove the broken .venv directory and rerun ./run.sh setup."
+        ) from exc
+
+    try:
+        subprocess.check_call(
+            [python, "-m", "pip", "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        # Some Python builds omit pip from newly-created environments.
+        subprocess.check_call([python, "-m", "ensurepip", "--upgrade"])
+
+    return python
+
+
 def _npm() -> str:
     # On Windows npm is npm.cmd, which CreateProcess won't resolve from a bare
     # "npm" — resolve the full path so subprocess can launch it.
@@ -58,25 +103,40 @@ def _have(binname: str) -> bool:
 
 
 def cmd_setup() -> int:
-    print("[setup] creating Python venv (if missing)…")
-    if not _have_venv() and not shutil.which("python3"):
-        subprocess.check_call([sys.executable, "-m", "venv", str(VENV)])
-    print("[setup] installing Python deps…")
-    subprocess.check_call([_py(), "-m", "pip", "install", "--upgrade", "pip"])
-    subprocess.check_call([_py(), "-m", "pip", "install", "-r", str(ROOT / "backend" / "requirements.txt")])
+    if not _have("node") or not _have("npm"):
+        print("[setup] ERROR: Node.js and npm are required. Install Node.js/npm, then rerun ./run.sh setup.", file=sys.stderr)
+        return 1
+    try:
+        python = _ensure_venv()
+    except RuntimeError as exc:
+        print(f"[setup] ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"[setup] using project Python: {python}")
+    print("[setup] upgrading pip inside the virtual environment…")
+    subprocess.check_call([python, "-m", "pip", "install", "--upgrade", "pip"])
+    print("[setup] installing Python deps inside the virtual environment…")
+    subprocess.check_call([python, "-m", "pip", "install", "-r", str(ROOT / "backend" / "requirements.txt")])
     print("[setup] installing Node deps…")
     subprocess.check_call([_npm(), "install"], cwd=FRONTEND)
     print("[setup] building curriculum pack…")
-    subprocess.check_call([_py(), "scripts/build_packs.py", "--non-strict"], cwd=ROOT)
+    subprocess.check_call([python, "scripts/build_packs.py", "--non-strict"], cwd=ROOT)
     print("[setup] generating rule vectors…")
-    subprocess.check_call([_py(), "scripts/gen_rule_vectors.py"], cwd=ROOT)
+    subprocess.check_call([python, "scripts/gen_rule_vectors.py"], cwd=ROOT)
     print("[setup] ✓")
     return 0
 
 
 def cmd_doctor() -> int:
     print("=== SAARTHI doctor ===")
-    print(f"  Python:       {sys.executable} ({sys.version.split()[0]})")
+    python = _py()
+    try:
+        python_version = subprocess.check_output(
+            [python, "-c", "import sys; print(sys.version.split()[0])"], text=True
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        python_version = "unavailable"
+    print(f"  Python:       {python} (version={python_version})")
     print(f"  Venv:         {VENV}  exists={VENV.exists()}")
     print(f"  Node:         {shutil.which('node')}")
     if shutil.which("node"):
@@ -100,12 +160,9 @@ def cmd_doctor() -> int:
 
 
 def cmd_start() -> int:
-    if not _have_venv() and not shutil.which("python3"):
-        print("Run setup first.", file=sys.stderr); return 1
-    if not (FRONTEND / "node_modules").exists():
-        print("Run setup first.", file=sys.stderr); return 1
-    if (FRONTEND / "node_modules").exists() is False:
-        print("Run setup first.", file=sys.stderr); return 1
+    if not _have_venv() or not (FRONTEND / "node_modules").exists():
+        print("Run `./run.sh setup` first.", file=sys.stderr)
+        return 1
     # Apply schema + seed pack (silent)
     env = os.environ.copy()
     # Clear stale DATABASE_URL so the Settings default takes effect
@@ -162,8 +219,9 @@ def cmd_stop() -> int:
 
 
 def cmd_test() -> int:
-    if not _have_venv() and not shutil.which("python3"):
-        print("Run setup first.", file=sys.stderr); return 1
+    if not _have_venv() or not (FRONTEND / "node_modules").exists():
+        print("Run `./run.sh setup` first.", file=sys.stderr)
+        return 1
     rc = 0
     print("[test] pytest backend tests…")
     rc |= subprocess.call([_py(), "-m", "pytest", "backend/tests/", "-q"], cwd=ROOT)
@@ -175,6 +233,9 @@ def cmd_test() -> int:
 
 
 def cmd_check() -> int:
+    if not _have_venv() or not (FRONTEND / "node_modules").exists():
+        print("Run `./run.sh setup` first.", file=sys.stderr)
+        return 1
     rc = 0
     print("[check] frontend build…")
     rc |= subprocess.call([_npm(), "run", "build"], cwd=FRONTEND)
@@ -202,11 +263,13 @@ def cmd_reset_data() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["setup", "start", "test", "check", "stop", "doctor", "reset-data"])
+    ap.add_argument("cmd", nargs="?", choices=["setup", "start", "test", "check", "stop", "doctor", "reset-data"])
     ap.add_argument("--reset-data", action="store_true")
     args = ap.parse_args()
     if args.reset_data:
         return cmd_reset_data()
+    if args.cmd is None:
+        ap.error("a command is required (or use --reset-data)")
     return {
         "setup": cmd_setup, "start": cmd_start, "test": cmd_test, "check": cmd_check,
         "stop": cmd_stop, "doctor": cmd_doctor, "reset-data": cmd_reset_data,
