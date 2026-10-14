@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import json
+import os
 import time
 from pathlib import Path
 from typing import Optional
@@ -119,9 +120,18 @@ class PackContentIndex:
 _PACK_CACHE: dict[str, PackContentIndex] = {}
 
 
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
 def load_pack_index(pack_path: str | None = None) -> PackContentIndex:
     """Load (and cache) a built curriculum pack from disk."""
-    path = Path(pack_path or "packs/pack_class9_science_or_v1-1.0.0.json")
+    configured = pack_path or os.environ.get("SAARTHI_PACK_PATH")
+    if configured:
+        candidate = Path(configured)
+        path = candidate if candidate.is_absolute() else _project_root() / candidate
+    else:
+        path = _project_root() / "packs" / "pack_class9_science_or_v1-1.0.0.json"
     if str(path) in _PACK_CACHE:
         return _PACK_CACHE[str(path)]
     with open(path, "r", encoding="utf-8") as f:

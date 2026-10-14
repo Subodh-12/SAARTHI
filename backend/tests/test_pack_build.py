@@ -21,6 +21,13 @@ def test_pack_exists():
     assert PACK_GZ.exists()
 
 
+def test_pack_loader_resolves_repo_root_relative_path():
+    from app.content.pack_loader import load_pack_index
+    idx = load_pack_index("packs/pack_class9_science_or_v1-1.0.0.json")
+    assert idx.manifest.pack_id == "pack_class9_science_or_v1"
+    assert idx.manifest.version == "1.0.0"
+
+
 def test_pack_manifest_valid():
     if not PACK_JSON.exists():
         pytest.skip("pack not built")
