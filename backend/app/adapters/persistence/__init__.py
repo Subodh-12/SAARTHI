@@ -205,6 +205,40 @@ async def _migrate_prior_schema(conn) -> None:
                 await conn.execute(text(ddl))
                 log.info("migrated devices.%s", column)
 
+    # device_tokens: in legacy schema device_id was a PRIMARY KEY.
+    # In v2, devices can hold multiple unexpired access tokens during renewals.
+    if await _table_exists(conn, "device_tokens"):
+        if "sqlite" in str(conn.dialect.name):
+            res = await conn.execute(text("PRAGMA table_info(device_tokens)"))
+            rows = res.fetchall()
+            pk_col = next((row[1] for row in rows if row[1] == "device_id" and row[5] == 1), None)
+            if pk_col:
+                await conn.execute(text(
+                    "CREATE TABLE device_tokens_v2 ("
+                    "  device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,"
+                    "  token_hash TEXT NOT NULL,"
+                    "  issued_at INTEGER NOT NULL,"
+                    "  expires_at INTEGER NOT NULL,"
+                    "  revoked INTEGER NOT NULL DEFAULT 0"
+                    ")"
+                ))
+                await conn.execute(text(
+                    "INSERT INTO device_tokens_v2 (device_id, token_hash, issued_at, expires_at, revoked) "
+                    "SELECT device_id, token_hash, issued_at, expires_at, revoked FROM device_tokens"
+                ))
+                await conn.execute(text("DROP TABLE device_tokens"))
+                await conn.execute(text("ALTER TABLE device_tokens_v2 RENAME TO device_tokens"))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_device_tokens_hash "
+                    "ON device_tokens (token_hash, revoked, expires_at)"
+                ))
+                log.info("migrated device_tokens (removed legacy PRIMARY KEY on device_id)")
+        else:
+            try:
+                await conn.execute(text("ALTER TABLE device_tokens DROP CONSTRAINT IF EXISTS device_tokens_pkey"))
+            except Exception:
+                pass
+
 
 # --------------------------------------------------------------------------- #
 # Lifecycle helpers

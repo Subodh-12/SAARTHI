@@ -23,6 +23,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import api_router
 from .api.middleware import RequestIdMiddleware
+from .api.middleware.security import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from .adapters.ai.generation import get_generation_provider
 from .adapters.ai.retrieval import get_retrieval_provider
 from .adapters.ai.translation import get_translation_provider
@@ -31,6 +36,7 @@ from .adapters.persistence.repositories import (
     SqlDecisionRepository,
     SqlDeviceRepository,
     SqlEventRepository,
+    SqlGenerationRecordRepository,
     SqlLearnerRepository,
     SqlMasteryRepository,
     SqlPackRepository,

@@ -28,7 +28,9 @@ async def register_device(
 ):
     """Register a physical device with its non-extractable WebCrypto
     ECDSA P-256 public key (SPKI, base64url). Returns the initial token pair."""
-    return await auth.register_device(body.public_key_spki_b64, body.hardware_label)
+    return await auth.register_device(
+        body.public_key_spki_b64, body.hardware_label, device_id=body.device_id
+    )
 
 
 @router.post("/auth/refresh", response_model=DeviceTokenResponse)

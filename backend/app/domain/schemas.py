@@ -104,6 +104,7 @@ class EvidenceType(str, Enum):
 
 class Outcome(str, Enum):
     """Per-event sync outcomes — Design v2 Section 8 (frozen)."""
+
     ACCEPTED = "ACCEPTED"
     DUPLICATE = "DUPLICATE"
     RETRYABLE = "RETRYABLE"
@@ -148,23 +149,56 @@ class LearnerProfile(LearnerProfileCreate):
 
 
 class DeviceRegistration(BaseModel):
-    device_id: DeviceId
+    """Register a physical device with its non-extractable WebCrypto
+    ECDSA P-256 public key (SPKI, base64url). Returns the initial tokens."""
+    public_key_spki_b64: Annotated[str, StringConstraints(min_length=16, max_length=512)]
     hardware_label: Annotated[str, StringConstraints(max_length=64)] = (
         "shared-android-low-end"
     )
+    device_id: Optional[DeviceId] = None
 
 
-class DeviceToken(BaseModel):
+class DeviceTokenResponse(BaseModel):
     device_id: DeviceId
-    device_token: str
-    token_expires_at: int
+    access_token: str
+    access_expires_at: int
+    refresh_token: str
+    refresh_expires_at: int
+    token_type: Literal["Bearer"] = "Bearer"
 
 
+# Back-compat alias for older call sites/tests that still reference DeviceToken
+DeviceToken = DeviceTokenResponse
+
+
+class AuthChallenge(BaseModel):
+    nonce: str
+    expires_at: int
+
+
+class AuthChallengeRequest(BaseModel):
+    device_id: DeviceId
+
+
+class AuthRenewRequest(BaseModel):
+    device_id: DeviceId
+    nonce: str
+    signature_b64: Annotated[str, StringConstraints(min_length=16, max_length=1024)]
+
+
+class RefreshRequest(BaseModel):
+    device_id: DeviceId
+    refresh_token: str
+
+
+# Back-compat alias for older clients/tests that still read `device_token`.
 class AuthResponse(BaseModel):
-    learner_id: LearnerId
+    learner_id: Optional[LearnerId] = None
     device_id: DeviceId
-    device_token: str
+    device_token: str  # the access token
     token_expires_at: int
+    refresh_token: Optional[str] = None
+    refresh_expires_at: Optional[int] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -252,6 +286,7 @@ class LearnerEvent(BaseModel):
     """Event: created on the phone, immutable (Design v2 Section 8).
 
     JSON uses the v2 wire name ``type``; Python uses ``event_type``."""
+
     event_id: str  # client-generated, idempotent
     device_id: DeviceId
     learner_id: LearnerId
@@ -414,11 +449,28 @@ class RetrievedResult(BaseModel):
 class GeneratedAnswer(BaseModel):
     text_or: str
     citations: list[ChunkId] = Field(default_factory=list)
+    chapter_refs: list[str] = Field(default_factory=list)
     confidence: float = 0.0
-    provenance: Literal["extractive", "llm_grounded", "basic"]
+    provenance: Literal["extractive", "llm_grounded", "basic"] = "extractive"
     basic_answer_status: Optional[str] = (
         None  # e.g. "provider_unavailable" / "out_of_lessons"
     )
+
+
+class GenerationRecord(BaseModel):
+    """Audit record for every generated text (Design v2 Sections 4/7)."""
+    record_id: str
+    decision_id: str
+    provider: str
+    model_id: Optional[str] = None
+    prompt_version: str
+    prompt_hash: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    chunk_ids: list[str] = Field(default_factory=list)
+    output_or: str = ""
+    validation_results: dict[str, Any] = Field(default_factory=dict)
+    fallback_used: bool = False
+    created_at: int = 0
 
 
 class DoubtResponse(BaseModel):
@@ -427,31 +479,7 @@ class DoubtResponse(BaseModel):
     decision_id: str
     translated_query: Optional[str] = None
     used_translation_tool: bool = False
-
-
-# --------------------------------------------------------------------------- #
-# Sync
-# --------------------------------------------------------------------------- #
-class SyncRequest(BaseModel):
-    device_id: DeviceId
-    learner_id: LearnerId
-    from_seq: int  # exclusive lower bound
-    events: list[LearnerEvent] = Field(default_factory=list)
-
-
-class PerEventResult(BaseModel):
-    event_id: str
-    seq: int
-    outcome: Outcome
-    detail: str = ""
-
-
-class SyncResponse(BaseModel):
-    accepted: list[PerEventResult]
-    server_learner_seq: int  # highest seq the server has for this device
-    canonical_mastery: list[MasteryRecord]
-    ruleset_version: str
-    next_decision: Optional[Decision] = None
+    generation_record: Optional[GenerationRecord] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -488,14 +516,22 @@ class PackDownloadInfo(BaseModel):
 # --------------------------------------------------------------------------- #
 class ToolError(BaseModel):
     error_code: Literal[
-        "TIMEOUT", "RATE_LIMITED", "UNAVAILABLE", "BAD_OUTPUT",
-        "LOW_CONFIDENCE", "UNSUPPORTED_LANGUAGE", "QUOTA_EXHAUSTED",
+        "TIMEOUT",
+        "RATE_LIMITED",
+        "UNAVAILABLE",
+        "BAD_OUTPUT",
+        "LOW_CONFIDENCE",
+        "UNSUPPORTED_LANGUAGE",
+        "QUOTA_EXHAUSTED",
         # granular orchestration codes retained for typed diagnostics
-        "ACCESS_RESTRICTED", "MODEL_DOWNLOAD_FAILED", "MISSING_WEIGHTS",
-        "NOT_GROUNDED", "SCHEMA_INVALID",
+        "ACCESS_RESTRICTED",
+        "MODEL_DOWNLOAD_FAILED",
+        "MISSING_WEIGHTS",
+        "NOT_GROUNDED",
+        "SCHEMA_INVALID",
     ] = "UNAVAILABLE"
     detail_dev: str = ""  # never shown to learners
-    detail: str = ""      # back-compat alias of detail_dev
+    detail: str = ""  # back-compat alias of detail_dev
     provider: Optional[str] = None
     model_id: Optional[str] = None
     retryable: bool = False
@@ -558,11 +594,18 @@ __all__ = [
     "EventType",
     "EvidenceType",
     "Outcome",
-    # learner
+    "SyncEffect",
+    "SyncReason",
+    # learner/auth
     "LearnerProfileCreate",
     "LearnerProfile",
     "DeviceRegistration",
+    "DeviceTokenResponse",
     "DeviceToken",
+    "AuthChallenge",
+    "AuthChallengeRequest",
+    "AuthRenewRequest",
+    "RefreshRequest",
     "AuthResponse",
     # curriculum
     "GlossaryEntry",
@@ -574,6 +617,10 @@ __all__ = [
     "EnvironmentSnapshot",
     "MasteryRecord",
     "LearnerEvent",
+    "PerEventResult",
+    "SyncRequest",
+    "SyncResponse",
+    "DecisionSummary",
     # assessment
     "AssessmentSubmission",
     "AssessmentResult",
@@ -586,12 +633,9 @@ __all__ = [
     "RetrievedChunk",
     "RetrievedResult",
     "GeneratedAnswer",
+    "GenerationRecord",
     "DoubtResponse",
     "ToolError",
-    # sync
-    "SyncRequest",
-    "PerEventResult",
-    "SyncResponse",
     # pack
     "PackManifest",
     "PackDownloadInfo",
