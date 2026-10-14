@@ -166,6 +166,7 @@ export function LessonScreen({ profile, network }: Props) {
         <p className="odia mb-4">{question.prompt_or}</p>
         <div className="space-y-2">
           {question.options.map((opt, i) => {
+            const optText = typeof opt === "string" ? opt : opt.text_or;
             let cls = "option-btn";
             if (submitted) {
               if (i === question.correct_option) cls += " option-correct";
@@ -175,7 +176,7 @@ export function LessonScreen({ profile, network }: Props) {
               <button key={i} className={cls}
                       disabled={submitted}
                       onClick={() => setSelected(i)}>
-                {i + 1}. {opt}
+                {i + 1}. {optText}
               </button>
             );
           })}
@@ -188,6 +189,21 @@ export function LessonScreen({ profile, network }: Props) {
             <h3 className="font-bold mb-2">
               {result?.correct ? `✅ ${t("quiz_correct")}` : `❌ ${t("quiz_incorrect")}`}
             </h3>
+            {!result?.correct && selected !== null && (() => {
+              const selOpt = question.options[selected];
+              const miscTag = (typeof selOpt === "object" && selOpt?.misconception_tag) || result?.misconception_tag;
+              const miscExpl = (typeof selOpt === "object" && selOpt?.explanation_or) || result?.remediation_or;
+              if (miscTag || miscExpl) {
+                return (
+                  <div className="p-3 mb-3 bg-amber-50 border border-amber-200 rounded text-amber-900 text-sm odia">
+                    <div className="font-semibold mb-1">💡 ଭ୍ରାନ୍ତ ଧାରଣା ସଂଶୋଧନ:</div>
+                    {miscExpl && <p>{miscExpl}</p>}
+                    {miscTag && <div className="text-xs text-amber-700 mt-1 italic">ଟ୍ୟାଗ୍: {miscTag}</div>}
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <p className="odia text-sm mb-3"><b>{t("quiz_explanation")}:</b> {question.explanation_or}</p>
             <button className="btn-primary w-full" onClick={loadNext}>{t("back")}</button>
           </div>

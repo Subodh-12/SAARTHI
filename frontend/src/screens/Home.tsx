@@ -6,11 +6,12 @@ import {
 } from "../store/db";
 import { decide, RULESET } from "../engine/decide";
 import {
-  Action, Decision, MasteryRecord, NetworkState,
+  Action, BackgroundAction, Decision, MasteryRecord, NetworkState,
 } from "../generated/api";
 import { t } from "../i18n/or";
 import { getInstalledPack } from "../lib/sync";
 import { bloomLabel, bloomDescription, isValidBloomLevel, BloomLevel } from "../engine/bloom";
+import { scheduleBackgroundPrefetch } from "../lib/prefetch_scheduler";
 
 interface Props {
   profile: { learner_id: string; device_id: string; display_label: string };
@@ -100,6 +101,9 @@ export function HomeScreen({ profile, network, onNavigate, outboxDepth }: Props)
         const d = await api.nextDecision(network);
         setDecision(d);
         await recordDecision({ ...d, trace_json: "[]" } as any);
+        if (d?.background_actions?.includes(BackgroundAction.PREFETCH)) {
+          void scheduleBackgroundPrefetch({ network, targetConceptId: d.target_concept_id });
+        }
       }
       setMastery((await getMasterySnapshot()) as any);
       setBloomMastery(await getBloomMasterySnapshot());

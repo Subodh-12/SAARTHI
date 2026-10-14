@@ -176,6 +176,13 @@ export interface Chunk {
   glossary_refs: string[];
 }
 
+export interface QuestionOption {
+  index: number;
+  text_or: string;
+  misconception_tag?: string | null;
+  explanation_or?: string | null;
+}
+
 export interface Question {
   question_id: string;
   concept_id: string;
@@ -183,7 +190,7 @@ export interface Question {
   bloom_level?: BloomLevel;
   qtype: "mcq" | "short_answer";
   prompt_or: string;
-  options: string[];
+  options: (string | QuestionOption)[];
   correct_option?: number | null;
   rubric_or?: string | null;
   expected_concepts: string[];
@@ -304,6 +311,8 @@ export interface AssessmentResult {
   mastery_after: MasteryRecord;
   bloom_mastery_after?: BloomMasteryRecord | null;
   next_decision_id: string;
+  misconception_tag?: string | null;
+  remediation_or?: string | null;
 }
 
 export interface Decision {

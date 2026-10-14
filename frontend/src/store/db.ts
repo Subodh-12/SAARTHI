@@ -12,6 +12,8 @@ import {
   BloomMasteryRow, DeviceMeta, DecisionRow, getActiveProfileSession, InstalledPack,
   MasteryRow, openProfileSession, ProfileSession,
   SharedProfileMeta,
+  getActiveSharedProfile, getSharedProfiles, setActiveSharedProfile,
+  getSharedDeviceMeta, putSharedDeviceMeta, verifyProfilePinDirect,
 } from "./profile_session";
 
 // --------------------------------------------------------------------------- //
@@ -96,45 +98,66 @@ const DEVICE_META_KEY = "saarthi-device";
 export async function getDeviceMeta(): Promise<DeviceMeta | undefined> {
   const session = getActiveProfileSession();
   if (session) return session.getDeviceMeta(DEVICE_META_KEY);
-  // No profile open yet — read through a throwaway session on the shared DB
-  // is unnecessary: device registration happens after a session opens.
-  return undefined;
+  return getSharedDeviceMeta(DEVICE_META_KEY);
 }
 
 export async function saveDeviceMeta(meta: DeviceMeta): Promise<void> {
-  const session = requireSession();
-  await session.putDeviceMeta(meta);
+  const session = getActiveProfileSession();
+  if (session) {
+    await session.putDeviceMeta(meta);
+  }
+  await putSharedDeviceMeta(meta);
 }
 
 /** Token storage: device tokens live in the shared DB, scoped per device,
  * never inside a profile database (v2 local store layout). */
 export async function saveDeviceToken(profile: LocalProfile): Promise<void> {
-  const session = requireSession();
-  const existing = await session.getDeviceMeta(DEVICE_META_KEY);
-  await session.putDeviceMeta({
+  const existing = await getDeviceMeta();
+  const meta: DeviceMeta = {
     device_id: profile.device_id,
     public_key_spki_b64: existing?.public_key_spki_b64,
     registered_at: existing?.registered_at ?? Date.now(),
-  });
-  await session.setSessionCache("device_token", {
     device_token: profile.device_token,
     refresh_token: profile.refresh_token,
     token_expires_at: profile.token_expires_at,
-  });
+  };
+  await saveDeviceMeta(meta);
+  const session = getActiveProfileSession();
+  if (session) {
+    await session.setSessionCache("device_token", {
+      device_token: profile.device_token,
+      refresh_token: profile.refresh_token,
+      token_expires_at: profile.token_expires_at,
+    });
+  }
 }
 
 export async function loadDeviceToken(): Promise<{
   device_token: string; refresh_token?: string; token_expires_at: number;
 } | undefined> {
   const session = getActiveProfileSession();
-  if (!session) return undefined;
-  return session.getSessionCache("device_token");
+  if (session) {
+    const cached = await session.getSessionCache("device_token");
+    if (cached) return cached as any;
+  }
+  const meta = await getSharedDeviceMeta(DEVICE_META_KEY);
+  if (meta?.device_token) {
+    return {
+      device_token: meta.device_token,
+      refresh_token: meta.refresh_token,
+      token_expires_at: meta.token_expires_at ?? 0,
+    };
+  }
+  return undefined;
 }
 
 // --------------------------------------------------------------------------- //
 // Profile registry (shared DB; metadata only — no progress data)
 // --------------------------------------------------------------------------- //
 export async function saveProfile(profile: LocalProfile): Promise<void> {
+  // First persist device token to the shared store so any profile can find it.
+  await saveDeviceToken(profile);
+
   const session = await openProfileSession(profile.learner_id);
   try {
     await session.putProfileMeta({
@@ -146,9 +169,8 @@ export async function saveProfile(profile: LocalProfile): Promise<void> {
       has_pin: !!profile.has_pin,
     });
     if (profile.active) {
-      await session.setActiveProfileMeta(profile.learner_id);
+      await setActiveSharedProfile(profile.learner_id);
     }
-    await saveDeviceToken(profile);
   } finally {
     // Keep the newly-opened session as the active one when this profile is
     // becoming active; otherwise close it.
@@ -157,16 +179,24 @@ export async function saveProfile(profile: LocalProfile): Promise<void> {
 }
 
 export async function getActiveProfile(): Promise<LocalProfile | undefined> {
-  const session = getActiveProfileSession();
   let meta: SharedProfileMeta | undefined;
+  const session = getActiveProfileSession();
   if (session) {
     meta = await session.getActiveProfileMeta();
   }
+  if (!meta) {
+    meta = await getActiveSharedProfile();
+  }
   if (!meta) return undefined;
-  const token = await session!.getSessionCache("device_token") as
-    { device_token: string; refresh_token?: string; token_expires_at: number }
-    | undefined;
+
+  const token = await loadDeviceToken();
   if (!token) return undefined;
+
+  // Auto-open session on startup if not already open
+  if (!session || session.learnerId !== meta.learner_id) {
+    await openProfileSession(meta.learner_id);
+  }
+
   return {
     learner_id: meta.learner_id,
     device_id: meta.device_id,
@@ -180,15 +210,23 @@ export async function getActiveProfile(): Promise<LocalProfile | undefined> {
   };
 }
 
-export async function setActiveProfile(learner_id: string): Promise<void> {
-  const session = await openProfileSession(learner_id);
-  await session.setActiveProfileMeta(learner_id);
+export async function setActiveProfile(learner_id: string, pin?: string): Promise<void> {
+  const profiles = await getSharedProfiles();
+  const target = profiles.find((p) => p.learner_id === learner_id);
+  if (!target) throw new Error("profile not found");
+
+  if (target.has_pin) {
+    if (!pin) throw new Error("PIN required");
+    const ok = await verifyProfilePinDirect(learner_id, pin);
+    if (!ok) throw new Error("incorrect PIN");
+  }
+
+  await setActiveSharedProfile(learner_id);
+  await openProfileSession(learner_id);
 }
 
 export async function listProfiles(): Promise<SharedProfileMeta[]> {
-  const session = getActiveProfileSession();
-  if (!session) return [];
-  return session.listProfileMeta();
+  return getSharedProfiles();
 }
 
 // --------------------------------------------------------------------------- //

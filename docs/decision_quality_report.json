@@ -1,0 +1,306 @@
+{
+  "evaluation_date": "2026-10-15",
+  "dataset": {
+    "name": "SAARTHI Gold Decision Scenarios",
+    "total_scenarios": 120,
+    "tuning_count": 78,
+    "held_out_count": 42,
+    "held_out_share_pct": 35.0,
+    "reviewers": [
+      "Subodh Kumar Swain (Odia Lead)",
+      "Shuvakanta Patra (Agentic AI)"
+    ]
+  },
+  "results": {
+    "structural_validity_pct": 100.0,
+    "held_out_agreement_pct": 90.48,
+    "tuning_agreement_pct": 92.31,
+    "overall_agreement_pct": 91.67,
+    "target_threshold_held_out": 90.0,
+    "gate_status": "PASS"
+  },
+  "category_breakdown": {
+    "cold_start": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0
+    },
+    "prerequisite_gaps": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0
+    },
+    "weak_concept": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0
+    },
+    "repeated_wrong_answers": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0
+    },
+    "partial_practice": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0
+    },
+    "mastered_concepts": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0
+    },
+    "slice_complete": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0
+    },
+    "no_progress_after_remediation": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0
+    },
+    "missing_pack_offline": {
+      "total": 10,
+      "matches": 0,
+      "agreement_pct": 0.0
+    },
+    "corrupt_or_stale_state": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0
+    }
+  },
+  "mismatches": [
+    {
+      "scenario_id": "gold_scen_101",
+      "name": "Missing pack offline variant 1",
+      "category": "missing_pack_offline",
+      "split": "tuning",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_102",
+      "name": "Missing pack offline variant 2",
+      "category": "missing_pack_offline",
+      "split": "held_out",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_103",
+      "name": "Missing pack offline variant 3",
+      "category": "missing_pack_offline",
+      "split": "tuning",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_104",
+      "name": "Missing pack offline variant 4",
+      "category": "missing_pack_offline",
+      "split": "tuning",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_105",
+      "name": "Missing pack offline variant 5",
+      "category": "missing_pack_offline",
+      "split": "held_out",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_106",
+      "name": "Missing pack offline variant 6",
+      "category": "missing_pack_offline",
+      "split": "tuning",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_107",
+      "name": "Missing pack offline variant 7",
+      "category": "missing_pack_offline",
+      "split": "tuning",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_108",
+      "name": "Missing pack offline variant 8",
+      "category": "missing_pack_offline",
+      "split": "held_out",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_109",
+      "name": "Missing pack offline variant 9",
+      "category": "missing_pack_offline",
+      "split": "tuning",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    },
+    {
+      "scenario_id": "gold_scen_110",
+      "name": "Missing pack offline variant 10",
+      "category": "missing_pack_offline",
+      "split": "held_out",
+      "expected": {
+        "action": "ADVANCE",
+        "target_concept_id": "c0002",
+        "delivery_mode": "cached",
+        "background_actions": [
+          "PREFETCH"
+        ],
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "needs_help": false
+      },
+      "actual": {
+        "action": "REMEDIATE",
+        "target_concept_id": "c0002",
+        "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
+        "delivery_mode": "cached",
+        "needs_help": false
+      }
+    }
+  ]
+}

@@ -259,6 +259,45 @@ class PackRepository(abc.ABC):
     async def list_installed_packs(self, device_id: str) -> list[tuple[str, str]]: ...
 
 
+class JobRepository(abc.ABC):
+    """Durable job repository (Design v2 Section 5 & 14).
+    PostgreSQL/SQLite job table is the source of truth, so a lost queue loses nothing.
+    """
+    @abc.abstractmethod
+    async def enqueue(
+        self,
+        job_type: str,
+        payload: dict,
+        dedupe_key: Optional[str] = None,
+        max_attempts: int = 6,
+        delay_s: int = 0,
+    ) -> "JobRecord": ...
+
+    @abc.abstractmethod
+    async def acquire_next_job(
+        self, worker_id: str, lease_duration_s: int = 60
+    ) -> Optional["JobRecord"]: ...
+
+    @abc.abstractmethod
+    async def complete_job(self, job_id: str) -> None: ...
+
+    @abc.abstractmethod
+    async def fail_job(
+        self, job_id: str, error: str, retryable: bool
+    ) -> None: ...
+
+    @abc.abstractmethod
+    async def reconcile_expired_leases(self) -> int: ...
+
+    @abc.abstractmethod
+    async def list_jobs(
+        self, statuses: Optional[list[str]] = None, limit: int = 50
+    ) -> list["JobRecord"]: ...
+
+    @abc.abstractmethod
+    async def count_by_status(self) -> dict[str, int]: ...
+
+
 __all__ = [
     "LearnerRepository",
     "DeviceRepository",
@@ -267,4 +306,5 @@ __all__ = [
     "DecisionRepository",
     "GenerationRecordRepository",
     "PackRepository",
+    "JobRepository",
 ]

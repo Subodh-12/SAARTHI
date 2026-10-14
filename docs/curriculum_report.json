@@ -1,0 +1,269 @@
+{
+  "pack_id": "pack_class9_science_or_v1",
+  "version": "1.0.0",
+  "content_version": "2026.10.001",
+  "language": "or",
+  "total_chapters": 3,
+  "total_concepts": 9,
+  "total_chunks": 18,
+  "total_questions": 108,
+  "total_glossary_terms": 30,
+  "review_status": "verified_ready_for_publication",
+  "chapters_summary": [
+    {
+      "chapter_id": "ch001",
+      "title_en": "Matter in Our Surroundings",
+      "title_or": "ଆମ ଚାରିପାଖର ପଦାର୍ଥ",
+      "concepts": [
+        {
+          "concept_id": "c0001",
+          "title_en": "States of Matter",
+          "title_or": "ପଦାର୍ଥର ସ୍ଥିତି",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            104,
+            100
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        },
+        {
+          "concept_id": "c0002",
+          "title_en": "Density",
+          "title_or": "ଘନତ୍ୱ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            103,
+            97
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        },
+        {
+          "concept_id": "c0003",
+          "title_en": "Changes of State",
+          "title_or": "ଅବସ୍ଥା ପରିବର୍ତ୍ତନ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            93,
+            90
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        }
+      ]
+    },
+    {
+      "chapter_id": "ch002",
+      "title_en": "Motion - Measurement",
+      "title_or": "ଗତି ଏବଂ ମାପ",
+      "concepts": [
+        {
+          "concept_id": "c0004",
+          "title_en": "Motion and Displacement",
+          "title_or": "ଗତି ଏବଂ ବିସ୍ଥାପନ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            97,
+            97
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        },
+        {
+          "concept_id": "c0005",
+          "title_en": "Speed and Velocity",
+          "title_or": "ବେଗ ଏବଂ ବେଗତା",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            97,
+            89
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        },
+        {
+          "concept_id": "c0006",
+          "title_en": "Acceleration",
+          "title_or": "ତ୍ୱରଣ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            95,
+            101
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        }
+      ]
+    },
+    {
+      "chapter_id": "ch003",
+      "title_en": "Tissues - Living Organisms",
+      "title_or": "ଟିସ୍ୟୁ — ଜୀବଜଗତର ଗଠନ",
+      "concepts": [
+        {
+          "concept_id": "c0007",
+          "title_en": "Tissues and Types",
+          "title_or": "ଟିସ୍ୟୁ ଓ ଏହାର ପ୍ରକାରଭେଦ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            100,
+            98
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        },
+        {
+          "concept_id": "c0008",
+          "title_en": "Plant Tissues",
+          "title_or": "ଉଦ୍ଭିଦ ଟିସ୍ୟୁ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            108,
+            108
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        },
+        {
+          "concept_id": "c0009",
+          "title_en": "Animal Tissues",
+          "title_or": "ପ୍ରାଣୀ ଟିସ୍ୟୁ",
+          "chunks_count": 2,
+          "words_per_chunk": [
+            106,
+            104
+          ],
+          "questions_count": 12,
+          "difficulty": {
+            "easy": 4,
+            "medium": 4,
+            "hard": 4
+          },
+          "bloom": {
+            "remember": 2,
+            "understand": 2,
+            "apply": 2,
+            "analyze": 2,
+            "evaluate": 2,
+            "create": 2
+          }
+        }
+      ]
+    }
+  ],
+  "bloom_distribution": {
+    "remember": 18,
+    "understand": 18,
+    "apply": 18,
+    "analyze": 18,
+    "evaluate": 18,
+    "create": 18
+  },
+  "difficulty_distribution": {
+    "easy": 36,
+    "medium": 36,
+    "hard": 36
+  },
+  "misconception_coverage": {
+    "questions_with_option_misconceptions": 107,
+    "total_options": 428,
+    "wrong_options_annotated": 321
+  }
+}

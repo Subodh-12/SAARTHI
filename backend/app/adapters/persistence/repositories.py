@@ -22,11 +22,12 @@ from ...domain.schemas import (
     GenerationRecord, LearnerEvent, LearnerProfile, MasteryRecord,
     BloomMasteryRecord, NetworkState, Outcome, PackManifest, PerEventResult,
     SyncEffect, SyncReason, TraceStep, new_learner_id,
+    JobRecord, JobStatus,
 )
 from ...repositories.interfaces import (
     DecisionRepository, DeviceRepository, EventRepository,
     GenerationRecordRepository, LearnerRepository, MasteryRepository,
-    PackRepository,
+    PackRepository, JobRepository,
 )
 from . import Persistence
 
@@ -912,8 +913,219 @@ class SqlPackRepository(PackRepository):
             return [(r[0], r[1]) for r in res.fetchall()]
 
 
+class SqlJobRepository(JobRepository):
+    """Durable job repository (Design v2 Section 5 & 14).
+    PostgreSQL/SQLite job table is the source of truth, so a lost queue loses nothing.
+    """
+    def __init__(self, p: Persistence) -> None:
+        self.p = p
+
+    async def enqueue(
+        self,
+        job_type: str,
+        payload: dict,
+        dedupe_key: Optional[str] = None,
+        max_attempts: int = 6,
+        delay_s: int = 0,
+    ) -> JobRecord:
+        now = _now_ms()
+        next_run_at = now + (delay_s * 1000)
+        job_id = f"job_{uuid.uuid4().hex[:20]}"
+        payload_str = json.dumps(payload)
+
+        async with self.p.session() as s:
+            if dedupe_key:
+                res = await s.execute(
+                    text("SELECT job_id, type, payload_json, dedupe_key, status, attempts, "
+                         "max_attempts, next_run_at, lease_expires_at, last_error, created_at, updated_at "
+                         "FROM jobs WHERE dedupe_key = :dk"),
+                    {"dk": dedupe_key},
+                )
+                existing = res.fetchone()
+                if existing:
+                    return self._row_to_job(existing)
+
+            await s.execute(
+                text("INSERT INTO jobs (job_id, type, payload_json, dedupe_key, status, attempts, "
+                     "max_attempts, next_run_at, lease_expires_at, last_error, created_at, updated_at) "
+                     "VALUES (:jid, :type, :payload, :dk, :status, 0, :max_att, :next_run, NULL, NULL, :now, :now)"),
+                {
+                    "jid": job_id,
+                    "type": job_type,
+                    "payload": payload_str,
+                    "dk": dedupe_key,
+                    "status": JobStatus.QUEUED.value,
+                    "max_att": max_attempts,
+                    "next_run": next_run_at,
+                    "now": now,
+                },
+            )
+            await s.commit()
+
+            return JobRecord(
+                job_id=job_id,
+                type=job_type,
+                payload=payload,
+                dedupe_key=dedupe_key,
+                status=JobStatus.QUEUED,
+                attempts=0,
+                max_attempts=max_attempts,
+                next_run_at=next_run_at,
+                lease_expires_at=None,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+
+    async def acquire_next_job(
+        self, worker_id: str, lease_duration_s: int = 60
+    ) -> Optional[JobRecord]:
+        now = _now_ms()
+        lease_expires = now + (lease_duration_s * 1000)
+        async with self.p.session() as s:
+            res = await s.execute(
+                text("SELECT job_id, type, payload_json, dedupe_key, status, attempts, "
+                     "max_attempts, next_run_at, lease_expires_at, last_error, created_at, updated_at "
+                     "FROM jobs WHERE status IN ('queued', 'retry') AND next_run_at <= :now "
+                     "ORDER BY next_run_at ASC LIMIT 1"),
+                {"now": now},
+            )
+            row = res.fetchone()
+            if not row:
+                return None
+
+            job_id = row[0]
+            attempts = row[5] + 1
+            await s.execute(
+                text("UPDATE jobs SET status = 'running', attempts = :att, lease_expires_at = :lease, updated_at = :now "
+                     "WHERE job_id = :jid"),
+                {"jid": job_id, "att": attempts, "lease": lease_expires, "now": now},
+            )
+            await s.commit()
+
+            job = self._row_to_job(row)
+            job.status = JobStatus.RUNNING
+            job.attempts = attempts
+            job.lease_expires_at = lease_expires
+            job.updated_at = now
+            return job
+
+    async def complete_job(self, job_id: str) -> None:
+        now = _now_ms()
+        async with self.p.session() as s:
+            await s.execute(
+                text("UPDATE jobs SET status = 'succeeded', lease_expires_at = NULL, updated_at = :now "
+                     "WHERE job_id = :jid"),
+                {"jid": job_id, "now": now},
+            )
+            await s.commit()
+
+    async def fail_job(self, job_id: str, error: str, retryable: bool) -> None:
+        now = _now_ms()
+        async with self.p.session() as s:
+            res = await s.execute(
+                text("SELECT attempts, max_attempts FROM jobs WHERE job_id = :jid"),
+                {"jid": job_id},
+            )
+            row = res.fetchone()
+            if not row:
+                return
+            attempts, max_attempts = row[0], row[1]
+
+            if not retryable or attempts >= max_attempts:
+                new_status = JobStatus.DEAD.value
+                next_run = now
+            else:
+                new_status = JobStatus.RETRY.value
+                import random
+                base = 5.0 * (2 ** (attempts - 1))
+                jitter = random.uniform(0.8, 1.2)
+                delay_s = min(600.0, base * jitter)
+                next_run = now + int(delay_s * 1000)
+
+            await s.execute(
+                text("UPDATE jobs SET status = :status, next_run_at = :nr, lease_expires_at = NULL, "
+                     "last_error = :err, updated_at = :now WHERE job_id = :jid"),
+                {"jid": job_id, "status": new_status, "nr": next_run, "err": error, "now": now},
+            )
+            await s.commit()
+
+    async def reconcile_expired_leases(self) -> int:
+        now = _now_ms()
+        async with self.p.session() as s:
+            res = await s.execute(
+                text("SELECT job_id, attempts, max_attempts FROM jobs "
+                     "WHERE status = 'running' AND lease_expires_at IS NOT NULL AND lease_expires_at < :now"),
+                {"now": now},
+            )
+            expired = res.fetchall()
+            count = 0
+            for jid, attempts, max_att in expired:
+                if attempts >= max_att:
+                    new_status = 'dead'
+                    err = 'lease_expired_max_attempts'
+                else:
+                    new_status = 'retry'
+                    err = 'lease_expired_requeued'
+                await s.execute(
+                    text("UPDATE jobs SET status = :st, lease_expires_at = NULL, last_error = :err, "
+                         "updated_at = :now WHERE job_id = :jid"),
+                    {"jid": jid, "st": new_status, "err": err, "now": now},
+                )
+                count += 1
+            await s.commit()
+            return count
+
+    async def list_jobs(self, statuses: Optional[list[str]] = None, limit: int = 50) -> list[JobRecord]:
+        async with self.p.session() as s:
+            if statuses:
+                placeholders = ", ".join(f":s{i}" for i in range(len(statuses)))
+                params = {f"s{i}": st for i, st in enumerate(statuses)}
+                params["lim"] = limit
+                res = await s.execute(
+                    text(f"SELECT job_id, type, payload_json, dedupe_key, status, attempts, "
+                         f"max_attempts, next_run_at, lease_expires_at, last_error, created_at, updated_at "
+                         f"FROM jobs WHERE status IN ({placeholders}) ORDER BY updated_at DESC LIMIT :lim"),
+                    params,
+                )
+            else:
+                res = await s.execute(
+                    text("SELECT job_id, type, payload_json, dedupe_key, status, attempts, "
+                         "max_attempts, next_run_at, lease_expires_at, last_error, created_at, updated_at "
+                         "FROM jobs ORDER BY updated_at DESC LIMIT :lim"),
+                    {"lim": limit},
+                )
+            rows = res.fetchall()
+            return [self._row_to_job(r) for r in rows]
+
+    async def count_by_status(self) -> dict[str, int]:
+        async with self.p.session() as s:
+            res = await s.execute(text("SELECT status, count(*) FROM jobs GROUP BY status"))
+            counts = {s.value: 0 for s in JobStatus}
+            for row in res.fetchall():
+                counts[row[0]] = row[1]
+            return counts
+
+    @staticmethod
+    def _row_to_job(row) -> JobRecord:
+        return JobRecord(
+            job_id=row[0],
+            type=row[1],
+            payload=json.loads(row[2] or "{}"),
+            dedupe_key=row[3],
+            status=JobStatus(row[4]),
+            attempts=row[5],
+            max_attempts=row[6],
+            next_run_at=row[7],
+            lease_expires_at=row[8],
+            last_error=row[9],
+            created_at=row[10],
+            updated_at=row[11],
+        )
+
+
 __all__ = [
     "SqlLearnerRepository", "SqlDeviceRepository", "SqlEventRepository",
     "SqlMasteryRepository", "SqlDecisionRepository",
-    "SqlGenerationRecordRepository", "SqlPackRepository",
+    "SqlGenerationRecordRepository", "SqlPackRepository", "SqlJobRepository",
 ]

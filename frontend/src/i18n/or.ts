@@ -49,6 +49,18 @@ export const OR: Record<string, string> = {
   ask_teacher_prompt: "ଏହି ଧାରଣା କଷ୍ଟ ହେଉଛି — ଶିକ୍ଷକଙ୍କ ସହିତ ଯୋଗାଯୋଗ କର।",
   sync_paused_auth: "ସିଙ୍କ ବିଳମ୍ବ — ଶିଖ ଜାରି ରହିଛି।",
   quarantine_notice: "କିଛି ଘଟଣା ଯାଞ୍ଚ ପାଇଁ ରଖାଯାଇଛି।",
+  select_profile: "ଶିକ୍ଷାର୍ଥୀ ବାଛନ୍ତୁ",
+  confirm_pin: "PIN ନିଶ୍ଚିତ କରନ୍ତୁ",
+  pin_mismatch: "ଦୁଇଟି PIN ମେଳ ଖାଉନାହିଁ।",
+  pin_invalid: "PIN ୪ଟି ଅଙ୍କ ବିଶିଷ୍ଟ ହେବା ଆବଶ୍ୟକ।",
+  pin_incorrect: "ଭୁଲ PIN। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+  enter_pin: "୪-ଅଙ୍କ ବିଶିଷ୍ଟ PIN ଦିଅନ୍ତୁ",
+  storage_unavailable_title: "ସ୍ଟୋରେଜ୍ ଉପଲବ୍ଧ ନାହିଁ",
+  storage_unavailable_desc: "ବ୍ରାଉଜର ସ୍ଥାନୀୟ ଡାଟାବେସ୍ ଖୋଲିପାରିଲା ନାହିଁ। ଦୟାକରି ବ୍ରାଉଜର ସେଟିଂ ଯାଞ୍ଚ କରନ୍ତୁ।",
+  recovery_error_title: "ପୁନରୁଦ୍ଧାର ତ୍ରୁଟି",
+  nav_progress: "ପ୍ରଗତି",
+  cancel: "ବାତିଲ",
+  submit: "ଦାଖଲ କରନ୍ତୁ",
 };
 
 export function t(key: keyof typeof OR): string {

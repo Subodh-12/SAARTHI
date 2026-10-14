@@ -352,3 +352,30 @@ CREATE TABLE IF NOT EXISTS langgraph_writes (
   created_at           INTEGER NOT NULL,
   PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, channel)
 );
+
+-- ---------------------------------------------------------------- --
+-- Durable worker jobs (Design v2 Section 5 & 14)
+-- Arq runs the jobs; PostgreSQL/SQLite job table is the source of truth,
+-- so a lost queue loses nothing.
+-- ---------------------------------------------------------------- --
+CREATE TABLE IF NOT EXISTS jobs (
+  job_id              TEXT PRIMARY KEY,
+  type                TEXT NOT NULL,
+  payload_json        TEXT NOT NULL DEFAULT '{}',
+  dedupe_key          TEXT UNIQUE,
+  status              TEXT NOT NULL DEFAULT 'queued',
+  attempts            INTEGER NOT NULL DEFAULT 0,
+  max_attempts        INTEGER NOT NULL DEFAULT 6,
+  next_run_at         INTEGER NOT NULL,
+  lease_expires_at    INTEGER,
+  last_error          TEXT,
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_status_next_run
+  ON jobs (status, next_run_at);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_lease_expires
+  ON jobs (status, lease_expires_at);
+

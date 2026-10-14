@@ -7,6 +7,7 @@ state — it only resets limits).
 """
 from __future__ import annotations
 
+import os
 import time
 
 from fastapi import Request
@@ -45,8 +46,10 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Token bucket keyed by device (Bearer hash) or client IP.
+    """Token bucket / window counter keyed by device (Bearer hash) or client IP.
 
+    Design v2 Section 5: Redis is cache and rate limits only. Never authoritative
+    for learner state; losing it loses nothing durable.
     Only mutating endpoints are limited; health/readiness stay open for
     probes. Exceeding the limit returns 429 RATE_LIMITED with Retry-After.
     """
@@ -55,6 +58,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._buckets: dict[str, tuple[float, float]] = {}  # key -> (tokens, last)
         self._last_sweep = time.monotonic()
+        self._redis_client = None
+        self._redis_checked = False
+
+    async def _get_redis(self):
+        if not self._redis_checked:
+            self._redis_checked = True
+            s = get_settings()
+            redis_url = getattr(s, "redis_url", None) or os.environ.get("REDIS_URL")
+            if redis_url:
+                try:
+                    import redis.asyncio as aioredis
+                    client = aioredis.from_url(redis_url, decode_responses=True)
+                    await client.ping()
+                    self._redis_client = client
+                except Exception:
+                    self._redis_client = None
+        return self._redis_client
 
     async def dispatch(self, request: Request, call_next):
         s = get_settings()
@@ -63,6 +83,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         auth = request.headers.get("authorization", "")
         key = auth[-32:] if auth.startswith("Bearer ") else (request.client.host if request.client else "?")
+        
+        # Try Redis first if available
+        redis_client = await self._get_redis()
+        if redis_client:
+            try:
+                now_minute = int(time.time() // 60)
+                rl_key = f"rl:{key}:{now_minute}"
+                count = await redis_client.incr(rl_key)
+                if count == 1:
+                    await redis_client.expire(rl_key, 65)
+                if count > s.rate_limit_per_minute:
+                    return JSONResponse(
+                        status_code=429,
+                        headers={"Retry-After": "60"},
+                        content={"title": "Too Many Requests", "status": 429,
+                                 "error_code": "rate_limited",
+                                 "detail": "rate limit exceeded; back off with jitter"},
+                    )
+                return await call_next(request)
+            except Exception:
+                # Graceful degradation to local bounded bucket on Redis failure
+                pass
+
         now = time.monotonic()
         rate = max(1, s.rate_limit_per_minute) / 60.0
         tokens, last = self._buckets.get(key, (float(s.rate_limit_per_minute), now))
@@ -77,8 +120,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                          "detail": "rate limit exceeded; back off with jitter"},
             )
         self._buckets[key] = (tokens - 1.0, now)
-        # Occasional sweep so idle keys do not accumulate forever.
-        if now - self._last_sweep > 300:
+        # Bounded sweep so idle keys do not accumulate forever (cap at 10000)
+        if len(self._buckets) > 10000 or (now - self._last_sweep > 300):
             self._buckets = {k: v for k, v in self._buckets.items()
                              if now - v[1] < 3600}
             self._last_sweep = now

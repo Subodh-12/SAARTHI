@@ -53,8 +53,8 @@ SOURCE_REFS = [
     "Original Odia notes authored for SAARTHI MVP",
 ]
 MAX_BYTES = 5 * 1024 * 1024  # 5 MiB pack budget
-MIN_CHUNK_WORDS = 40   # ~80–200 Odia words target; we allow >=40 for dense formula chunks
-MAX_CHUNK_WORDS = 280
+MIN_CHUNK_WORDS = 80   # 80–200 Odia words target (Design v2 Section 11)
+MAX_CHUNK_WORDS = 200
 
 
 # --------------------------------------------------------------------------- #
@@ -122,6 +122,13 @@ def validate_question(q: dict) -> None:
             raise ValidationError(f"mcq {q['question_id']} needs >=2 options")
         if q.get("correct_option") is None or not (0 <= q["correct_option"] < len(q["options"])):
             raise ValidationError(f"mcq {q['question_id']} invalid correct_option")
+        for idx, opt in enumerate(q["options"]):
+            if idx != q["correct_option"]:
+                if isinstance(opt, dict):
+                    if not opt.get("misconception_tag"):
+                        raise ValidationError(f"mcq {q['question_id']} wrong option {idx} missing misconception_tag")
+                elif not q.get("misconception_tag"):
+                    raise ValidationError(f"mcq {q['question_id']} missing misconception_tag for wrong option {idx}")
     elif q["qtype"] == "short_answer":
         if not q.get("rubric_or"):
             raise ValidationError(f"short_answer {q['question_id']} needs rubric_or")
@@ -156,7 +163,20 @@ def load_chapter(chapter_dir: Path) -> dict:
         q["explanation_or"] = normalise_odia(q["explanation_or"])
         if q.get("rubric_or"):
             q["rubric_or"] = normalise_odia(q["rubric_or"])
-        q["options"] = [normalise_odia(o) for o in q.get("options", [])]
+        norm_opts = []
+        for o in q.get("options", []):
+            if isinstance(o, str):
+                norm_opts.append(normalise_odia(o))
+            elif isinstance(o, dict):
+                norm_opts.append({
+                    "index": o.get("index", len(norm_opts)),
+                    "text_or": normalise_odia(o.get("text_or", "")),
+                    "misconception_tag": o.get("misconception_tag"),
+                    "explanation_or": normalise_odia(o.get("explanation_or", "")) if o.get("explanation_or") else None,
+                })
+            else:
+                norm_opts.append(o)
+        q["options"] = norm_opts
     return m
 
 
@@ -218,20 +238,53 @@ def build_pack(strict: bool = True) -> dict:
         validate_glossary_entry(g)
         glossary_data.append(g)
 
-    # Publication gate: at least 12 reviewed questions per concept
-    by_concept: dict[str, int] = {}
+    # Publication gate (Section 5.5):
+    # - Required concept and chapter coverage (3 chapters, 9 concepts)
+    # - At least 12 reviewed questions per concept
+    # - At least 4 questions at each difficulty level (easy, medium, hard) per concept
+    # - All 6 Bloom levels represented across curriculum
+    # - Review metadata exists
+    if len(chapters_data) < 3:
+        raise ValidationError(f"need ≥3 chapters, got {len(chapters_data)}")
+    if len(concepts_data) < 9:
+        raise ValidationError(f"need ≥9 concepts, got {len(concepts_data)}")
+
+    by_concept: dict[str, dict[str, int]] = {}
+    bloom_levels_seen: set[str] = set()
     for q in questions_data:
-        by_concept[q["concept_id"]] = by_concept.get(q["concept_id"], 0) + 1
-    for cid, n in by_concept.items():
-        if n < 3:  # MVP demo target: ≥3 questions/concept; design doc says ≥12 reviewed
-            msg = f"concept {cid} has only {n} questions (need ≥12 for production)"
+        cid = q["concept_id"]
+        diff = q.get("difficulty", "easy")
+        bl = q.get("bloom_level", "remember")
+        bloom_levels_seen.add(bl)
+        by_concept.setdefault(cid, {"easy": 0, "medium": 0, "hard": 0, "total": 0})
+        by_concept[cid][diff] = by_concept[cid].get(diff, 0) + 1
+        by_concept[cid]["total"] += 1
+
+    for cid, counts in sorted(by_concept.items()):
+        if counts["total"] < 12 or counts.get("easy", 0) < 4 or counts.get("medium", 0) < 4 or counts.get("hard", 0) < 4:
+            msg = (f"concept {cid} questions: total={counts['total']} "
+                   f"(easy={counts.get('easy', 0)}, med={counts.get('medium', 0)}, hard={counts.get('hard', 0)}), "
+                   f"need ≥12 (4 easy, 4 med, 4 hard)")
             if strict:
                 raise ValidationError(msg)
-            print(f"WARN: {msg} (strict=False, continuing)")
+            print(f"WARN: {msg}")
         else:
-            print(f"concept {cid}: {n} questions")
-    if len(questions_data) < 9:
-        raise ValidationError(f"need ≥9 questions total, got {len(questions_data)}")
+            print(f"concept {cid}: {counts['total']} questions (easy={counts['easy']}, med={counts['medium']}, hard={counts['hard']})")
+
+    required_blooms = {"remember", "understand", "apply", "analyze", "evaluate", "create"}
+    missing_blooms = required_blooms - bloom_levels_seen
+    if missing_blooms:
+        msg = f"curriculum missing Bloom levels: {missing_blooms}"
+        if strict:
+            raise ValidationError(msg)
+        print(f"WARN: {msg}")
+    else:
+        print(f"Bloom taxonomy coverage: all 6 levels present ({sorted(bloom_levels_seen)})")
+
+    # Check review metadata exists
+    review_path = CURRIC / "review_metadata.json"
+    if strict and not review_path.is_file():
+        raise ValidationError(f"Missing required human review metadata: {review_path}")
 
     # Manifest
     PACKS_DIR.mkdir(parents=True, exist_ok=True)
