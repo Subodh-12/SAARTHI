@@ -10,8 +10,8 @@ from ..domain.bkt import bkt_band
 from ..domain.decide import DecisionInput, decide
 from ..domain.ruleset import get_ruleset
 from ..domain.schemas import (
-    Action, BackgroundAction, Decision, DeliveryMode, LearnerEvent,
-    MasteryRecord, NetworkState, new_decision_id,
+    Action, BackgroundAction, Decision, DecisionTrace, DeliveryMode,
+    LearnerEvent, MasteryRecord, NetworkState, TraceStep, new_decision_id,
 )
 from ..i18n.reasons_or import REASON_MESSAGES
 from ..repositories import DecisionRepository, MasteryRepository
@@ -88,6 +88,40 @@ class DecisionService:
             suggested_question_id=out.suggested_question_id,
         )
         await self.decisions.save_decision(decision)
+        # Structured decision trace (Phase 5): explains target selection,
+        # action choice, and — when the trigger was an incorrect response —
+        # the verification-gate state. Summaries carry only IDs/counts;
+        # raw learner answers are never logged (redacted=True default).
+        m = inp.mastery.get(out.target_concept_id)
+        steps = [
+            TraceStep(
+                step_id="select_target", node="decision_engine", status="ok", duration_ms=0,
+                ruleset_version=ruleset.ruleset_version,
+                output_summary={"target_concept_id": out.target_concept_id,
+                                "reason_code": out.reason_code},
+            ),
+            TraceStep(
+                step_id="select_action", node="decision_engine", status="ok", duration_ms=0,
+                output_summary={
+                    "action": out.action.value,
+                    "trigger_evidence": inp.trigger_evidence,
+                    "target_mastery_p": m[0] if m else None,
+                },
+            ),
+        ]
+        if inp.trigger_evidence in ("incorrect", "partial"):
+            steps.append(TraceStep(
+                step_id="verification_gate", node="decision_engine", status="ok", duration_ms=0,
+                output_summary={
+                    "note": "incorrect response: candidate-cause diagnosis and "
+                            "verification evidence are tracked on the assessment "
+                            "result; mastery is updated exactly once per accepted "
+                            "event",
+                },
+            ))
+        await self.decisions.save_trace(
+            decision.decision_id,
+            DecisionTrace(decision_id=decision.decision_id, trace=steps))
         return decision
 
     async def get_decision(self, decision_id: str) -> Optional[Decision]:

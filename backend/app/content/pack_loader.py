@@ -70,6 +70,12 @@ class PackContentIndex:
                 explanation_or=q["explanation_or"],
                 difficulty=q["difficulty"],
                 misconception_tag=q.get("misconception_tag"),
+                misconception_options={
+                    str(k): v.strip() for k, v in (q.get("misconception_options") or {}).items()
+                    if isinstance(v, str) and v.strip()
+                },
+                bloom_level=q.get("bloom_level"),
+                review_status=q.get("review_status"),
                 source_ref=q.get("source_ref", ""),
             ) for q in payload["questions"]
         }

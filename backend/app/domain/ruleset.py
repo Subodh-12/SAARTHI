@@ -38,9 +38,31 @@ class Ruleset:
     validation: dict
 
 
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _resolve_ruleset_path(path: str | os.PathLike | None = None) -> Path:
+    configured = path or os.environ.get("SAARTHI_RULESET_PATH")
+    if configured is None:
+        default_path = _project_root() / "packages" / "ruleset" / "rules.json"
+        return default_path
+    candidate = Path(configured)
+    if candidate.is_absolute():
+        return candidate
+    repo_root = _project_root()
+    repo_candidate = repo_root / candidate
+    if repo_candidate.exists():
+        return repo_candidate
+    cwd_candidate = Path.cwd() / candidate
+    if cwd_candidate.exists():
+        return cwd_candidate
+    return repo_candidate
+
+
 def load_ruleset(path: str | os.PathLike | None = None) -> Ruleset:
-    path = Path(path or os.environ.get("SAARTHI_RULESET_PATH", "packages/ruleset/rules.json"))
-    with open(path, "r", encoding="utf-8") as f:
+    resolved_path = _resolve_ruleset_path(path)
+    with open(resolved_path, "r", encoding="utf-8") as f:
         raw = json.load(f)
     return Ruleset(
         raw=raw,

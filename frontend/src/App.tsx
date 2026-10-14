@@ -17,8 +17,10 @@ import { LessonScreen } from "./screens/Lesson";
 import { DoubtScreen } from "./screens/Doubt";
 import { PacksScreen } from "./screens/Packs";
 import { DevTraceScreen } from "./screens/DevTrace";
+import { RoomsScreen } from "./screens/rooms/Rooms";
+import { RoomView } from "./screens/rooms/RoomView";
 
-type Tab = "home" | "lesson" | "doubt" | "packs" | "dev";
+type Tab = "home" | "lesson" | "doubt" | "packs" | "rooms" | "dev";
 type Profile = { learner_id: string; device_id: string; device_token: string; display_label: string } | null;
 
 export default function App() {
@@ -29,6 +31,7 @@ export default function App() {
     navigator.onLine ? NetworkState.ONLINE : NetworkState.OFFLINE,
   );
   const [outboxDepth, setOutboxDepth] = useState(0);
+  const [openRoomId, setOpenRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -124,14 +127,26 @@ export default function App() {
         {tab === "packs" && (
           <PacksScreen />
         )}
+        {tab === "rooms" && !openRoomId && (
+          <RoomsScreen profile={profile} onOpenRoom={setOpenRoomId} />
+        )}
+        {tab === "rooms" && openRoomId && (
+          <RoomView
+            roomId={openRoomId}
+            profile={profile}
+            onExit={() => setOpenRoomId(null)}
+            onLeft={() => setOpenRoomId(null)}
+          />
+        )}
         {tab === "dev" && (
           <DevTraceScreen profile={profile} />
         )}
       </section>
-      <nav className="bg-white border-t border-slate-200 grid grid-cols-5 text-xs text-slate-700">
+      <nav className="bg-white border-t border-slate-200 grid grid-cols-6 text-xs text-slate-700">
         <TabBtn label={t("nav_home")} active={tab === "home"} onClick={() => setTab("home")} icon="🏠" />
         <TabBtn label={t("nav_lesson")} active={tab === "lesson"} onClick={() => setTab("lesson")} icon="📖" />
         <TabBtn label={t("nav_doubt")} active={tab === "doubt"} onClick={() => setTab("doubt")} icon="?" />
+        <TabBtn label="Rooms" active={tab === "rooms"} onClick={() => { setTab("rooms"); }} icon="👥" />
         <TabBtn label={t("nav_packs")} active={tab === "packs"} onClick={() => setTab("packs")} icon="📦" />
         <TabBtn label={t("nav_dev")} active={tab === "dev"} onClick={() => setTab("dev")} icon="🔧" />
       </nav>

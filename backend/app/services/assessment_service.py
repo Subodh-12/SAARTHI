@@ -17,10 +17,12 @@ from ..repositories import EventRepository, MasteryRepository
 
 class AssessmentService:
     def __init__(self, pack: PackContentIndex, events: EventRepository,
-                 mastery: MasteryRepository) -> None:
+                 mastery: MasteryRepository, diagnosis=None) -> None:
         self.pack = pack
         self.events = events
         self.mastery = mastery
+        # Optional DiagnosisService (Phase 5): attached when wired in main.py.
+        self.diagnosis = diagnosis
 
     async def submit_assessment(
         self, learner_id: str, device_id: str, sub: AssessmentSubmission,
@@ -85,9 +87,18 @@ class AssessmentService:
                             MasteryRecord(concept_id=question.concept_id,
                                            p_known=ruleset.bkt["priors"]["default_prior"],
                                            band="novice", attempts=0, correct=0))
+        # Diagnosis + verification gate (Phase 5): computed only for accepted
+        # incorrect MCQ responses — correct answers and duplicates get none,
+        # and duplicate submissions never recompute or double-count evidence.
+        diagnosis = None
+        if (result.outcome == Outcome.ACCEPTED and self.diagnosis is not None
+                and not correct):
+            diagnosis = await self.diagnosis.for_submission(
+                learner_id, question, sub.selected_option)
         return AssessmentResult(
             question_id=question.question_id, correct=correct, evidence=evidence,
             explanation_or=question.explanation_or,
             concept_id=question.concept_id, mastery_after=m_after,
+            diagnosis=diagnosis,
             next_decision_id="",  # filled by the route layer after DecisionService
         )

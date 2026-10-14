@@ -1,6 +1,6 @@
 """Routes aggregator."""
 from . import (
-    assessments, content, decisions, doubts, health, learners, packs, state, sync,
+    assessments, content, decisions, doubts, health, learners, packs, rooms, state, sync,
 )
 from fastapi import APIRouter
 
@@ -13,6 +13,7 @@ api_router.include_router(decisions.router)
 api_router.include_router(doubts.router)
 api_router.include_router(sync.router)
 api_router.include_router(packs.router)
+api_router.include_router(rooms.router)
 api_router.include_router(state.router)
 
 __all__ = ["api_router"]

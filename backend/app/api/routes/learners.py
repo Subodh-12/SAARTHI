@@ -64,3 +64,10 @@ async def renew_token(
 
 
 __all__ = ["router"]
+
+
+async def get_display_label(request: Request, learner_id: str) -> str:
+    """Fetch a learner's display label; falls back to a short id-based label."""
+    auth = await get_auth_service(request)
+    p = await auth.learners.get_learner(learner_id)
+    return p.display_label if p and p.display_label else f"Student-{learner_id[-4:]}"

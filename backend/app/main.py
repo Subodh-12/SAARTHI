@@ -63,10 +63,20 @@ async def lifespan(app: FastAPI):
     app.state.persistence = p
     app.state.pack_index = pack
     app.state.auth_service = AuthService(learners, devices)
-    app.state.assessment_service = AssessmentService(pack, events, mastery)
+    from .services.diagnosis_service import DiagnosisService
+    diagnosis_svc = DiagnosisService(pack, events, mastery)
+    app.state.diagnosis_service = diagnosis_svc
+    app.state.assessment_service = AssessmentService(pack, events, mastery, diagnosis_svc)
     app.state.decision_service = DecisionService(pack, mastery, decisions)
     app.state.doubt_service = DoubtService(pack, decisions)
     app.state.sync_service = SyncService(events, mastery, decisions)
+    from .services.rooms_service import RoomsService
+    rooms = RoomsService(p)
+    app.state.rooms_service = rooms
+    await rooms.start_sweeper()
+    if s.env in ("dev", "test"):
+        from .services.rooms_seed import seed_rooms_if_empty
+        await seed_rooms_if_empty(p, s.room_expiry_hours)
     app.state.pack_repository = pack_repo
     app.state.mastery_repository = mastery
     app.state.decision_repository = decisions
@@ -76,6 +86,7 @@ async def lifespan(app: FastAPI):
     log.info("ready")
     yield
     log.info("shutdown")
+    await app.state.rooms_service.stop_sweeper()
     await dispose_persistence()
 
 
