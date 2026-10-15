@@ -301,7 +301,7 @@ export default function App() {
         <TabBtn label={t("nav_home")} active={tab === "home"} onClick={() => setTab("home")} icon="🏠" />
         <TabBtn label={t("nav_lesson")} active={tab === "lesson"} onClick={() => setTab("lesson")} icon="📖" />
         <TabBtn label={t("nav_doubt")} active={tab === "doubt"} onClick={() => setTab("doubt")} icon="?" />
-        <TabBtn label="Rooms" active={tab === "rooms"} onClick={() => setTab("rooms")} icon="👥" />
+        <TabBtn label={t("nav_rooms")} active={tab === "rooms"} onClick={() => setTab("rooms")} icon="👥" />
         <TabBtn label={t("nav_progress")} active={tab === "progress"} onClick={() => setTab("progress")} icon="📊" />
         <TabBtn label={t("nav_packs")} active={tab === "packs"} onClick={() => setTab("packs")} icon="📦" />
         <TabBtn label={t("nav_dev")} active={tab === "dev"} onClick={() => setTab("dev")} icon="🔧" />

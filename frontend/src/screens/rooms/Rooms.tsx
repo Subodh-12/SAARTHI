@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, SaarthiApiError } from "../../api/client";
 import { getDraftValue, RoomDrafts, syncRoomDraftField } from "../../lib/roomDrafts";
+import { t } from "../../i18n/or";
 import type { RoomDetail } from "./types";
 
 interface Props {
@@ -50,8 +51,8 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
       setRooms(r.rooms);
     } catch (e) {
       setError(e instanceof SaarthiApiError
-        ? `Could not load rooms (${e.error_code ?? e.message})`
-        : "Could not load rooms — check your connection.");
+        ? `${t("rooms_load_failed")} (${e.error_code ?? e.message})`
+        : `${t("rooms_load_failed")} — ସଂଯୋଗ ଯାଞ୍ଚ କରନ୍ତୁ।`);
     } finally {
       setLoading(false);
     }
@@ -68,12 +69,12 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
     } catch (e) {
       if (e instanceof SaarthiApiError) {
         const msgs: Record<string, string> = {
-          room_not_found: "No room with that code.",
-          room_full: "That room is full.",
-          room_expired: "That room has expired.",
+          room_not_found: "ସେହି କୋଡ୍‌ର କୌଣସି କକ୍ଷ ନାହିଁ।",
+          room_full: "ସେହି କକ୍ଷ ପୂର୍ଣ୍ଣ ହୋଇଛି।",
+          room_expired: "ସେହି କକ୍ଷ ସମାପ୍ତ ହୋଇଛି।",
         };
-        setJoinError(msgs[e.error_code ?? ""] ?? `Join failed (${e.error_code ?? e.message}).`);
-      } else setJoinError("Join failed — check your connection.");
+        setJoinError(msgs[e.error_code ?? ""] ?? `${t("rooms_join_failed")} (${e.error_code ?? e.message}).`);
+      } else setJoinError(`${t("rooms_join_failed")} — ସଂଯୋଗ ଯାଞ୍ଚ କରନ୍ତୁ।`);
     } finally {
       setJoinBusy(false);
     }
@@ -82,29 +83,27 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
   return (
     <div className="space-y-4">
       <div className="card">
-        <h2 className="font-bold text-lg mb-1">Karana Collective Learning Rooms</h2>
-        <p className="text-sm text-slate-600 mb-3">
-          Study a chapter with 4–6 friends. Post a doubt, answer independently,
-          and let differences in your reasoning drive the discussion.
-          Karana runs here as a <b>demo agent</b> (simulated, no AI model connected).
+        <h2 className="font-bold text-lg mb-1 odia">{t("rooms_title")}</h2>
+        <p className="text-sm text-slate-600 mb-3 odia">
+          {t("rooms_subtitle")}
         </p>
         <div className="flex gap-2">
-          <button className="btn-primary flex-1" onClick={() => setShowCreate(v => !v)}>
-            {showCreate ? "Close" : "+ Create room"}
+          <button className="btn-primary flex-1 odia" onClick={() => setShowCreate(v => !v)}>
+            {showCreate ? t("rooms_close") : t("rooms_create")}
           </button>
           <input
-            className="input w-32 text-center tracking-widest uppercase"
-            placeholder="CODE"
+            className="input w-32 text-center tracking-widest uppercase odia"
+            placeholder={t("rooms_code")}
             maxLength={8}
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
-            aria-label="Room code"
+            aria-label={t("rooms_room_code")}
           />
-          <button className="btn-secondary" disabled={joinBusy} onClick={join}>
-            {joinBusy ? "…" : "Join"}
+          <button className="btn-secondary odia" disabled={joinBusy} onClick={join}>
+            {joinBusy ? "…" : t("rooms_join")}
           </button>
         </div>
-        {joinError && <p className="text-sm text-rose-700 mt-2">{joinError}</p>}
+        {joinError && <p className="text-sm text-rose-700 mt-2 odia">{joinError}</p>}
       </div>
 
       {showCreate && (
@@ -122,17 +121,17 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
       )}
 
       {loading && rooms.length === 0 && (
-        <div className="card text-sm text-slate-500">Loading rooms…</div>
+        <div className="card text-sm text-slate-500 odia">{t("rooms_loading")}</div>
       )}
       {error && !loading && (
         <div className="banner-err border rounded-lg px-4 py-3 text-sm">
           {error}
-          <button className="underline ml-2" onClick={load}>Retry</button>
+          <button className="underline ml-2 odia" onClick={load}>{t("rooms_retry")}</button>
         </div>
       )}
       {!loading && !error && rooms.length === 0 && (
-        <div className="card text-sm text-slate-500 text-center py-8">
-          No study rooms yet. Create one above, or join with a friend's room code.
+        <div className="card text-sm text-slate-500 text-center py-8 odia">
+          {t("rooms_no_rooms")}
         </div>
       )}
 
@@ -146,14 +145,14 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="font-semibold truncate">{room.title}</div>
-                <div className="text-xs text-slate-500 truncate">
+                <div className="font-semibold truncate odia">{room.title}</div>
+                <div className="text-xs text-slate-500 truncate odia">
                   {room.chapter_title || room.subject}
                   {room.learning_topic ? ` · ${room.learning_topic}` : ""}
                 </div>
               </div>
               <span className="shrink-0 text-[10px] font-mono bg-slate-100 border
-                               border-slate-200 rounded px-1.5 py-0.5" title="Room code">
+                               border-slate-200 rounded px-1.5 py-0.5 odia" title={t("rooms_room_code")}>
                 {room.room_code}
               </span>
             </div>
@@ -161,8 +160,8 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
               {room.members.slice(0, 6).map((m) => (
                 <Avatar key={m.learner_id} label={m.display_label} online={m.online} />
               ))}
-              <span className="text-xs text-slate-500 ml-1">
-                {room.member_count}/{room.capacity} members
+              <span className="text-xs text-slate-500 ml-1 odia">
+                {room.member_count}/{room.capacity} {t("rooms_members")}
               </span>
             </div>
             {room.recent_activity.length > 0 && (
@@ -171,8 +170,8 @@ export function RoomsScreen({ profile, onOpenRoom }: Props) {
               </p>
             )}
             {expiresIn !== null && (
-              <p className="text-xs text-amber-700 mt-1">
-                ⏳ Empty room — deletes in {fmtCountdown(expiresIn)} unless someone rejoins
+              <p className="text-xs text-amber-700 mt-1 odia">
+                ⏳ {t("rooms_empty_delete").replace("{time}", fmtCountdown(expiresIn))}
               </p>
             )}
           </button>
@@ -207,7 +206,7 @@ function CreateRoomCard({
   ];
 
   const create = async () => {
-    if (!title.trim()) { setError("Give the room a title."); return; }
+    if (!title.trim()) { setError(t("rooms_need_title")); return; }
     setBusy(true); setError("");
     const ch = chapters.find((c) => c.id === chapter)!;
     try {
@@ -219,8 +218,8 @@ function CreateRoomCard({
       onCreated(detail.room.room_id);
     } catch (e) {
       setError(e instanceof SaarthiApiError
-        ? `Create failed (${e.error_code ?? e.message}).`
-        : "Create failed — check your connection.");
+        ? `${t("rooms_create_failed")} (${e.error_code ?? e.message}).`
+        : `${t("rooms_create_failed")} — ସଂଯୋଗ ଯାଞ୍ଚ କରନ୍ତୁ।`);
     } finally {
       setBusy(false);
     }
@@ -228,28 +227,28 @@ function CreateRoomCard({
 
   return (
     <div className="card space-y-3">
-      <h3 className="font-semibold">New study room</h3>
-      <input className="input" placeholder="Room title (e.g. Evaporation Doubt Busters)"
+      <h3 className="font-semibold odia">{t("rooms_create_title")}</h3>
+      <input className="input odia" placeholder={t("rooms_create_placeholder")}
              value={title}
              onChange={(e) => onDraftChange("rTitle", e.target.value)} />
       <div className="grid grid-cols-2 gap-2">
-        <select className="input" value={chapter}
-                onChange={(e) => onDraftChange("rChapter", e.target.value)} aria-label="Chapter">
+        <select className="input odia" value={chapter}
+                onChange={(e) => onDraftChange("rChapter", e.target.value)} aria-label={t("rooms_room_code")}>
           {chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
-        <select className="input" value={language}
-                onChange={(e) => onDraftChange("rLanguage", e.target.value)} aria-label="Language">
+        <select className="input odia" value={language}
+                onChange={(e) => onDraftChange("rLanguage", e.target.value)} aria-label={t("rooms_room_code")}>
           <option value="or">ଓଡ଼ିଆ (Odia)</option>
           <option value="en">English</option>
           <option value="or-en">Odia + English</option>
         </select>
       </div>
-      <input className="input" placeholder="Learning topic (optional)"
+      <input className="input odia" placeholder={t("rooms_topic_placeholder")}
              value={topic}
              onChange={(e) => onDraftChange("rTopic", e.target.value)} />
       <div>
-        <label className="text-xs text-slate-500 block mb-1">
-          Maximum members: <b>{capacity}</b>
+        <label className="text-xs text-slate-500 block mb-1 odia">
+          {t("rooms_max_members")}: <b>{capacity}</b>
         </label>
         <div className="flex gap-2">
           {[4, 5, 6].map((n) => (
@@ -265,8 +264,8 @@ function CreateRoomCard({
         </div>
       </div>
       {error && <p className="text-sm text-rose-700">{error}</p>}
-      <button className="btn-primary w-full" disabled={busy} onClick={create}>
-        {busy ? "Creating…" : "Create & open room"}
+      <button className="btn-primary w-full odia" disabled={busy} onClick={create}>
+        {busy ? "…" : t("rooms_create_open")}
       </button>
     </div>
   );

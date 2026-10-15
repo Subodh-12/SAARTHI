@@ -2,6 +2,7 @@
 // Realtime is a polling fallback (2s) — clean and testable, no WS in this app.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, SaarthiApiError } from "../../api/client";
+import { t } from "../../i18n/or";
 import type { GameState, RelayState, RoomDetail } from "./types";
 
 interface Props {
@@ -16,8 +17,8 @@ const fmtTime = (ms: number) =>
 
 const errText = (e: unknown, fallback: string) =>
   e instanceof SaarthiApiError
-    ? (e.error_code === "not_a_member" ? "You are not a member of this room."
-       : e.error_code === "room_not_found" ? "This room no longer exists."
+    ? (e.error_code === "not_a_member" ? "ଆପଣ ଏହି କକ୍ଷର ସଦସ୍ୟ ନୁହନ୍ତି।"
+       : e.error_code === "room_not_found" ? "ଏହି କକ୍ଷ ନାହିଁ।"
        : `${fallback} (${e.error_code ?? e.message})`)
     : fallback;
 
@@ -44,7 +45,7 @@ export function RoomView({ roomId, profile, onExit, onLeft }: Props) {
         (a) => a.status !== "completed" && a.activity_type === "find_the_mistake");
       if (openGame) setActiveGameId(openGame.activity_id);
     } catch (e) {
-      setFatal(errText(e, "Could not load room."));
+      setFatal(errText(e, "କକ୍ଷ ଲୋଡ୍ ହେଲା ନାହିଁ।"));
     }
   }, [roomId]);
 
@@ -62,11 +63,11 @@ export function RoomView({ roomId, profile, onExit, onLeft }: Props) {
     return (
       <div className="space-y-3">
         <div className="banner-err border rounded-lg px-4 py-3 text-sm">{fatal}</div>
-        <button className="btn-secondary" onClick={onExit}>← Back to rooms</button>
+        <button className="btn-secondary odia" onClick={onExit}>← {t("rooms_back_to_rooms")}</button>
       </div>
     );
   }
-  if (!detail) return <div className="card text-sm text-slate-500">Loading room…</div>;
+  if (!detail) return <div className="card text-sm text-slate-500 odia">{t("rooms_loading_room")}</div>;
 
   const { room } = detail;
   const expiresIn = room.expires_at ? room.expires_at - Date.now() : null;
@@ -84,8 +85,8 @@ export function RoomView({ roomId, profile, onExit, onLeft }: Props) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <button className="text-slate-400 hover:text-slate-700"
-                      onClick={onExit} aria-label="Back">←</button>
-              <h2 className="font-bold truncate">{room.title}</h2>
+                      onClick={onExit} aria-label={t("back")}>←</button>
+              <h2 className="font-bold truncate odia">{room.title}</h2>
             </div>
             <div className="text-xs text-slate-500">
               {room.chapter_title || room.subject}
@@ -94,8 +95,8 @@ export function RoomView({ roomId, profile, onExit, onLeft }: Props) {
               <span className="font-mono">{room.room_code}</span>
             </div>
           </div>
-          <button className="text-xs text-rose-600 hover:underline shrink-0"
-                  onClick={leave}>Leave room</button>
+          <button className="text-xs text-rose-600 hover:underline shrink-0 odia"
+                  onClick={leave}>{t("rooms_leave")}</button>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2">
           {room.members.map((m) => (
@@ -111,19 +112,18 @@ export function RoomView({ roomId, profile, onExit, onLeft }: Props) {
           </span>
         </div>
         {expiresIn !== null && expiresIn > 0 && (
-          <p className="text-xs text-amber-700 mt-2">
-            ⏳ Everyone left — room is deleted in {Math.round(expiresIn / 60000)} min
-            unless a member rejoins.
+          <p className="text-xs text-amber-700 mt-2 odia">
+            ⏳ {t("rooms_room_delete_notice").replace("{time}", `${Math.round(expiresIn / 60000)} ${t("rooms_minute")}`)}
           </p>
         )}
       </div>
 
       {/* Panel tabs */}
       <div className="flex gap-2">
-        {([["chat", "Chat"], ["activity", "Activity"], ["history", "History & summary"]] as [Panel, string][])
+        {([["chat", t("rooms_chat")], ["activity", t("rooms_activity")], ["history", t("rooms_history")]] as [Panel, string][])
           .map(([p, label]) => (
           <button key={p}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold border odia ${
                     panel === p ? "bg-saarthi-600 text-white border-saarthi-600"
                                 : "bg-white text-slate-700 border-slate-300"}`}
                   onClick={() => setPanel(p)}>
@@ -169,7 +169,7 @@ function ChatPanel({ roomId, detail, onRefresh }: {
       setText(""); setReplyTo(null);
       await onRefresh();
     } catch (e) {
-      alert(errText(e, "Message failed"));
+      alert(errText(e, t("rooms_message_failed")));
     } finally { setBusy(false); }
   };
 
@@ -179,8 +179,8 @@ function ChatPanel({ roomId, detail, onRefresh }: {
     <div className="card flex flex-col">
       <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
         {detail.messages.length === 0 && (
-          <p className="text-sm text-slate-400 text-center py-6">
-            No messages yet — say namaskar!
+          <p className="text-sm text-slate-400 text-center py-6 odia">
+            {t("rooms_no_messages")}
           </p>
         )}
         {detail.messages.map((m) => {
@@ -210,18 +210,18 @@ function ChatPanel({ roomId, detail, onRefresh }: {
               {m.reply_to && byId.get(m.reply_to) && (
                 <div className="text-[11px] text-slate-400 border-l-2 border-slate-300
                                 pl-2 mb-0.5 truncate">
-                  ↩ {byId.get(m.reply_to)!.sender_label || "System"}:{" "}
+                  ↩ {byId.get(m.reply_to)!.sender_label || "ସିଷ୍ଟମ୍"}:{" "}
                   {byId.get(m.reply_to)!.body.slice(0, 60)}
                 </div>
               )}
               <div className="rounded-xl bg-white border border-slate-200 px-3 py-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-700">
-                    {m.sender_label || "Member"}
+                    {m.sender_label || "ସଦସ୍ୟ"}
                   </span>
                   <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100">
-                    <button className="underline" onClick={() => setReplyTo(m.message_id)}>
-                      reply
+                    <button className="underline odia" onClick={() => setReplyTo(m.message_id)}>
+                      {t("rooms_reply")}
                     </button>
                   </span>
                 </div>
@@ -234,17 +234,17 @@ function ChatPanel({ roomId, detail, onRefresh }: {
         <div ref={bottom} />
       </div>
       {replyTo && (
-        <div className="text-xs text-slate-500 mt-2">
-          Replying to message{" "}
-          <button className="underline" onClick={() => setReplyTo(null)}>cancel</button>
+        <div className="text-xs text-slate-500 mt-2 odia">
+          {t("rooms_replying_to")} {" "}
+          <button className="underline odia" onClick={() => setReplyTo(null)}>{t("rooms_cancel")}</button>
         </div>
       )}
       <div className="flex gap-2 mt-3">
-        <input className="input flex-1" placeholder="Type a message…"
+        <input className="input flex-1 odia" placeholder={t("rooms_type_message")}
                value={text} onChange={(e) => setText(e.target.value)}
                onKeyDown={(e) => e.key === "Enter" && send()} />
-        <button className="btn-primary" disabled={busy || !text.trim()} onClick={send}>
-          Send
+        <button className="btn-primary odia" disabled={busy || !text.trim()} onClick={send}>
+          {t("rooms_send")}
         </button>
       </div>
     </div>
@@ -265,14 +265,14 @@ function ActivityPanel({ roomId, learnerId, relayId, gameId, onChanged,
   const [starting, setStarting] = useState<"relay" | "game" | null>(null);
 
   const startRelay = async () => {
-    const q = prompt("Post your doubt — the group will answer independently first:");
+    const q = prompt(t("rooms_prompt"));
     if (!q || q.trim().length < 3) return;
     setStarting("relay");
     try {
       const st = await api.startRelay(roomId, q.trim());
       onOpenRelay(st.activity_id);
       onChanged();
-    } catch (e) { alert(errText(e, "Could not start relay")); }
+    } catch (e) { alert(errText(e, "ଡାଉବ୍ତ୍ ରେଲେ ଆରମ୍ଭ ହେଲା ନାହିଁ")); }
     finally { setStarting(null); }
   };
 
@@ -282,20 +282,20 @@ function ActivityPanel({ roomId, learnerId, relayId, gameId, onChanged,
       const st = await api.startGame(roomId);
       onOpenGame(st.activity_id);
       onChanged();
-    } catch (e) { alert(errText(e, "Could not start game")); }
+    } catch (e) { alert(errText(e, "ଖେଳ ଆରମ୍ଭ ହେଲା ନାହିଁ")); }
     finally { setStarting(null); }
   };
 
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <button className="btn-primary flex-1" disabled={starting !== null}
+        <button className="btn-primary flex-1 odia" disabled={starting !== null}
                 onClick={startRelay}>
-          {starting === "relay" ? "…" : "🔥 Start Doubt Relay"}
+          {starting === "relay" ? "…" : t("rooms_start_relay")}
         </button>
-        <button className="btn-secondary flex-1" disabled={starting !== null}
+        <button className="btn-secondary flex-1 odia" disabled={starting !== null}
                 onClick={startGame}>
-          {starting === "game" ? "…" : "🕵️ Find the Mistake"}
+          {starting === "game" ? "…" : t("rooms_start_game")}
         </button>
       </div>
       {relayId && <RelayCard roomId={roomId} activityId={relayId} learnerId={learnerId}
@@ -306,12 +306,12 @@ function ActivityPanel({ roomId, learnerId, relayId, gameId, onChanged,
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  collecting: "Collecting independent answers",
-  revealed: "Answers revealed",
-  followup: "Karana follow-up — discuss!",
-  discussion: "Group discussion",
-  verification: "Verification question",
-  completed: "Completed",
+  collecting: "ସ୍ୱତନ୍ତ୍ର ଉତ୍ତର ସଂଗ୍ରହ ହେଉଛି",
+  revealed: "ଉତ୍ତର ଦେଖାଯାଇଛି",
+  followup: "କାରାଣା ଫୋଲୋଅପ୍ — ଆଲୋଚନା କରନ୍ତୁ!",
+  discussion: "ଗୋଷ୍ଠୀ ଆଲୋଚନା",
+  verification: "ଯାଞ୍ଚ ପ୍ରଶ୍ନ",
+  completed: "ସମାପ୍ତ",
 };
 
 function RelayCard({ roomId, activityId, learnerId, onChanged }: {
@@ -327,7 +327,7 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
     try {
       setState(await api.getRelay(roomId, activityId));
       setError("");
-    } catch (e) { setError(errText(e, "Could not load relay")); }
+    } catch (e) { setError(errText(e, "ରେଲେ ଲୋଡ୍ ହେଲା ନାହିଁ")); }
   }, [roomId, activityId]);
 
   useEffect(() => {
@@ -337,7 +337,7 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
   }, [load]);
 
   if (error) return <div className="banner-err border rounded-lg px-3 py-2 text-xs">{error}</div>;
-  if (!state) return <div className="card text-sm text-slate-500">Loading relay…</div>;
+  if (!state) return <div className="card text-sm text-slate-500 odia">{t("rooms_loading_relay")}</div>;
 
   const act = (fn: () => Promise<RelayState>) => async () => {
     setBusy(true);
@@ -352,49 +352,49 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
   return (
     <div className="card border-l-4 border-l-amber-500 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
-          Doubt Relay
+        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 odia">
+          {t("rooms_relay")}
         </span>
         <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
           {STATUS_LABEL[state.status] ?? state.status}
         </span>
       </div>
-      <p className="font-semibold">{state.question}</p>
+      <p className="font-semibold odia">{state.question}</p>
 
       {/* Step 1–2: independent submission */}
       {state.status === "collecting" && (
         <>
-          <p className="text-xs text-slate-500">
-            Submitted: {state.submission_count}/{state.eligible_count} —
-            answers stay hidden until reveal.
+          <p className="text-xs text-slate-500 odia">
+            ଦାଖଲ ହୋଇଛି: {state.submission_count}/{state.eligible_count} —
+            ଉତ୍ତରଗୁଡ଼ିକ ଉପସ୍ଥାପନ ଯାଉଥିବା ପର୍ଯ୍ୟନ୍ତ ଗୁପ୍ତ ରହିବ।
           </p>
           <div className="space-y-1">
             {state.submissions.map((s) => (
               <div key={s.learner_id} className="text-xs text-slate-600 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                {s.display_label} submitted
+                {s.display_label} ଦାଖଲ କରିଛନ୍ତି
               </div>
             ))}
           </div>
           {needsMyAnswer ? (
             <div className="space-y-2">
-              <textarea className="input min-h-20" placeholder="Write YOUR answer first — you won't see others' until everyone submits or the host reveals."
+              <textarea className="input min-h-20 odia" placeholder={t("rooms_relay_prompt_placeholder")}
                         value={answer} onChange={(e) => setAnswer(e.target.value)} />
-              <button className="btn-primary w-full" disabled={busy || !answer.trim()}
+              <button className="btn-primary w-full odia" disabled={busy || !answer.trim()}
                       onClick={act(async () => {
                         const st = await api.submitRelay(roomId, activityId, answer.trim());
                         setAnswer("");
                         return st;
                       })}>
-                Submit my answer
+                {t("rooms_submit_relay")}
               </button>
             </div>
           ) : (
-            <div className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2">
-              ✅ You submitted. Waiting for others or reveal.
-              <button className="underline ml-1" disabled={busy}
+            <div className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 odia">
+              {t("rooms_relay_revealed")}
+              <button className="underline ml-1 odia" disabled={busy}
                       onClick={act(() => api.revealRelay(roomId, activityId))}>
-                Reveal now
+                {t("rooms_reveal_now")}
               </button>
             </div>
           )}
@@ -404,12 +404,12 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
       {/* Step 3–4: revealed answers + demo decision */}
       {revealed && (
         <div className="space-y-2">
-          <div className="text-xs font-semibold">
-            Answers ({state.pattern && (
+          <div className="text-xs font-semibold odia">
+            {t("rooms_answer_label")} ({state.pattern && (
               <span className={
                 state.pattern === "agree" ? "text-emerald-700"
                 : state.pattern === "disagree" ? "text-rose-700" : "text-amber-700"}>
-                group pattern: {state.pattern}
+                {t("rooms_pattern_label")}: {state.pattern}
               </span>
             )}):
           </div>
@@ -430,9 +430,9 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
             </div>
           )}
           {state.status === "followup" && (
-            <button className="btn-secondary w-full text-sm" disabled={busy}
+            <button className="btn-secondary w-full text-sm odia" disabled={busy}
                     onClick={act(() => api.advanceRelay(roomId, activityId, "discussion"))}>
-              We discussed it → show explanation
+              ଆମେ ଆଲୋଚନା କରିଛୁ → ବ୍ୟାଖ୍ୟା ଦେଖାନ୍ତୁ
             </button>
           )}
           {state.explanation && (state.status === "discussion"
@@ -447,9 +447,9 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
           )}
           {(state.status === "discussion" || state.status === "followup") &&
            state.verification && (
-            <button className="btn-primary w-full text-sm" disabled={busy}
+            <button className="btn-primary w-full text-sm odia" disabled={busy}
                     onClick={act(() => api.advanceRelay(roomId, activityId, "verification"))}>
-              Start verification question
+              ଯାଞ୍ଚ ପ୍ରଶ୍ନ ଆରମ୍ଭ କରନ୍ତୁ
             </button>
           )}
         </div>
@@ -458,8 +458,8 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
       {/* Step 7: verification */}
       {state.status === "verification" && state.verification && (
         <div className="space-y-2 border-t pt-3">
-          <p className="text-sm font-semibold">
-            ✅ Fresh verification question (your result stays private):
+          <p className="text-sm font-semibold odia">
+            ✅ {t("rooms_verify_question")} (ଆପଣଙ୍କ ଫଳାଫଳ ଗୁପ୍ତ ରହିବ):
           </p>
           <p className="text-sm">{state.verification.question}</p>
           {state.verification.options.map((o, i) => (
@@ -470,17 +470,17 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
               {String.fromCharCode(65 + i)}. {o}
             </button>
           ))}
-          <button className="btn-primary w-full text-sm"
+          <button className="btn-primary w-full text-sm odia"
                   disabled={busy || selected === null || !!state.verification_result}
                   onClick={act(() => api.verifyRelay(roomId, activityId, selected!))}>
-            Submit answer
+            {t("rooms_submit_verification")}
           </button>
           {state.verification_result && (
             <p className={`text-sm font-semibold ${
               state.verification_result.correct
                 ? "text-emerald-700" : "text-rose-700"}`}>
               {state.verification_result.correct
-                ? "✅ Correct — nice work!" : "❌ Not quite — revisit the explanation."}
+                ? "✅ ସଠିକ୍ — ଭଲ କାମ!" : t("rooms_incorrect_answer")}
             </p>
           )}
         </div>
@@ -488,18 +488,18 @@ function RelayCard({ roomId, activityId, learnerId, onChanged }: {
 
       {/* Step 8: completed */}
       {state.status === "completed" && (
-        <p className="text-sm text-emerald-700 font-semibold">
-          ✅ Session complete — summary stored in room history.
+        <p className="text-sm text-emerald-700 font-semibold odia">
+          ✅ {t("rooms_session_complete")}
           {state.verification?.group &&
-            ` Group verification: ${state.verification.group.correct}/${state.verification.group.total} correct.`}
+            ` ଗୋଷ୍ଠୀ ଯାଞ୍ଚ: ${state.verification.group.correct}/${state.verification.group.total} ସଠିକ୍।`}
         </p>
       )}
 
       {/* Demo-agent decision trace */}
       {state.trace.length > 0 && (
         <details className="text-xs text-slate-500">
-          <summary className="cursor-pointer">
-            Demo-agent decision trace (deterministic, simulated)
+          <summary className="cursor-pointer odia">
+            ଡେମୋ-ଆଜେଣ୍ଟ ନିର୍ଣ୍ଣୟ ଟ୍ରେସ (ନିର୍ଣ୍ଣୟମୂଳକ, ସିମୁଲେଟେଡ୍)
           </summary>
           <ul className="mt-1 space-y-0.5 list-disc list-inside">
             {state.trace.map((t, i) => (
@@ -531,7 +531,7 @@ function GameCard({ roomId, activityId, onChanged }: {
     return () => clearInterval(i);
   }, [load]);
 
-  if (!state?.problem) return <div className="card text-sm text-slate-500">Loading game…</div>;
+  if (!state?.problem) return <div className="card text-sm text-slate-500 odia">{t("rooms_loading_game")}</div>;
 
   const act = (fn: () => Promise<GameState>) => async () => {
     setBusy(true);
@@ -544,56 +544,56 @@ function GameCard({ roomId, activityId, onChanged }: {
   return (
     <div className="card border-l-4 border-l-teal-500 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-teal-700">
-          Find the Mistake
+        <span className="text-[10px] font-bold uppercase tracking-wide text-teal-700 odia">
+          {t("rooms_game")}
         </span>
         <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
           {STATUS_LABEL[state.status] ?? state.status}
         </span>
       </div>
-      <p className="font-semibold">{state.problem.title}</p>
+      <p className="font-semibold odia">{state.problem.title}</p>
       <ol className="text-sm space-y-1 list-decimal list-inside bg-slate-50 border
                      border-slate-200 rounded-lg p-2">
         {state.problem.lines.map((l, i) => (
           <li key={i}>{l}</li>
         ))}
       </ol>
-      <p className="text-xs text-slate-500">
-        One line contains a seeded error. Submitted: {state.submission_count}/{state.eligible_count}.
-        Reasoning counts more than speed.
+      <p className="text-xs text-slate-500 odia">
+        ଗୋଟିଏ ଲାଇନରେ ବିଦ୍ୟମାନ ତ୍ରୁଟି ଅଛି। ଦାଖଲ: {state.submission_count}/{state.eligible_count}.
+        ବୁଝିବାର କ୍ଷମତା ଗତି ଅପେକ୍ଷା ଅଧିକ ମୂଲ୍ୟବାନ।
       </p>
 
       {state.status === "collecting" && !state.my_submission && (
         <div className="space-y-2">
-          <input className="input" placeholder='Which line is wrong? (e.g. "Line 2")'
+          <input className="input odia" placeholder={t("rooms_game_question_placeholder")}
                  value={line} onChange={(e) => setLine(e.target.value)} />
-          <textarea className="input min-h-16" placeholder="Explain your reasoning…"
+          <textarea className="input min-h-16 odia" placeholder={t("rooms_game_reason_placeholder")}
                     value={reasoning} onChange={(e) => setReasoning(e.target.value)} />
-          <button className="btn-primary w-full" disabled={busy || !line.trim()}
+          <button className="btn-primary w-full odia" disabled={busy || !line.trim()}
                   onClick={act(async () => {
                     const st = await api.submitGame(roomId, activityId,
                                                    line.trim(), reasoning.trim());
                     setLine(""); setReasoning("");
                     return st;
                   })}>
-            Submit my finding
+            {t("rooms_submit_finding")}
           </button>
         </div>
       )}
       {state.status === "collecting" && state.my_submission && (
-        <div className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2">
-          ✅ You submitted. Waiting for others.
-          <button className="underline ml-1" disabled={busy}
+        <div className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 odia">
+          {t("rooms_relay_revealed")}
+          <button className="underline ml-1 odia" disabled={busy}
                   onClick={act(() => api.revealGame(roomId, activityId))}>
-            Reveal now
+            {t("rooms_reveal_now")}
           </button>
         </div>
       )}
 
       {revealed && state.expected && (
         <div className="space-y-2">
-          <div className="text-sm rounded-lg bg-white border border-slate-200 px-2 py-1.5">
-            <b>Expected answer:</b> {state.expected.answer}
+          <div className="text-sm rounded-lg bg-white border border-slate-200 px-2 py-1.5 odia">
+            <b>{t("rooms_expected_answer")}</b> {state.expected.answer}
           </div>
           <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2">
             <div className="text-xs font-bold text-violet-800 mb-0.5">
@@ -602,9 +602,9 @@ function GameCard({ roomId, activityId, onChanged }: {
             <p className="text-sm text-violet-950">{state.expected.explanation}</p>
           </div>
           {state.group_stats && (
-            <p className="text-xs text-slate-500">
-              {state.group_stats.found}/{state.group_stats.total} found the error;
-              {" "}{state.group_stats.reasoned}/{state.group_stats.total} gave reasoning.
+            <p className="text-xs text-slate-500 odia">
+              {state.group_stats.found}/{state.group_stats.total} ଜଣ ତ୍ରୁଟି ଚିହ୍ନଟ କଲେ;
+              {" "}{state.group_stats.reasoned}/{state.group_stats.total} ଜଣ ବୁଝାଇଲେ।
             </p>
           )}
           {state.followup && (
@@ -615,8 +615,8 @@ function GameCard({ roomId, activityId, onChanged }: {
               <p className="text-sm text-violet-950">{state.followup.text}</p>
             </div>
           )}
-          <p className="text-xs text-emerald-700">
-            ✅ Result stored in room history.
+          <p className="text-xs text-emerald-700 odia">
+            ✅ {t("rooms_result_stored")}
           </p>
         </div>
       )}
@@ -638,19 +638,19 @@ function HistoryPanel({ detail }: { detail: RoomDetail }) {
     <div className="space-y-3">
       {detail.summaries.length > 0 && (
         <div className="card space-y-2">
-          <h3 className="font-semibold text-sm">Room summary — key outcomes</h3>
+          <h3 className="font-semibold text-sm odia">{t("rooms_history_title")}</h3>
           {detail.summaries.slice().reverse().map((s) => (
             <div key={s.summary_id}
                  className="rounded-lg border border-slate-200 bg-white p-2 text-sm">
-              <div className="text-xs uppercase tracking-wide text-slate-400">
+              <div className="text-xs uppercase tracking-wide text-slate-400 odia">
                 {s.activity_type === "find_the_mistake"
-                  ? "Find the Mistake" : "Doubt Relay"} · {fmtTime(s.created_at)}
+                  ? t("rooms_game") : t("rooms_relay")} · {fmtTime(s.created_at)}
               </div>
               <p className="font-medium">{s.original_question}</p>
               <p className="text-slate-600 text-sm">{s.explanation}</p>
               {s.unresolved.length > 0 && (
                 <div className="mt-1">
-                  <span className="text-xs font-bold text-amber-700">Unresolved:</span>
+                  <span className="text-xs font-bold text-amber-700 odia">ଅସମ୍ପୂର୍ଣ:</span>
                   <ul className="list-disc list-inside text-xs text-amber-800">
                     {s.unresolved.map((u, i) => <li key={i}>{u}</li>)}
                   </ul>
@@ -661,12 +661,12 @@ function HistoryPanel({ detail }: { detail: RoomDetail }) {
         </div>
       )}
       <div className="card">
-        <input className="input mb-2" placeholder="Search room history…"
+        <input className="input mb-2 odia" placeholder={t("rooms_history_search")}
                value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="max-h-72 overflow-y-auto space-y-1.5">
           {messages.length === 0 && (
-            <p className="text-sm text-slate-400 text-center py-4">
-              {q ? "No matching messages." : "No messages yet."}
+            <p className="text-sm text-slate-400 text-center py-4 odia">
+              {q ? t("rooms_history_no_match") : t("rooms_history_empty")}
             </p>
           )}
           {messages.map((m) => (
