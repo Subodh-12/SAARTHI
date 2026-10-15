@@ -1,0 +1,23 @@
+{
+  "report_date": "2026-10-15",
+  "gate_name": "R3: Native Odia Quality Review Gate",
+  "design_reference": "Design Document v2 Section 12 & Section 15",
+  "summary": {
+    "status": "BLOCKED_PENDING_INDEPENDENT_HUMAN_REVIEW",
+    "total_reviews": 0,
+    "verified_human_reviews": 0,
+    "required_samples": 50,
+    "correctness_pass_rate": null,
+    "fluency_pass_rate": null,
+    "register_pass_rate": null,
+    "terminology_pass_rate": null,
+    "blocker_description": "Gate pending independent human review by a native Odia speaker according to Design Document v2 Section 12."
+  },
+  "rubric": {
+    "correctness": "Score 1-5; Facts match cited chunk (Target >= 4 on 90%)",
+    "fluency": "Score 1-5; Reads as natural Odia (Target >= 4 on 90%)",
+    "register": "Score 1-5; Right level for Class 9 (Target >= 4 on 90%)",
+    "terminology": "Glossary terms used consistently (Target >= 95%)"
+  },
+  "reviews": []
+}

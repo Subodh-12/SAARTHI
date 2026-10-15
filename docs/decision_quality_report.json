@@ -1,0 +1,92 @@
+{
+  "evaluation_date": "2026-10-15",
+  "dataset": {
+    "name": "SAARTHI Gold Decision Scenarios (Provisional Mechanical Corpus)",
+    "dataset_type": "provisional_mechanical_corpus",
+    "independent_human_reviewed": false,
+    "total_scenarios": 120,
+    "tuning_count": 78,
+    "held_out_count": 42,
+    "held_out_share_pct": 35.0,
+    "reviewers": [],
+    "provenance_note": "Mechanically derived rule coverage corpus. Independent human panel review pending."
+  },
+  "results": {
+    "structural_validity_pct": 100.0,
+    "target_concept_validity_pct": 100.0,
+    "delivery_mode_validity_pct": 100.0,
+    "reason_code_agreement_pct": 100.0,
+    "background_action_agreement_pct": 100.0,
+    "held_out_agreement_pct": 100.0,
+    "tuning_agreement_pct": 100.0,
+    "overall_agreement_pct": 100.0,
+    "python_ts_parity_verified": true,
+    "invalid_scenarios_count": 0,
+    "target_threshold_held_out": 90.0,
+    "category_failures": [],
+    "gate_status": "PASS"
+  },
+  "category_breakdown": {
+    "cold_start": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "prerequisite_gaps": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "weak_concept": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "repeated_wrong_answers": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "partial_practice": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "mastered_concepts": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "slice_complete": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "no_progress_after_remediation": {
+      "total": 15,
+      "matches": 15,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "missing_pack_offline": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    },
+    "corrupt_or_stale_state": {
+      "total": 10,
+      "matches": 10,
+      "agreement_pct": 100.0,
+      "status": "PASS"
+    }
+  },
+  "mismatches": []
+}

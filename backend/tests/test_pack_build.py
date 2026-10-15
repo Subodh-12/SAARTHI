@@ -1,4 +1,12 @@
-"""M3 pack build + validation tests."""
+"""M3 pack build + validation tests.
+
+The pack artifacts are (re)built by a module fixture so the tests validate
+the CURRENT builder code deterministically instead of stale committed
+binaries. The archive's inner manifest carries archive_sha256="" and
+archive_byte_size=0 (they cover the archive itself); the standalone JSON
+manifest carries the real values — tests normalise those two fields when
+comparing (documented in PackManifest and build_packs.py).
+"""
 from __future__ import annotations
 
 import gzip
@@ -11,9 +19,30 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "backend"))
+sys.path.insert(0, str(REPO / "scripts"))
 
 PACK_JSON = REPO / "packs" / "pack_class9_science_or_v1-1.0.0.json"
 PACK_GZ = REPO / "packs" / "pack_class9_science_or_v1-1.0.0.srt.tar.gz"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _built_pack():
+    """Rebuild the pack once so tests exercise the current builder."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "build_packs", REPO / "scripts" / "build_packs.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.build_pack(strict=False)
+    return None
+
+
+def _load_json_with_blank_archive_fields() -> bytes:
+    """Canonical JSON bytes with the archive integrity fields blanked."""
+    data = json.loads(PACK_JSON.read_text(encoding="utf-8"))
+    data["manifest"]["archive_sha256"] = ""
+    data["manifest"]["archive_byte_size"] = 0
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
 def test_pack_exists():
@@ -43,25 +72,30 @@ def test_pack_manifest_valid():
 
 def test_pack_checksum_self_consistent():
     """Verify the stored checksum matches SHA-256 of the blob with the
-    checksum field blanked out (canonical verification)."""
+    checksum field blanked AND the archive fields blanked (canonical
+    verification; the archive fields sit at their final key positions)."""
     if not PACK_JSON.exists():
         pytest.skip("pack not built")
     data = json.loads(PACK_JSON.read_text(encoding="utf-8"))
     stored = data["manifest"]["checksum_sha256"]
-    # Blank the checksum and re-serialize canonically
+    # Blank the checksum and archive fields, re-serialize canonically
     data["manifest"]["checksum_sha256"] = ""
+    data["manifest"]["archive_sha256"] = ""
+    data["manifest"]["archive_byte_size"] = 0
     blob = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     actual = hashlib.sha256(blob).hexdigest()
     assert stored == actual, "stored checksum does not match canonical verification"
 
 
 def test_pack_gzip_payload_matches_json():
+    """The archive payload equals the standalone JSON with the archive
+    integrity fields blanked (the inner manifest cannot carry the archive's
+    own hash — documented in PackManifest.archive_sha256)."""
     if not PACK_GZ.exists() or not PACK_JSON.exists():
         pytest.skip("pack not built")
     with gzip.open(PACK_GZ, "rb") as f:
         gz_data = f.read()
-    json_data = PACK_JSON.read_bytes()
-    assert gz_data == json_data
+    assert gz_data == _load_json_with_blank_archive_fields()
 
 
 def test_pack_has_3_chapters_9_concepts():
@@ -76,12 +110,15 @@ def test_pack_has_3_chapters_9_concepts():
 
 
 def test_pack_questions_have_valid_answer_keys():
-    """Each MCQ must have a valid correct_option; each short_answer a rubric."""
+    """Each MCQ must have a valid correct_option; each short_answer a rubric.
+    Every question carries a revision number and an answer-key hash (v2)."""
     if not PACK_JSON.exists():
         pytest.skip("pack not built")
     data = json.loads(PACK_JSON.read_text())
     for q in data["questions"]:
         assert q["qtype"] in ("mcq", "short_answer")
+        assert int(q.get("revision", 0)) >= 1, "question missing revision"
+        assert len(q.get("answer_key_hash", "")) == 32, "question missing answer_key_hash"
         if q["qtype"] == "mcq":
             assert q.get("correct_option") is not None
             assert 0 <= q["correct_option"] < len(q["options"])

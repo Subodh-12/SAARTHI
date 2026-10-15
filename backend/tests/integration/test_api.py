@@ -76,7 +76,7 @@ def test_create_learner_returns_token(client):
         "display_label": "Student1",
         "locale": "or", "grade": "class9", "subject": "science",
     })
-    assert r.status_code == 200
+    assert r.status_code == 201
     body = r.json()
     assert body["learner_id"].startswith("lrn_")
     assert body["device_id"].startswith("dev_")
@@ -135,14 +135,16 @@ def test_full_learning_loop(client):
     sub = {
         "question_id": q["question_id"],
         "selected_option": q.get("correct_option"),
+        "attempt_id": "att-loop-1",
         "duration_ms": 4200, "submitted_at": int(time.time()*1000),
-        "evidence": "none",
     }
     r = client.post("/api/v1/assessments", json=sub, headers=headers)
     assert r.status_code == 200
     result = r.json()
     assert result["correct"] is True
-    assert result["mastery_after"]["p_known"] > 0.4
+    # v2: integer basis points, risen above the 2000 p_init.
+    assert isinstance(result["mastery_after"]["p_bp"], int)
+    assert result["mastery_after"]["p_bp"] > 2000
 
     # 4. Fetch learner state — should show mastery
     r = client.get("/api/v1/state", headers=headers)
@@ -189,22 +191,21 @@ def test_sync_endpoint_idempotent(client):
         "device_id": auth["device_id"],
         "seq": 1,
         "learner_id": auth["learner_id"],
-        "ts": int(time.time() * 1000),
-        "event_type": "mcq_answered",
+        "client_ts": int(time.time() * 1000),
+        "type": "CONTENT_VIEWED",
         "concept_id": "c0001",
         "chapter_id": "ch001",
-        "question_id": "q_ch01_c0001_01",
-        "payload": {"evidence": "correct", "weight": 1.0, "correct": True, "last_action": "ASSESS"},
-        "outbox_state": "pending", "retry_count": 0,
+        "payload": {"last_action": "VIEW"},
     }
     sync_req = {"device_id": auth["device_id"], "learner_id": auth["learner_id"],
                 "from_seq": 0, "events": [event]}
     r = client.post("/api/v1/sync", json=sync_req, headers=headers)
     assert r.status_code == 200
     body = r.json()
-    assert body["accepted"][0]["outcome"] == "accepted"
+    assert body["results"][0]["outcome"] == "ACCEPTED"
+    assert body["decision_status"] in ("computed", "deferred")
     # Resubmit
     r = client.post("/api/v1/sync", json=sync_req, headers=headers)
     assert r.status_code == 200
     body = r.json()
-    assert body["accepted"][0]["outcome"] == "duplicate"
+    assert body["results"][0]["outcome"] == "DUPLICATE"

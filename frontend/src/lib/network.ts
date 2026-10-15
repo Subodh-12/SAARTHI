@@ -1,36 +1,79 @@
-// Measured network state with hysteresis — does not trust navigator.onLine alone.
-// Records RTT samples + loss samples; classifies online/weak/offline based on
-// ruleset thresholds; uses hysteresis (n consecutive samples before switching).
+// Measured network state with hysteresis — never trusts navigator.onLine
+// alone (Design v2 Section 10).
+//
+//   online   probe succeeds, RTT < 800 ms
+//   weak     probe succeeds but 800–3000 ms RTT
+//   offline  two consecutive probe failures, or navigator.onLine === false
+//
+// Probe: a HEAD request to /health every 30 s while the app is visible,
+// 3 s timeout (ruleset `network`). Hysteresis: downgrade after ONE bad
+// probe, upgrade only after TWO good ones, so the state does not flap.
+// Every change is surfaced to the caller so it can be recorded as
+// NETWORK_STATE_CHANGED and enter each decision.
 
 import { RULESET } from "../engine/decide";
 import { NetworkState } from "../generated/api";
 
 type Listener = (s: NetworkState, info: NetworkInfo) => void;
 
-interface NetworkInfo {
+export interface NetworkInfo {
   state: NetworkState;
   rt_ms: number | null;
   loss: number | null;
 }
 
+interface NetworkRuleset {
+  online?: { rtt_ms_max?: number };
+  weak?: { rtt_ms_max?: number; downlink_kbps_min?: number };
+  probe_interval_s?: number;
+  probe_timeout_s?: number;
+  hysteresis_downgrade_after_bad?: number;
+  hysteresis_upgrade_after_good?: number;
+}
+const n = (RULESET.network || {}) as NetworkRuleset;
+
+const PROBE_INTERVAL_MS = Math.max(5, (n.probe_interval_s ?? 30)) * 1000;
+const PROBE_TIMEOUT_MS = Math.max(1, (n.probe_timeout_s ?? 3)) * 1000;
+const ONLINE_RTT_MAX = n.online?.rtt_ms_max ?? 800;
+const WEAK_RTT_MAX = n.weak?.rtt_ms_max ?? 3000;
+const DOWNGRADE_AFTER_BAD = n.hysteresis_downgrade_after_bad ?? 1;
+const UPGRADE_AFTER_GOOD = n.hysteresis_upgrade_after_good ?? 2;
+
 class NetworkMonitor {
   private listeners: Listener[] = [];
-  private state: NetworkState = navigator.onLine ? NetworkState.ONLINE : NetworkState.OFFLINE;
+  private state: NetworkState =
+    navigator.onLine ? NetworkState.ONLINE : NetworkState.OFFLINE;
+  /** Probe outcomes, oldest → newest (capped). */
   private history: { rt_ms: number; ok: boolean; ts: number }[] = [];
   private timer: number | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   start() {
     if (this.timer) return;
     window.addEventListener("online", this.onNavigatorOnline);
     window.addEventListener("offline", this.onNavigatorOffline);
-    this.timer = window.setInterval(() => this.probe(), 5_000);
+    // Probe every 30 s while the app is visible; probe immediately on
+    // visibility regain.
+    this.timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") this.probe();
+    }, PROBE_INTERVAL_MS);
+    this.visibilityHandler = () => {
+      if (document.visibilityState === "visible") this.probe();
+    };
+    document.addEventListener("visibilitychange", this.visibilityHandler);
     this.probe();
   }
+
   stop() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     window.removeEventListener("online", this.onNavigatorOnline);
     window.removeEventListener("offline", this.onNavigatorOffline);
   }
+
   private onNavigatorOnline = () => this.probe();
   private onNavigatorOffline = () => this.setState(NetworkState.OFFLINE, null, 1.0);
 
@@ -39,82 +82,98 @@ class NetworkMonitor {
       this.setState(NetworkState.OFFLINE, null, 1.0);
       return;
     }
-    const api_url = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000")
-                    + "/api/v1/health";
+    const base = (import.meta.env.VITE_API_URL as string | undefined)
+      || (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
+    if (!base) { // production build without configured API: stay offline
+      this.setState(NetworkState.OFFLINE, null, 1.0);
+      return;
+    }
     const t0 = performance.now();
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), RULESET.network.offline_probe_timeout_ms);
-      const resp = await fetch(api_url, { signal: ctrl.signal, cache: "no-store" });
+      const timer = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+      const resp = await fetch(`${base}/api/v1/health`,
+                               { signal: ctrl.signal, cache: "no-store" });
       clearTimeout(timer);
       const rt = performance.now() - t0;
       this.history.push({ rt_ms: rt, ok: resp.ok, ts: Date.now() });
-    } catch (e) {
-      this.history.push({ rt_ms: 99999, ok: false, ts: Date.now() });
+    } catch {
+      this.history.push({ rt_ms: Number.POSITIVE_INFINITY, ok: false,
+                          ts: Date.now() });
     }
-    if (this.history.length > RULESET.network.hysteresis_observations + 2) {
-      this.history.shift();
-    }
+    if (this.history.length > 8) this.history.shift();
     this.classify();
   }
 
   private classify() {
-    const n = RULESET.network;
     if (this.history.length < 1) return;
-    const recent = this.history.slice(-n.hysteresis_observations);
-    let bad_rt = 0, lost = 0;
-    for (const s of recent) {
-      if (!s.ok) lost++;
-      if (s.rt_ms > n.weak_rt_threshold_ms) bad_rt++;
-    }
-    const loss = recent.length ? lost / recent.length : 1;
-    const avg_rt = recent.filter((s) => s.ok).reduce((a, b) => a + b.rt_ms, 0)
-                     / Math.max(1, recent.filter((s) => s.ok).length);
-    let target = this.state;
-    if (loss >= 1.0) {
-      target = NetworkState.OFFLINE;
-    } else if (loss > n.weak_loss_threshold || avg_rt > n.weak_rt_threshold_ms) {
-      target = NetworkState.WEAK;
-    } else {
-      target = NetworkState.ONLINE;
-    }
-    // Hysteresis: require N consecutive samples in target state before switching
-    const from_online_to_weak = n.online_to_weak_after_n_bad;
-    const from_weak_to_offline = n.weak_to_offline_after_n_bad;
-    const from_weak_to_online = n.weak_to_online_after_n_good;
-    const from_offline_to_weak = n.offline_to_weak_after_n_good;
+    const last = this.history[this.history.length - 1];
 
-    // Simplified hysteresis: count consecutive samples in target state
-    let consecutive = 0;
-    for (let i = recent.length - 1; i >= 0; i--) {
-      if (this.classifySample(recent[i]) === target) consecutive++;
-      else break;
-    }
-    let threshold = 1;
-    if (this.state === NetworkState.ONLINE && target === NetworkState.WEAK) threshold = from_online_to_weak;
-    if (this.state === NetworkState.WEAK && target === NetworkState.OFFLINE) threshold = from_weak_to_offline;
-    if (this.state === NetworkState.WEAK && target === NetworkState.ONLINE) threshold = from_weak_to_online;
-    if (this.state === NetworkState.OFFLINE && target === NetworkState.WEAK) threshold = from_offline_to_weak;
-    if (consecutive < threshold) return;
-    this.setState(target, avg_rt || null, loss);
-  }
+    // Offline rule: two consecutive probe failures (or navigator offline,
+    // handled in probe()).
+    const failedTwice = this.history.length >= 2
+      && !this.history[this.history.length - 1].ok
+      && !this.history[this.history.length - 2].ok;
 
-  private classifySample(s: { rt_ms: number; ok: boolean }): NetworkState {
-    const n = RULESET.network;
-    if (!s.ok) return NetworkState.OFFLINE;
-    if (s.rt_ms > n.weak_rt_threshold_ms) return NetworkState.WEAK;
-    return NetworkState.ONLINE;
+    // Hysteresis helpers: consecutive good / bad probes at the tail.
+    let goodStreak = 0;
+    for (let i = this.history.length - 1; i >= 0; i--) {
+      if (this.history[i].ok) goodStreak++; else break;
+    }
+    let badStreak = 0;
+    for (let i = this.history.length - 1; i >= 0; i--) {
+      if (!this.history[i].ok) badStreak++; else break;
+    }
+
+    if (failedTwice || badStreak >= DOWNGRADE_AFTER_BAD) {
+      this.setState(NetworkState.OFFLINE, null, 1.0);
+      return;
+    }
+
+    const okSamples = this.history.filter((s) => s.ok);
+    const avgRt = okSamples.length
+      ? okSamples.reduce((a, b) => a + b.rt_ms, 0) / okSamples.length
+      : Number.POSITIVE_INFINITY;
+    const loss = 1 - okSamples.length / this.history.length;
+
+    const sampleState = (rt: number): NetworkState =>
+      rt <= ONLINE_RTT_MAX ? NetworkState.ONLINE : NetworkState.WEAK;
+
+    // Downgrade online → weak after ONE bad (slow) probe; upgrade only
+    // after UPGRADE_AFTER_GOOD consecutive good ones (no flapping).
+    if (this.state === NetworkState.ONLINE
+        && avgRt > ONLINE_RTT_MAX && avgRt <= WEAK_RTT_MAX) {
+      this.setState(NetworkState.WEAK, avgRt, loss);
+      return;
+    }
+    if (this.state === NetworkState.WEAK
+        && last.ok && last.rt_ms <= ONLINE_RTT_MAX
+        && goodStreak >= UPGRADE_AFTER_GOOD) {
+      this.setState(NetworkState.ONLINE, avgRt, loss);
+      return;
+    }
+    if (this.state === NetworkState.OFFLINE
+        && goodStreak >= UPGRADE_AFTER_GOOD) {
+      // Upgrade from offline goes through the measured sample state.
+      this.setState(sampleState(last.rt_ms), avgRt, loss);
+      return;
+    }
+    if (this.state === NetworkState.WEAK
+        && badStreak >= DOWNGRADE_AFTER_BAD && failedTwice) {
+      this.setState(NetworkState.OFFLINE, null, 1.0);
+      return;
+    }
+    // No transition — report measurement only.
+    void sampleState;
   }
 
   private setState(state: NetworkState, rt_ms: number | null, loss: number) {
-    if (state === this.state && rt_ms === null) return;
     const prev = this.state;
     this.state = state;
     const info: NetworkInfo = { state, rt_ms, loss };
     for (const l of this.listeners) l(state, info);
-    // RECONNECTED is a transient: emit when going from OFFLINE to ONLINE/WEAK
+    // RECONNECTED is a transient: emit when going from OFFLINE to online/weak.
     if (prev === NetworkState.OFFLINE && state !== NetworkState.OFFLINE) {
-      // emit reconnected for one tick
       for (const l of this.listeners) l(NetworkState.RECONNECTED, info);
     }
   }

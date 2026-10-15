@@ -1,0 +1,123 @@
+name: SAARTHI CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-and-quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: saarthi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run Alembic migrations against PostgreSQL
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/saarthi
+          PERSISTENCE_BACKEND: postgres
+        run: |
+          alembic upgrade head
+
+      - name: Run PostgreSQL backup and restore verification drill
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/saarthi
+          PERSISTENCE_BACKEND: postgres
+        run: |
+          python scripts/db_backup_restore.py
+
+      - name: Run Backend Pytest Suite
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/saarthi
+          PERSISTENCE_BACKEND: postgres
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest backend/tests
+
+      - name: Strict Pack Validation & Build
+        run: |
+          python scripts/build_packs.py --strict
+
+      - name: Decision Quality Evaluation Gate
+        run: |
+          python scripts/eval_decision_quality.py
+
+      - name: Retrieval Evaluation Benchmark
+        run: |
+          python scripts/eval_retrieval.py
+
+      - name: Device Performance Microbenchmark
+        run: |
+          python scripts/measure_device_perf.py --mode=all
+
+  frontend-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Frontend unit & parity tests (Vitest)
+        working-directory: frontend
+        run: npm run test
+
+      - name: Build frontend PWA
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install chromium
+
+      - name: Playwright E2E browser tests
+        working-directory: frontend
+        run: npm run test:e2e

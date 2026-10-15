@@ -1,0 +1,846 @@
+# Chapter 2: Motion Questions
+# Concepts: c0004 (Motion and Displacement), c0005 (Speed and Velocity), c0006 (Acceleration)
+# Each concept has 12 questions: 4 easy, 4 medium, 4 hard.
+# Bloom levels cover: remember, understand, apply, analyze, evaluate, create.
+
+def get_ch02_questions():
+    q = []
+
+    # ------------------------------------------------------------------------
+    # CONCEPT c0004: Motion and Displacement (ଗତି ଏବଂ ବିସ୍ଥାପନ)
+    # ------------------------------------------------------------------------
+    # 1. Easy - Remember
+    q.append({
+        "question_id": "q_ch02_c0004_01",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "remember",
+        "qtype": "mcq",
+        "prompt_or": "କୌଣସି ବସ୍ତୁର ପ୍ରାରମ୍ଭିକ ଓ ଅନ୍ତିମ ସ୍ଥିତି ମଧ୍ୟରେ ଥିବା ସର୍ବନିମ୍ନ ସଳଖ ଦୂରତାକୁ କଣ କୁହାଯାଏ?",
+        "options": [
+            {"index": 0, "text_or": "ମୋଟ ଦୂରତା (Distance)", "misconception_tag": "confusing_distance_with_displacement", "explanation_or": "ଦୂରତା ହେଉଛି ଅତିକ୍ରମ କରାଯାଇଥିବା ସମଗ୍ର ପଥର ଲମ୍ବ।"},
+            {"index": 1, "text_or": "ବିସ୍ଥାପନ (Displacement)", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "ତ୍ୱରଣ (Acceleration)", "misconception_tag": "confusing_motion_rate_with_displacement", "explanation_or": "ତ୍ୱରଣ ବେଗତା ପରିବର୍ତ୍ତନର ହାର ଅଟେ।"},
+            {"index": 3, "text_or": "ବେଗ (Speed)", "misconception_tag": "confusing_speed_with_displacement", "explanation_or": "ବେଗ ଏକକ ସମୟରେ ଅତିକ୍ରାନ୍ତ ଦୂରତା ଅଟେ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "ପ୍ରାରମ୍ଭିକ ଓ ଅନ୍ତିମ ବିନ୍ଦୁ ମଧ୍ୟରେ ସର୍ବନିମ୍ନ ସରଳରୈଖିକ ଦୂରତାକୁ ହିଁ ବିସ୍ଥାପନ କୁହାଯାଏ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 2. Easy - Remember
+    q.append({
+        "question_id": "q_ch02_c0004_02",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "remember",
+        "qtype": "mcq",
+        "prompt_or": "ନିମ୍ନଲିଖିତ ମଧ୍ୟରୁ ବିସ୍ଥାପନର SI ଏକକ କେଉଁଟି ଅଟେ?",
+        "options": [
+            {"index": 0, "text_or": "କିଲୋମିଟର ପ୍ରତି ଘଣ୍ଟା (km/h)", "misconception_tag": "confusing_distance_unit_with_speed", "explanation_or": "km/h ହେଉଛି ବେଗର ଏକକ।"},
+            {"index": 1, "text_or": "ମିଟର ପ୍ରତି ସେକେଣ୍ଡ (m/s)", "misconception_tag": "confusing_distance_unit_with_velocity", "explanation_or": "m/s ହେଉଛି ବେଗତାର SI ଏକକ।"},
+            {"index": 2, "text_or": "ମିଟର (m)", "misconception_tag": None, "explanation_or": None},
+            {"index": 3, "text_or": "ମିଟର ପ୍ରତି ସେକେଣ୍ଡ ବର୍ଗ (m/s²)", "misconception_tag": "confusing_distance_unit_with_acceleration", "explanation_or": "m/s² ତ୍ୱରଣର ଏକକ।"}
+        ],
+        "correct_option": 2,
+        "explanation_or": "ଯେହେତୁ ବିସ୍ଥାପନ ଏକ ଦୂରତା ସଦିଶ, ତେଣୁ ଏହାର SI ଏକକ ମିଟର (m) ଅଟେ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 3. Easy - Understand
+    q.append({
+        "question_id": "q_ch02_c0004_03",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "understand",
+        "qtype": "mcq",
+        "prompt_or": "ଗୋଟିଏ ବସ୍ତୁ କିଛି ଦୂରତା ଅତିକ୍ରମ କରିବା ପରେ ମଧ୍ୟ ତାର ବିସ୍ଥାପନ ଶୂନ (zero) ହୋଇପାରିବ କି?",
+        "options": [
+            {"index": 0, "text_or": "ହଁ, ଯଦି ବସ୍ତୁଟି ତାର ପ୍ରାରମ୍ଭିକ ସ୍ଥାନକୁ ଫେରିଆସେ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ନା, ଦୂରତା ଥିଲେ ବିସ୍ଥାପନ ସର୍ବଦା ଶୂନଠାରୁ ବଡ଼ ହେବା ବାଧ୍ୟତାମୂଳକ", "misconception_tag": "believing_displacement_equals_distance", "explanation_or": "ବିସ୍ଥାପନ ପ୍ରାରମ୍ଭିକ ଓ ଅନ୍ତିମ ସ୍ଥାନ ଉପରେ ନିର୍ଭର କରେ।"},
+            {"index": 2, "text_or": "ନା, କେବଳ ବସ୍ତୁଟି ସ୍ଥିର ଥିଲେ ହିଁ ବିସ୍ଥାପନ ଶୂନ ହୁଏ", "misconception_tag": "confusing_stationary_with_net_displacement", "explanation_or": "ଗତି କରି ନିଜ ସ୍ଥାନକୁ ଫେରିଲେ ମଧ୍ୟ ବିସ୍ଥାପନ ଶୂନ ହୁଏ।"},
+            {"index": 3, "text_or": "କେବଳ ମହାକାଶରେ ହିଁ ଏପରି ଘଟିପାରେ", "misconception_tag": "limiting_physics_to_space", "explanation_or": "ପୃଥିବୀରେ ବୃତ୍ତାକାର ଗତିରେ ଏହା ନିୟମିତ ଦେଖାଯାଏ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ଯଦି ବସ୍ତୁର ଆରମ୍ଭ ବିନ୍ଦୁ ଏବଂ ଶେଷ ବିନ୍ଦୁ ଏକା ହୋଇଥାଏ, ତେବେ ସର୍ବନିମ୍ନ ଦୂରତା ଶୂନ ହୋଇଥିବାରୁ ବିସ୍ଥାପନ ଶୂନ ହୁଏ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 4. Easy - Understand
+    q.append({
+        "question_id": "q_ch02_c0004_04",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "understand",
+        "qtype": "mcq",
+        "prompt_or": "ଗତିର ବର୍ଣ୍ଣନା କରିବା ପାଇଁ ଏକ ନିର୍ଦ୍ଦିଷ୍ଟ 'ପ୍ରସଙ୍ଗ ବିନ୍ଦୁ' (reference point) କାହିଁକି ଆବଶ୍ୟକ ହୁଏ?",
+        "options": [
+            {"index": 0, "text_or": "ଗତି ଏକ ଆପେକ୍ଷିକ ଧାରଣା ଏବଂ ତାହା କେଉଁ ସ୍ଥାନରୁ ମପାଯାଉଛି ତାହା ଜାଣିବା ଜରୁରୀ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ପ୍ରସଙ୍ଗ ବିନ୍ଦୁ ବିନା ବସ୍ତୁର କୌଣସି ଓଜନ ରହେ ନାହିଁ", "misconception_tag": "confusing_reference_point_with_gravity", "explanation_or": "ପ୍ରସଙ୍ଗ ବିନ୍ଦୁ ଓଜନ ନିର୍ଣ୍ଣୟ କରେ ନାହିଁ।"},
+            {"index": 2, "text_or": "ଏହା କେବଳ ଘଣ୍ଟାର ସମୟ ଠିକ୍ କରିବାକୁ ଦରକାର ହୁଏ", "misconception_tag": "confusing_reference_with_clock", "explanation_or": "ପ୍ରସଙ୍ଗ ବିନ୍ଦୁ ସ୍ଥିତି ବର୍ଣ୍ଣନା ପାଇଁ ଦରକାର।"},
+            {"index": 3, "text_or": "ପୃଥିବୀର ପ୍ରତ୍ୟେକ ବସ୍ତୁ ସ୍ୱତନ୍ତ୍ର ଭାବେ ସର୍ବଦା ସ୍ଥିର ଥାଏ", "misconception_tag": "believing_absolute_rest", "explanation_or": "ବ୍ରହ୍ମାଣ୍ଡରେ ଚରମ ସ୍ଥିରତା ବୋଲି କିଛି ନାହିଁ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ଗତି ଆପେକ୍ଷିକ ଅଟେ; ଗୋଟିଏ ପ୍ରସଙ୍ଗ ବିନ୍ଦୁ ତୁଳନାରେ ଗତିଶୀଳ ବସ୍ତୁ ଅନ୍ୟ ଏକ ବିନ୍ଦୁ ତୁଳନାରେ ସ୍ଥିର ହୋଇପାରେ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 5. Medium - Apply
+    q.append({
+        "question_id": "q_ch02_c0004_05",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "apply",
+        "qtype": "mcq",
+        "prompt_or": "ଜଣେ ବ୍ୟକ୍ତି ମୂଳବିନ୍ଦୁରୁ ଉତ୍ତର ଦିଗକୁ ୩ ମିଟର ଗଲେ ଏବଂ ତାପରେ ପୂର୍ବ ଦିଗକୁ ୪ ମିଟର ଗଲେ। ତାଙ୍କର ମୋଟ ଦୂରତା ଏବଂ ବିସ୍ଥାପନ କ୍ରମାନ୍ୱୟରେ କେତେ ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "ଦୂରତା ୭ ମିଟର ଏବଂ ବିସ୍ଥାପନ ୫ ମିଟର", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଦୂରତା ୫ ମିଟର ଏବଂ ବିସ୍ଥାପନ ୭ ମିଟର", "misconception_tag": "reversing_distance_and_displacement", "explanation_or": "ଦୂରତା ସର୍ବଦା ବିସ୍ଥାପନଠାରୁ ବଡ଼ ବା ସମାନ ହୁଏ।"},
+            {"index": 2, "text_or": "ଦୂରତା ୭ ମିଟର ଏବଂ ବିସ୍ଥାପନ ୭ ମିଟର", "misconception_tag": "assuming_displacement_equals_sum_of_parts", "explanation_or": "ସମକୋଣୀ ତ୍ରିଭୁଜରେ କର୍ଣ୍ଣ ହେଉଛି ବିସ୍ଥାପନ = √(୩² + ୪²) = ୫ ମିଟର।"},
+            {"index": 3, "text_or": "ଦୂରତା ୧ ମିଟର ଏବଂ ବିସ୍ଥାପନ ୧ ମିଟର", "misconception_tag": "subtracting_orthogonal_vectors", "explanation_or": "ଲମ୍ବ ଦିଗରେ ବିସ୍ଥାପନ ପିଥାଗୋରାସ ସୂତ୍ରରୁ ଗଣନା ହୁଏ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ମୋଟ ଦୂରତା = ୩ + ୪ = ୭ ମିଟର। ବିସ୍ଥାପନ = √(୩² + ୪²) = √(୯ + ୧୬) = √୨୫ = ୫ ମିଟର (ଉତ୍ତର-ପୂର୍ବ ଦିଗ)।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 6. Medium - Apply
+    q.append({
+        "question_id": "q_ch02_c0004_06",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "apply",
+        "qtype": "mcq",
+        "prompt_or": "ଜଣେ କୃଷକ ୧୦ ମିଟର ବାହୁ ବିଶିଷ୍ଟ ଏକ ବର୍ଗାକାର କ୍ଷେତର ସୀମାରେଖା ଚାରିପାଖରେ ୪୦ ସେକେଣ୍ଡରେ ଗୋଟିଏ ଘେରା ବୁଲିପାରନ୍ତି। ୨ ମିନିଟ ୨୦ ସେକେଣ୍ଡ (୧୪୦ ସେକେଣ୍ଡ) ପରେ ତାଙ୍କର ବିସ୍ଥାପନ କେତେ ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "୧୦√୨ ମିଟର (ପ୍ରାୟ ୧୪.୧୪ ମିଟର)", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୩୫ ମିଟର", "misconception_tag": "calculating_fractional_distance_as_displacement", "explanation_or": "୩୫ ମିଟର ଅତିକ୍ରାନ୍ତ ଦୂରତା ହୋଇପାରେ, କିନ୍ତୁ ବିସ୍ଥାପନ କର୍ଣ୍ଣ ଅଟେ।"},
+            {"index": 2, "text_or": "୪୦ ମିଟର", "misconception_tag": "taking_perimeter_as_displacement", "explanation_or": "ପରିସୀମା ମୋଟ ପଥର ଲମ୍ବ।"},
+            {"index": 3, "text_or": "ଶୂନ ମିଟର", "misconception_tag": "assuming_integer_rounds_completed", "explanation_or": "୧୪୦ ସେକେଣ୍ଡରେ ୩.୫ ଘେରା ହେବ, ସେ ବିପରୀତ କୋଣରେ ପହଞ୍ଚିବେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "୧୪୦ s = ୩.୫ ଘେରା। ୩ ଘେରା ପରେ ମୂଳ ବିନ୍ଦୁରେ ପହଞ୍ଚିବେ ଏବଂ ଅଧା ଘେରାରେ ବିପରୀତ କୋଣରେ ପହଞ୍ଚିବେ; ବିସ୍ଥାପନ ବର୍ଗକ୍ଷେତ୍ରର କର୍ଣ୍ଣ = ୧୦√୨ ମିଟର।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 7. Medium - Analyze
+    q.append({
+        "question_id": "q_ch02_c0004_07",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "analyze",
+        "qtype": "mcq",
+        "prompt_or": "r ବ୍ୟାସାର୍ଦ୍ଧ ବିଶିଷ୍ଟ ଏକ ବୃତ୍ତାକାର ପଥରେ ଏକ ବସ୍ତୁ ଦେଢ଼ (୧.୫) ଘେରା ବୁଲିବା ପରେ ତାର ଦୂରତା ଏବଂ ବିସ୍ଥାପନର ଅନୁପାତ କେତେ ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "୩π / ୨", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୩ / ୨", "misconception_tag": "forgetting_pi_in_circle_perimeter", "explanation_or": "ବୃତ୍ତର ପରିଧିରେ π ଗୁଣିତ ହୁଏ।"},
+            {"index": 2, "text_or": "୨ / (୩π)", "misconception_tag": "inverting_the_ratio", "explanation_or": "ଅନୁପାତଟି ଦୂରତା / ବିସ୍ଥାପନ ଅଟେ।"},
+            {"index": 3, "text_or": "ଶୂନ", "misconception_tag": "assuming_displacement_is_zero", "explanation_or": "୧.୫ ଘେରାରେ ବିସ୍ଥାପନ ବ୍ୟାସ ୨r ହୋଇଥାଏ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ଦୂରତା = ୧.୫ × ୨πr = ୩πr। ବିସ୍ଥାପନ = ୨r (ବ୍ୟାସ)। ଅନୁପାତ = ୩πr / ୨r = ୩π / ୨।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 8. Medium - Analyze
+    q.append({
+        "question_id": "q_ch02_c0004_08",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "analyze",
+        "qtype": "mcq",
+        "prompt_or": "ଦୂରତା (Distance) ଏବଂ ବିସ୍ଥାପନ (Displacement) ମଧ୍ୟରେ ଗାଣିତିକ ସମ୍ପର୍କ କେଉଁ ଅସମତା (inequality) ଦ୍ୱାରା ସଠିକ୍ ପ୍ରକାଶ ପାଏ?",
+        "options": [
+            {"index": 0, "text_or": "|ବିସ୍ଥାପନ| ≤ ଦୂରତା", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "|ବିସ୍ଥାପନ| > ଦୂରତା", "misconception_tag": "believing_displacement_can_exceed_distance", "explanation_or": "ବିସ୍ଥାପନ କେବେହେଲେ ଅତିକ୍ରାନ୍ତ ଦୂରତାଠାରୁ ଅଧିକ ହୋଇପାରିବ ନାହିଁ।"},
+            {"index": 2, "text_or": "|ବିସ୍ଥାପନ| ସର୍ବଦା = ୦", "misconception_tag": "generalizing_zero_displacement", "explanation_or": "ବିସ୍ଥାପନ କେବଳ ପ୍ରାରମ୍ଭିକ ବିନ୍ଦୁକୁ ଫେରିଲେ ଶୂନ ହୁଏ।"},
+            {"index": 3, "text_or": "ଦୂରତା < ୦", "misconception_tag": "allowing_negative_distance", "explanation_or": "ଦୂରତା ଏକ ଅଦିଶ ରାଶି ଏବଂ ଏହା କେବେ ଋଣାତ୍ମକ ହୁଏ ନାହିଁ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ସରଳରୈଖିକ ଏକମୁଖୀ ଗତିରେ ବିସ୍ଥାପନ = ଦୂରତା, ମାତ୍ର ବକ୍ର ବା ବୁଲାଣିଆ ଗତିରେ ବିସ୍ଥାପନର ପରିମାଣ ସର୍ବଦା ଦୂରତାଠାରୁ କମ୍ ହୋଇଥାଏ।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 9. Hard - Evaluate
+    q.append({
+        "question_id": "q_ch02_c0004_09",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "evaluate",
+        "qtype": "mcq",
+        "prompt_or": "ମୋଟରସାଇକେଲରେ ଲାଗିଥିବା ଓଡୋମିଟର (odometer) କଣ ମାପେ ଏବଂ ଏହା କାହିଁକି ବିସ୍ଥାପନ ମାପିପାରେ ନାହିଁ?",
+        "options": [
+            {"index": 0, "text_or": "ଓଡୋମିଟର ମୋଟ ଅତିକ୍ରାନ୍ତ ଦୂରତା ମାପେ; ଏହା ଦିଗ ରେକର୍ଡ କରିପାରୁନଥିବାରୁ ବିସ୍ଥାପନ ମାପିପାରେ ନାହିଁ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଓଡୋମିଟର କେବଳ ବେଗ ମାପେ, ଦୂରତା ନୁହେଁ", "misconception_tag": "confusing_odometer_with_speedometer", "explanation_or": "ବେଗ ସ୍ପିଡୋମିଟର ମାପିଥାଏ।"},
+            {"index": 2, "text_or": "ଓଡୋମିଟର ସର୍ବଦା ବିସ୍ଥାପନ ହିଁ ମାପିଥାଏ", "misconception_tag": "assuming_odometer_measures_vector", "explanation_or": "ଘରୁ ବଜାର ଯାଇ ଫେରିଲେ ଓଡୋମିଟର ଶୂନ ଦେଖାଏ ନାହିଁ।"},
+            {"index": 3, "text_or": "ଓଡୋମିଟର କେବଳ ପେଟ୍ରୋଲର ପରିମାଣ ମାପେ", "misconception_tag": "confusing_with_fuel_gauge", "explanation_or": "ଓଡୋମିଟର ପଥର ଲମ୍ବ ମାପିଥାଏ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ଓଡୋମିଟର ଚକ ଘୂର୍ଣ୍ଣନରୁ ଯାନ ଦ୍ୱାରା ଅତିକ୍ରାନ୍ତ ସମଗ୍ର ବାସ୍ତବ ପଥର ଦୂରତା ମାପେ; ଏହା ଦିଗମୁକ୍ତ ହୋଇଥିବାରୁ ବିସ୍ଥାପନ ମାପିପାରେ ନାହିଁ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 10. Hard - Evaluate
+    q.append({
+        "question_id": "q_ch02_c0004_10",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "evaluate",
+        "qtype": "mcq",
+        "prompt_or": "ଜଣେ ବାଳକ ଦାବି କଲେ ଯେ ତାର ଏକ ଦିନର ଗତିରେ 'ବିସ୍ଥାପନ ଋଣାତ୍ମକ (-୫୦ ମିଟର) ଥିଲା'। ଏହି ଦାବିର ବୈଜ୍ଞାନିକ ସତ୍ୟତା ମୂଲ୍ୟାୟନ କର।",
+        "options": [
+            {"index": 0, "text_or": "ଦାବିଟି ସମ୍ଭବ, ଯଦି ସେ ନିର୍ଦ୍ଧାରିତ ପ୍ରସଙ୍ଗ ବିନ୍ଦୁର ଧନାତ୍ମକ ଦିଗର ବିପରୀତ ଦିଗରେ ୫୦ ମିଟର ଦୂରରେ ଥାଏ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଦାବିଟି ସମ୍ପୂର୍ଣ୍ଣ ଭୁଲ କାରଣ କୌଣସି ଭୌତିକ ରାଶି ଋଣାତ୍ମକ ହୋଇପାରିବ ନାହିଁ", "misconception_tag": "rejecting_negative_vector_components", "explanation_or": "ସଦିଶ ରାଶିରେ ବିପରୀତ ଦିଗକୁ ଋଣାତ୍ମକ ଚିହ୍ନ ଦ୍ୱାରା ଦର୍ଶାଯାଏ।"},
+            {"index": 2, "text_or": "ଦାବିଟି ଭୁଲ କାରଣ ଦୂରତା ଓ ବିସ୍ଥାପନ ସର୍ବଦା ଧନାତ୍ମକ", "misconception_tag": "confusing_vector_with_scalar_positivity", "explanation_or": "ଦୂରତା ସର୍ବଦା ଧନାତ୍ମକ, ମାତ୍ର ବିସ୍ଥାପନ ଋଣାତ୍ମକ ହୋଇପାରେ।"},
+            {"index": 3, "text_or": "ଏହା କେବଳ ପାଣି ଭିତରେ ଗତି କଲେ ହିଁ ସମ୍ଭବ", "misconception_tag": "attributing_sign_to_medium", "explanation_or": "ମାଧ୍ୟମ ନୁହେଁ, ନିର୍ଦ୍ଦେଶାଙ୍କ ଦିଗ ହିଁ ଚିହ୍ନ ନିର୍ଣ୍ଣୟ କରେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବିସ୍ଥାପନ ଏକ ସଦିଶ ରାଶି। ମୂଳବିନ୍ଦୁରୁ ଗୋଟିଏ ଦିଗକୁ ଧନାତ୍ମକ ଧରିଲେ, ତାର ବିପରୀତ ଦିଗରେ ରହିଥିବା ଅନ୍ତିମ ସ୍ଥିତି ଋଣାତ୍ମକ ବିସ୍ଥାପନ ଦର୍ଶାଏ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 11. Hard - Create
+    q.append({
+        "question_id": "q_ch02_c0004_11",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "create",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ ଗ୍ରିଡ୍ (grid) ଉପରେ ଏପରି ଏକ ଗତିପଥ ଡିଜାଇନ କରନ୍ତୁ ଯେଉଁଥିରେ ଅତିକ୍ରାନ୍ତ ଦୂରତା ୨୦ ମିଟର ହେବ କିନ୍ତୁ ବିସ୍ଥାପନ କେବଳ ୧୦ ମିଟର ହେବ। କେଉଁ ପଥଟି ଏହାକୁ ପୂରଣ କରେ?",
+        "options": [
+            {"index": 0, "text_or": "ସଳଖ ରେଖାରେ ୧୫ ମିଟର ଯାଇ ସେହି ରେଖାରେ ୫ ମିଟର ପଛକୁ ଫେରିବା", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ସଳଖ ରେଖାରେ ୨୦ ମିଟର ଆଗକୁ ଚାଲିଯିବା", "misconception_tag": "creating_path_where_displacement_equals_distance", "explanation_or": "ଏଥିରେ ବିସ୍ଥାପନ ମଧ୍ୟ ୨୦ ମିଟର ହୋଇଯିବ।"},
+            {"index": 2, "text_or": "୧୦ ମିଟର ଆଗକୁ ଯାଇ ସେହି ୧୦ ମିଟର ପଛକୁ ଫେରିବା", "misconception_tag": "creating_zero_displacement_path", "explanation_or": "ଏଥିରେ ବିସ୍ଥାପନ ଶୂନ ହୋଇଯିବ।"},
+            {"index": 3, "text_or": "ଏପରି କୌଣସି ପଥ ନିର୍ମାଣ ସମ୍ଭବ ନୁହେଁ", "misconception_tag": "denying_geometrical_possibility", "explanation_or": "ଦିଗ ପରିବର୍ତ୍ତନ କରି ଏହିପରି ଅନେକ ପଥ ସୃଷ୍ଟି କରାଯାଇପାରେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ଦୂରତା = ୧୫ + ୫ = ୨୦ ମିଟର। ବିସ୍ଥାପନ = ୧୫ - ୫ = ୧୦ ମିଟର (ମୂଳବିନ୍ଦୁରୁ ଆଗକୁ)।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 12. Hard - Create
+    q.append({
+        "question_id": "q_ch02_c0004_12",
+        "concept_id": "c0004",
+        "chapter_id": "ch002",
+        "bloom_level": "create",
+        "qtype": "mcq",
+        "prompt_or": "ବିଦ୍ୟାଳୟ ଖେଳପଡ଼ିଆରେ ଛାତ୍ରମାନଙ୍କ ପାଇଁ ଏକ ଦୌଡ଼ ପ୍ରତିଯୋଗିତା ଯୋଜନା କରାଗଲା ଯେଉଁଥିରେ ଦୌଡ଼ାଳିମାନେ ୧୦୦ ମିଟର ଦୂରତା ଦୌଡ଼ିବେ କିନ୍ତୁ ସେମାନଙ୍କର ବିସ୍ଥାପନ ଶୂନ ହେବ। ଟ୍ରାକ୍‌ଟି କିପରି ଡିଜାଇନ କରାଯିବା ଉଚିତ?",
+        "options": [
+            {"index": 0, "text_or": "୧୦୦ ମିଟର ପରିଧି ବିଶିଷ୍ଟ ଏକ ବନ୍ଦ ବୃତ୍ତାକାର ଟ୍ରାକ୍ ଯେଉଁଠାରେ ଆରମ୍ଭ ଏବଂ ଶେଷ ଲାଇନ୍ ଏକା ହେବ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୧୦୦ ମିଟର ସଳଖ ଧାବନ ରାସ୍ତା", "misconception_tag": "straight_track_displacement_not_zero", "explanation_or": "ସଳଖ ରାସ୍ତାରେ ବିସ୍ଥାପନ ୧୦୦ ମିଟର ହେବ।"},
+            {"index": 2, "text_or": "୫୦ ମିଟର ଯାଇ ସେଇଠି ବସି ରହିବା", "misconception_tag": "failing_distance_requirement", "explanation_or": "ଏଥିରେ ଦୂରତା କେବଳ ୫୦ ମିଟର ହେବ।"},
+            {"index": 3, "text_or": "ଏକ ତ୍ରିଭୁଜାକାର ରାସ୍ତା ଯାହାର ମୋଟ ବାହୁ ୨୦୦ ମିଟର", "misconception_tag": "failing_distance_constraint", "explanation_or": "ପ୍ରଶ୍ନରେ ୧୦୦ ମିଟର ଦୂରତା ଉଲ୍ଲେଖ ଅଛି।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବୃତ୍ତାକାର ବା ବନ୍ଦ ଟ୍ରାକର ପରିଧି ୧୦୦ ମିଟର ହେଲେ ଗୋଟିଏ ଘେରାରେ ଦୂରତା ୧୦୦ ମିଟର ହେବ ଏବଂ ଆରମ୍ଭ ସ୍ଥାନକୁ ଫେରିବାରୁ ବିସ୍ଥାପନ ଶୂନ ହେବ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.1",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # ------------------------------------------------------------------------
+    # CONCEPT c0005: Speed and Velocity (ବେଗ ଏବଂ ବେଗତା)
+    # ------------------------------------------------------------------------
+    # 1. Easy - Remember
+    q.append({
+        "question_id": "q_ch02_c0005_01",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "remember",
+        "qtype": "mcq",
+        "prompt_or": "ଏକକ ସମୟରେ କୌଣସି ବସ୍ତୁ ଅତିକ୍ରମ କରିଥିବା ଦୂରତାକୁ କଣ କୁହାଯାଏ?",
+        "options": [
+            {"index": 0, "text_or": "ବେଗ (Speed)", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ତ୍ୱରଣ (Acceleration)", "misconception_tag": "confusing_speed_with_acceleration", "explanation_or": "ତ୍ୱରଣ ହେଉଛି ବେଗତା ପରିବର୍ତ୍ତନର ହାର।"},
+            {"index": 2, "text_or": "ବଳ (Force)", "misconception_tag": "confusing_speed_with_force", "explanation_or": "ବଳ ଏକ ପାରସ୍ପରିକ କ୍ରିୟା ଯାହା ଗତିର ପରିବର୍ତ୍ତନ ଆଣେ।"},
+            {"index": 3, "text_or": "ବିସ୍ଥାପନ (Displacement)", "misconception_tag": "confusing_rate_with_position_change", "explanation_or": "ବିସ୍ଥାପନ ସର୍ବନିମ୍ନ ଦୂରତା, ହାର ନୁହେଁ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବେଗ = ଦୂରତା / ସମୟ (Speed = Distance / Time), ଯାହା ଏକକ ସମୟରେ ଅତିକ୍ରାନ୍ତ ଦୂରତା ଅଟେ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 2. Easy - Remember
+    q.append({
+        "question_id": "q_ch02_c0005_02",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "remember",
+        "qtype": "mcq",
+        "prompt_or": "ବେଗତା (Velocity) ର SI ଏକକ ନିମ୍ନଲିଖିତ ମଧ୍ୟରୁ କେଉଁଟି ଅଟେ?",
+        "options": [
+            {"index": 0, "text_or": "କିଲୋମିଟର ପ୍ରତି ମିନିଟ (km/min)", "misconception_tag": "non_si_unit_speed", "explanation_or": "km/min ଏକ ବ୍ୟବହାରିକ ଏକକ, SI ନୁହେଁ।"},
+            {"index": 1, "text_or": "ମିଟର ପ୍ରତି ସେକେଣ୍ଡ (m/s)", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "ମିଟର ପ୍ରତି ସେକେଣ୍ଡ ବର୍ଗ (m/s²)", "misconception_tag": "confusing_velocity_unit_with_acceleration", "explanation_or": "m/s² ତ୍ୱରଣର ଏକକ।"},
+            {"index": 3, "text_or": "ଜୁଲ୍ (Joule)", "misconception_tag": "confusing_velocity_with_energy", "explanation_or": "ଜୁଲ୍ ହେଉଛି କାର୍ଯ୍ୟ ବା ଶକ୍ତିର ଏକକ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "ବେଗତା = ବିସ୍ଥାପନ (m) / ସମୟ (s), ତେଣୁ ଏହାର SI ଏକକ ହେଉଛି m/s।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 3. Easy - Understand
+    q.append({
+        "question_id": "q_ch02_c0005_03",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "understand",
+        "qtype": "mcq",
+        "prompt_or": "ବେଗ (Speed) ଏବଂ ବେଗତା (Velocity) ମଧ୍ୟରେ ମୁଖ୍ୟ ପାର୍ଥକ୍ୟ କଣ?",
+        "options": [
+            {"index": 0, "text_or": "ବେଗ ଏକ ଅଦିଶ ରାଶି ଯେଉଁଥିରେ ଦିଗ ନଥାଏ, ମାତ୍ର ବେଗତା ଏକ ସଦିଶ ରାଶି ଯେଉଁଥିରେ ନିର୍ଦ୍ଦିଷ୍ଟ ଦିଗ ଥାଏ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ବେଗ ସର୍ବଦା ବେଗତାଠାରୁ ଛୋଟ ହୋଇଥାଏ", "misconception_tag": "assuming_speed_smaller_than_velocity", "explanation_or": "ବେଗ ସର୍ବଦା ବେଗତାର ପରିମାଣ ସହ ସମାନ ବା ଅଧିକ ହୁଏ।"},
+            {"index": 2, "text_or": "ବେଗତାର କୌଣସି SI ଏକକ ନଥାଏ", "misconception_tag": "denying_units_for_velocity", "explanation_or": "ଉଭୟ ବେଗ ଓ ବେଗତାର SI ଏକକ m/s ଅଟେ।"},
+            {"index": 3, "text_or": "ବେଗ କେବଳ ମଣିଷ ପାଇଁ ଏବଂ ବେଗତା ଯାନବାହନ ପାଇଁ ପ୍ରଯୁଜ୍ୟ", "misconception_tag": "associating_physics_terms_with_objects", "explanation_or": "ଭୌତିକ ବିଜ୍ଞାନର ନିୟମ ସମସ୍ତ ଗତିଶୀଳ ବସ୍ତୁ ପାଇଁ ସମାନ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବେଗ ହେଉଛି ଅଦିଶ (କେବଳ ମାନ), ଯେତେବେଳେ କି ବେଗତା ହେଉଛି ସଦିଶ (ନିର୍ଦ୍ଦିଷ୍ଟ ଦିଗ ସହିତ ବେଗ)।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 4. Easy - Understand
+    q.append({
+        "question_id": "q_ch02_c0005_04",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "understand",
+        "qtype": "mcq",
+        "prompt_or": "ଯଦି କୌଣସି ବସ୍ତୁ ସମାନ ସମୟ ବ୍ୟବଧାନରେ ସମାନ ଦୂରତା ଅତିକ୍ରମ କରେ, ତେବେ ତାର ଗତିକୁ କିପରି ଗତି କୁହାଯାଏ?",
+        "options": [
+            {"index": 0, "text_or": "ସୁଷମ ଗତି (Uniform motion)", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଅସମ ଗତି (Non-uniform motion)", "misconception_tag": "confusing_uniform_with_non_uniform", "explanation_or": "ଅସମ ଗତିରେ ସମାନ ସମୟରେ ଅସମାନ ଦୂରତା ଅତିକ୍ରମ ହୁଏ।"},
+            {"index": 2, "text_or": "ତ୍ୱରିତ ଗତି (Accelerated motion)", "misconception_tag": "confusing_constant_speed_with_acceleration", "explanation_or": "ସୁଷମ ସରଳରୈଖିକ ଗତିରେ ତ୍ୱରଣ ଶୂନ ଥାଏ।"},
+            {"index": 3, "text_or": "ବିରାମ ଅବସ୍ଥା (Rest)", "misconception_tag": "confusing_motion_with_rest", "explanation_or": "ବସ୍ତୁ ଦୂରତା ଅତିକ୍ରମ କରୁଥିବାରୁ ଏହା ଗତିଶୀଳ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ସମାନ ସମୟ ବ୍ୟବଧାନରେ ସମାନ ଦୂରତା ଅତିକ୍ରମ କରୁଥିବା ଗତିକୁ ସୁଷମ ଗତି କୁହାଯାଏ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 5. Medium - Apply
+    q.append({
+        "question_id": "q_ch02_c0005_05",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "apply",
+        "qtype": "mcq",
+        "prompt_or": "୭୨ କିଲୋମିଟର ପ୍ରତି ଘଣ୍ଟା (km/h) ବେଗରେ ଚାଲୁଥିବା ଏକ କାରର ବେଗ SI ଏକକ (m/s) ରେ କେତେ ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "୧୦ m/s", "misconception_tag": "incorrect_conversion_factor", "explanation_or": "୫/୧୮ ଗୁଣନ କରିବା ପରିବର୍ତ୍ତେ ଅନ୍ୟ ସଂଖ୍ୟା ନିଆଯାଇଛି।"},
+            {"index": 1, "text_or": "୨୦ m/s", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "୭୨ m/s", "misconception_tag": "ignoring_unit_conversion", "explanation_or": "km/h ଏବଂ m/s ସମାନ ସଂଖ୍ୟା ନୁହଁନ୍ତି।"},
+            {"index": 3, "text_or": "୨୫୯.୨ m/s", "misconception_tag": "multiplying_by_18_over_5", "explanation_or": "m/s ରୁ km/h କରିବା ବେଳେ ୧୮/୫ ଗୁଣାଯାଏ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "km/h ରୁ m/s କରିବା ପାଇଁ ୫/୧୮ ଦ୍ୱାରା ଗୁଣନ କରାଯାଏ: ୭୨ × (୫ / ୧୮) = ୪ × ୫ = ୨୦ m/s।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 6. Medium - Apply
+    q.append({
+        "question_id": "q_ch02_c0005_06",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "apply",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ ବସ୍ ପ୍ରଥମ ଘଣ୍ଟାରେ ୩୦ କିମି ଏବଂ ପରବର୍ତ୍ତୀ ୨ ଘଣ୍ଟାରେ ୯୦ କିମି ଦୂରତା ଅତିକ୍ରମ କଲା। ବସର ହାରାହାରି ବେଗ (Average speed) କେତେ?",
+        "options": [
+            {"index": 0, "text_or": "୪୦ km/h", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୬୦ km/h", "misconception_tag": "averaging_individual_speeds", "explanation_or": "ପ୍ରତ୍ୟେକ ବେଗର ସାଧାରଣ ହାରାହାରି କଲେ ସମୟର ଓଜନ ହଜିଯାଏ।"},
+            {"index": 2, "text_or": "୧୨୦ km/h", "misconception_tag": "adding_distances_without_dividing_total_time", "explanation_or": "ମୋଟ ଦୂରତାକୁ ମୋଟ ସମୟ ଦ୍ୱାରା ଭାଗ କରିବା ଦରକାର।"},
+            {"index": 3, "text_or": "୩୦ km/h", "misconception_tag": "taking_first_speed", "explanation_or": "ହାରାହାରି ବେଗ ସମଗ୍ର ଯାତ୍ରା ପାଇଁ ଗଣନା ହୁଏ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ମୋଟ ଦୂରତା = ୩୦ + ୯୦ = ୧୨୦ କିମି। ମୋଟ ସମୟ = ୧ + ୨ = ୩ ଘଣ୍ଟା। ହାରାହାରି ବେଗ = ୧୨୦ / ୩ = ୪୦ km/h।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 7. Medium - Analyze
+    q.append({
+        "question_id": "q_ch02_c0005_07",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "analyze",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ କାର ସ୍ଥିର ବେଗ (constant speed) ୪୦ km/h ରେ ଏକ ବୃତ୍ତାକାର ରାସ୍ତାରେ ଘୁରୁଛି। କାରର ବେଗତା (velocity) ସମ୍ପର୍କରେ କେଉଁ ବିଶ୍ଳେଷଣଟି ସଠିକ୍?",
+        "options": [
+            {"index": 0, "text_or": "କାରର ବେଗତା ନିରନ୍ତର ବଦଳୁଛି କାରଣ ପ୍ରତି ମୁହୂର୍ତ୍ତରେ ଗତିର ଦିଗ ପରିବର୍ତ୍ତିତ ହେଉଛି", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "କାରର ବେଗତା ସମ୍ପୂର୍ଣ୍ଣ ସ୍ଥିର ଅଛି କାରଣ ସଂଖ୍ୟାତ୍ମକ ମାନ ୪୦ km/h ବଦଳୁନାହିଁ", "misconception_tag": "ignoring_direction_in_velocity", "explanation_or": "ବେଗତାରେ ଦିଗ ମଧ୍ୟ ଅନ୍ତର୍ଭୁକ୍ତ; ଦିଗ ବଦଳିଲେ ବେଗତା ବଦଳେ।"},
+            {"index": 2, "text_or": "କାରର ବେଗତା ଶୂନ ହୋଇଯାଇଛି", "misconception_tag": "confusing_changing_velocity_with_zero", "explanation_or": "କାର ୪୦ km/h ବେଗରେ ଚାଲୁଥିବାରୁ ଏହାର ବେଗତା ଅଶୂନ୍ୟ।"},
+            {"index": 3, "text_or": "ବୃତ୍ତାକାର ଗତିରେ ବେଗତା ଶବ୍ଦଟି ପ୍ରଯୁଜ୍ୟ ନୁହେଁ", "misconception_tag": "denying_velocity_in_circular_motion", "explanation_or": "ବୃତ୍ତାକାର ଗତିରେ ସ୍ପର୍ଶକୀୟ ବେଗତା ରହିଥାଏ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବେଗତା ଏକ ସଦିଶ ରାଶି। ମାନ ସମାନ ଥିଲେ ମଧ୍ୟ ବୃତ୍ତାକାର ପଥରେ ପ୍ରତି ବିନ୍ଦୁରେ ଦିଗ ବଦଳୁଥିବାରୁ ବେଗତା ପରିବର୍ତ୍ତିତ ହୁଏ।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 8. Medium - Analyze
+    q.append({
+        "question_id": "q_ch02_c0005_08",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "analyze",
+        "qtype": "mcq",
+        "prompt_or": "ଦୂରତା-ସମୟ ଗ୍ରାଫ୍ (Distance-Time graph) ରେ ଏକ ସରଳରେଖାର ଢାଳୁ ବା ସ୍ଲୋପ୍ (slope) କେଉଁ ଭୌତିକ ରାଶିକୁ ସୂଚିତ କରେ?",
+        "options": [
+            {"index": 0, "text_or": "ତ୍ୱରଣ", "misconception_tag": "confusing_slope_with_acceleration", "explanation_or": "ତ୍ୱରଣ ହେଉଛି ବେଗତା-ସମୟ ଗ୍ରାଫର ଢାଳୁ।"},
+            {"index": 1, "text_or": "ବେଗ (Speed)", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "ବିସ୍ଥାପନ", "misconception_tag": "confusing_slope_with_coordinate", "explanation_or": "ବିସ୍ଥାପନ ଏକ ସ୍ଥିତି ରାଶି, ହାର ନୁହେଁ।"},
+            {"index": 3, "text_or": "ବସ୍ତୁତ୍ୱ", "misconception_tag": "introducing_unrelated_concept", "explanation_or": "ଦୂରତା-ସମୟ ଗ୍ରାଫରେ ବସ୍ତୁତ୍ୱ ଆସେ ନାହିଁ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "ଦୂରତା-ସମୟ ଗ୍ରାଫରେ slope = ଦୂରତା ପରିବର୍ତ୍ତନ / ସମୟ ବ୍ୟବଧାନ = ବେଗ (Speed)।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 9. Hard - Evaluate
+    q.append({
+        "question_id": "q_ch02_c0005_09",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "evaluate",
+        "qtype": "mcq",
+        "prompt_or": "ଜଣେ ଛାତ୍ର କହିଲେ: 'ଗୋଟିଏ ଯାତ୍ରାରେ ହାରାହାରି ବେଗ (Average speed) ୫୦ km/h ଥିବାବେଳେ ହାରାହାରି ବେଗତା (Average velocity) ଶୂନ ହୋଇପାରେ।' ଏହି ଉକ୍ତିଟିର ବୈଜ୍ଞାନିକ ବିଶ୍ଳେଷଣ କର।",
+        "options": [
+            {"index": 0, "text_or": "ଉକ୍ତିଟି ସତ୍ୟ, ଯଦି ବସ୍ତୁଟି ଗୋଟିଏ ସ୍ଥାନରୁ ବାହାରି ପୁନର୍ବାର ସେହି ମୂଳ ସ୍ଥାନକୁ ଫେରିଆସେ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଉକ୍ତିଟି ଭୁଲ, କାରଣ ହାରାହାରି ବେଗ ଓ ହାରାହାରି ବେଗତା ସର୍ବଦା ପରସ୍ପର ସମାନ ହେବା ବାଧ୍ୟ", "misconception_tag": "assuming_average_speed_always_equals_velocity", "explanation_or": "ବିସ୍ଥାପନ ଶୂନ ହେଲେ ହାରାହାରି ବେଗତା ଶୂନ ହୁଏ, କିନ୍ତୁ ଦୂରତା ଶୂନ ନୁହେଁ।"},
+            {"index": 2, "text_or": "ଉକ୍ତିଟି ଭୁଲ କାରଣ ବେଗତା କେବେ ଶୂନ ହୋଇପାରିବ ନାହିଁ", "misconception_tag": "believing_velocity_cannot_be_zero", "explanation_or": "ଅନ୍ତିମ ବିସ୍ଥାପନ ଶୂନ ହେଲେ ବେଗତା ଶୂନ ହୁଏ।"},
+            {"index": 3, "text_or": "ଏହା କେବଳ ମହାକାଶଯାନ କ୍ଷେତ୍ରରେ ହିଁ ସତ୍ୟ ହୋଇପାରେ", "misconception_tag": "restricting_kinematics_to_spacecraft", "explanation_or": "ଘରୁ ସ୍କୁଲ ଯାଇ ଘରକୁ ଫେରିଲେ ଏହା ଘଟେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ମୋଟ ବିସ୍ଥାପନ ଶୂନ ହେଲେ ହାରାହାରି ବେଗତା = ୦ / ସମୟ = ୦। କିନ୍ତୁ ଅତିକ୍ରାନ୍ତ ମୋଟ ଦୂରତା ଅଶୂନ୍ୟ ହୋଇଥିବାରୁ ହାରାହାରି ବେଗ ୫୦ km/h ରହିପାରିବ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 10. Hard - Evaluate
+    q.append({
+        "question_id": "q_ch02_c0005_10",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "evaluate",
+        "qtype": "mcq",
+        "prompt_or": "ସିଧା ଉପରକୁ ଫିଙ୍ଗାଯାଇଥିବା ଏକ ବଲ୍ ସର୍ବୋଚ୍ଚ ବିନ୍ଦୁରେ ପହଞ୍ଚିବା ମୁହୂର୍ତ୍ତରେ ତାର ବେଗତା ଏବଂ ତ୍ୱରଣ କିପରି ଥାଏ?",
+        "options": [
+            {"index": 0, "text_or": "ବେଗତା ଶୂନ ହୁଏ କିନ୍ତୁ ତ୍ୱରଣ ତଳମୁଖୀ ୯.୮ m/s² ଥାଏ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଉଭୟ ବେଗତା ଏବଂ ତ୍ୱରଣ ଶୂନ ହୋଇଯାଆନ୍ତି", "misconception_tag": "assuming_zero_velocity_implies_zero_acceleration", "explanation_or": "ପୃଥିବୀର ମାଧ୍ୟାକର୍ଷଣ ବଳ ସର୍ବୋଚ୍ଚ ବିନ୍ଦୁରେ ମଧ୍ୟ କାର୍ଯ୍ୟ କରେ।"},
+            {"index": 2, "text_or": "ବେଗତା ସର୍ବାଧିକ ଏବଂ ତ୍ୱରଣ ଶୂନ ହୁଏ", "misconception_tag": "reversing_peak_kinematics", "explanation_or": "ସର୍ବୋଚ୍ଚ ବିନ୍ଦୁରେ ବଲ୍ କ୍ଷଣିକ ପାଇଁ ସ୍ଥିର ହୁଏ।"},
+            {"index": 3, "text_or": "ବଲ୍‌ଟି ସେହି ସ୍ଥାନରେ ଚିରଦିନ ପାଇଁ ଭାସି ରହେ", "misconception_tag": "assuming_permanent_levitation", "explanation_or": "ମାଧ୍ୟାକର୍ଷଣ ଯୋଗୁଁ ବଲ୍ ତଳକୁ ଖସିବାକୁ ଲାଗେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ସର୍ବୋଚ୍ଚ ବିନ୍ଦୁରେ ତାତ୍କାଳିକ ବେଗତା v = ୦ ହୋଇଥାଏ, ମାତ୍ର ମାଧ୍ୟାକର୍ଷଣଜନିତ ତ୍ୱରଣ g ସର୍ବଦା ପୃଥିବୀ କେନ୍ଦ୍ର ଆଡ଼କୁ (୯.୮ m/s²) କାର୍ଯ୍ୟ କରେ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 11. Hard - Create
+    q.append({
+        "question_id": "q_ch02_c0005_11",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "create",
+        "qtype": "mcq",
+        "prompt_or": "ବିଦ୍ୟାଳୟ ବାରଣ୍ଡାରେ ଛାତ୍ରମାନଙ୍କ ଚାଲିବାର ହାରାହାରି ବେଗ ମାପିବା ପାଇଁ ଆପଣ କେଉଁ ସରଳ ଉପକରଣ ଓ ପଦ୍ଧତିର ଯୋଜନା ପ୍ରସ୍ତୁତ କରିବେ?",
+        "options": [
+            {"index": 0, "text_or": "ମାପକ ଫିତା ଦ୍ୱାରା ଏକ ନିର୍ଦ୍ଦିଷ୍ଟ ଦୂରତା (ଯଥା ୨୦ ମିଟର) ଚିହ୍ନିତ କରି ଷ୍ଟପୱାଚ୍ ସାହାଯ୍ୟରେ ସମୟ ମାପି ଦୂରତା/ସମୟ ଗଣନା କରିବା", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ପାଦ ଗଣନା କରି ତାହାକୁ ଓଜନ ଦ୍ୱାରା ଗୁଣନ କରିବା", "misconception_tag": "confusing_speed_with_steps_times_weight", "explanation_or": "ବେଗ ଗଣନାରେ ଓଜନର କୌଣସି ସମ୍ପର୍କ ନାହିଁ।"},
+            {"index": 2, "text_or": "ଏକ ଥର୍ମୋମିଟର ଲଗାଇ ତାପମାତ୍ରାର ପରିବର୍ତ୍ତନରୁ ହିସାବ କରିବା", "misconception_tag": "using_thermal_sensor_for_speed", "explanation_or": "ଥର୍ମୋମିଟର ଗତିଶୀଳତା ମାପିପାରିବ ନାହିଁ।"},
+            {"index": 3, "text_or": "କେବଳ ଦୌଡ଼ିବା ଶବ୍ଦ ଶୁଣି ଅନୁମାନ କରିବା", "misconception_tag": "estimating_speed_by_sound", "explanation_or": "ବୈଜ୍ଞାନିକ ମାପରେ ସଠିକ୍ ପରିମାଣାତ୍ମକ ଉପକରଣ ଆବଶ୍ୟକ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବେଗ = ଦୂରତା / ସମୟ ସୂତ୍ର ପ୍ରୟୋଗ କରିବା ପାଇଁ ଫିତାରେ ଦୂରତା ଏବଂ ଷ୍ଟପୱାଚ୍‌ରେ ଅତିକ୍ରମଣ ସମୟ ମାପିବା ସଠିକ୍ ବୈଜ୍ଞାନିକ ଯୋଜନା ଅଟେ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 12. Hard - Create
+    q.append({
+        "question_id": "q_ch02_c0005_12",
+        "concept_id": "c0005",
+        "chapter_id": "ch002",
+        "bloom_level": "create",
+        "qtype": "mcq",
+        "prompt_or": "ଗୋଟିଏ ଟ୍ରେନ ପ୍ରଥମ ୧୦୦ କିମି ୫୦ km/h ବେଗରେ ଗଲା। ପରବର୍ତ୍ତୀ ୧୦୦ କିମିକୁ କେତେ ବେଗରେ ଚଳାଇଲେ ସମଗ୍ର ୨୦୦ କିମି ଯାତ୍ରାର ହାରାହାରି ବେଗ ୬୬.୬୭ km/h (ବା ୨୦୦/୩ km/h) ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "୧୦୦ km/h", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୭୫ km/h", "misconception_tag": "averaging_speeds_directly", "explanation_or": "ସିଧାସଳଖ (୫୦ + v)/୨ = ୬୬.୬୭ ଧରିଲେ ଭୁଲ ଉତ୍ତର ଆସେ।"},
+            {"index": 2, "text_or": "୬୦ km/h", "misconception_tag": "underestimating_required_speed", "explanation_or": "୬୦ km/h ରେ ଗଲେ ଆବଶ୍ୟକ ହାରାହାରି ବେଗ ହାସଲ ହେବ ନାହିଁ।"},
+            {"index": 3, "text_or": "୮୦ km/h", "misconception_tag": "approximate_guess", "explanation_or": "ସମୟ ସମୀକରଣ ଅନୁସାରେ ସଠିକ୍ ମାନ ୧୦୦ km/h ଅଟେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ମୋଟ ସମୟ T = ୨୦୦ / (୨୦୦/୩) = ୩ ଘଣ୍ଟା। ପ୍ରଥମ ଭାଗରେ ସମୟ t₁ = ୧୦୦ / ୫୦ = ୨ ଘଣ୍ଟା। ଦ୍ୱିତୀୟ ଭାଗ ପାଇଁ ବାକି ସମୟ t₂ = ୧ ଘଣ୍ଟା। ବେଗ v₂ = ୧୦୦ / ୧ = ୧୦୦ km/h।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.2",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # ------------------------------------------------------------------------
+    # CONCEPT c0006: Acceleration (ତ୍ୱରଣ)
+    # ------------------------------------------------------------------------
+    # 1. Easy - Remember
+    q.append({
+        "question_id": "q_ch02_c0006_01",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "remember",
+        "qtype": "mcq",
+        "prompt_or": "ବେଗତା ପରିବର୍ତ୍ତନର ହାରକୁ ନିମ୍ନଲିଖିତ ମଧ୍ୟରୁ କଣ କୁହାଯାଏ?",
+        "options": [
+            {"index": 0, "text_or": "ତ୍ୱରଣ (Acceleration)", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ବିସ୍ଥାପନ (Displacement)", "misconception_tag": "confusing_acceleration_with_displacement", "explanation_or": "ବିସ୍ଥାପନ ସ୍ଥିତିର ପରିବର୍ତ୍ତନ ଅଟେ।"},
+            {"index": 2, "text_or": "ସଂବେଗ (Momentum)", "misconception_tag": "confusing_acceleration_with_momentum", "explanation_or": "ସଂବେଗ ହେଉଛି ବସ୍ତୁତ୍ୱ × ବେଗ।"},
+            {"index": 3, "text_or": "ଶକ୍ତି (Energy)", "misconception_tag": "confusing_acceleration_with_energy", "explanation_or": "ଶକ୍ତି କାର୍ଯ୍ୟ କରିବାର ସାମର୍ଥ୍ୟ ଅଟେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ସମୟ ସହିତ ବେଗତାର ପରିବର୍ତ୍ତନ ହାରକୁ ତ୍ୱରଣ କୁହାଯାଏ (a = (v - u) / t)।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 2. Easy - Remember
+    q.append({
+        "question_id": "q_ch02_c0006_02",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "remember",
+        "qtype": "mcq",
+        "prompt_or": "SI ପଦ୍ଧତିରେ ତ୍ୱରଣର ଏକକ କେଉଁଟି ଅଟେ?",
+        "options": [
+            {"index": 0, "text_or": "ମିଟର ପ୍ରତି ସେକେଣ୍ଡ (m/s)", "misconception_tag": "confusing_acceleration_unit_with_velocity", "explanation_or": "m/s ବେଗତାର ଏକକ ଅଟେ।"},
+            {"index": 1, "text_or": "ମିଟର ପ୍ରତି ସେକେଣ୍ଡ ବର୍ଗ (m/s²)", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "କିଲୋମିଟର ପ୍ରତି ସେକେଣ୍ଡ (km/s)", "misconception_tag": "non_si_velocity_unit", "explanation_or": "ଏହା SI ଏକକ ନୁହେଁ।"},
+            {"index": 3, "text_or": "ନ୍ୟୁଟନ ପ୍ରତି ମିଟର (N/m)", "misconception_tag": "confusing_acceleration_with_spring_constant", "explanation_or": "N/m ସ୍ପ୍ରିଙ୍ଗ ସ୍ଥିରାଙ୍କର ଏକକ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "ବେଗତା (m/s) କୁ ସମୟ (s) ଦ୍ୱାରା ଭାଗ କରାଯାଉଥିବାରୁ SI ଏକକ m/s² ଅଟେ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 3. Easy - Understand
+    q.append({
+        "question_id": "q_ch02_c0006_03",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "understand",
+        "qtype": "mcq",
+        "prompt_or": "ଗତିଶୀଳ ଗାଡ଼ିରେ ବ୍ରେକ୍ ଲଗାଇଲେ ବେଗ କମିଯାଏ; ଏହି କ୍ଷେତ୍ରରେ ସୃଷ୍ଟି ହେଉଥିବା ଋଣାତ୍ମକ ତ୍ୱରଣକୁ କଣ କୁହାଯାଏ?",
+        "options": [
+            {"index": 0, "text_or": "ସୁଷମ ତ୍ୱରଣ", "misconception_tag": "confusing_uniform_with_negative", "explanation_or": "ସୁଷମ ତ୍ୱରଣ ଧନାତ୍ମକ ବା ଋଣାତ୍ମକ ଉଭୟ ହୋଇପାରେ।"},
+            {"index": 1, "text_or": "ମନ୍ଦନ (Retardation ବା Deceleration)", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "କେନ୍ଦ୍ରାଭିମୁଖୀ ବଳ", "misconception_tag": "confusing_linear_deceleration_with_centripetal", "explanation_or": "କେନ୍ଦ୍ରାଭିମୁଖୀ ବଳ ବୃତ୍ତାକାର ଗତିରେ ଥାଏ।"},
+            {"index": 3, "text_or": "ଚରମ ବେଗତା", "misconception_tag": "confusing_deceleration_with_terminal_velocity", "explanation_or": "ଚରମ ବେଗତା ପତନ ସମୟର ସର୍ବାଧିକ ବେଗ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "ବେଗତା ହ୍ରାସ ପାଇବା ସମୟର ଋଣାତ୍ମକ ତ୍ୱରଣକୁ ମନ୍ଦନ କୁହାଯାଏ ଏବଂ ଏହାର ଦିଗ ବେଗର ବିପରୀତରେ ଥାଏ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 4. Easy - Understand
+    q.append({
+        "question_id": "q_ch02_c0006_04",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "understand",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ ସରଳରେଖାରେ ସ୍ଥିର ବେଗରେ (uniform velocity) ଗତି କରୁଥିବା ବସ୍ତୁର ତ୍ୱରଣ କେତେ ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "ଶୂନ (Zero)", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୯.୮ m/s²", "misconception_tag": "assuming_gravity_always_applies_horizontally", "explanation_or": "୯.୮ m/s² କେବଳ ଉଲମ୍ବ ମାଧ୍ୟାକର୍ଷଣ ତ୍ୱରଣ।"},
+            {"index": 2, "text_or": "ଅନନ୍ତ (Infinite)", "misconception_tag": "confusing_steady_motion_with_infinite_acceleration", "explanation_or": "ବେଗତା ବଦଳୁନଥିଲେ ତ୍ୱରଣ ଶୂନ ହୁଏ।"},
+            {"index": 3, "text_or": "ବସ୍ତୁର ବସ୍ତୁତ୍ୱ ସହ ସମାନ", "misconception_tag": "confusing_acceleration_with_mass", "explanation_or": "ତ୍ୱରଣ ବେଗ ପରିବର୍ତ୍ତନ ଉପରେ ନିର୍ଭର କରେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ସ୍ଥିର ବେଗତାରେ v = u ହୋଇଥିବାରୁ a = (v - u) / t = ୦ / t = ୦ m/s² ହୁଏ।",
+        "difficulty": "easy",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 5. Medium - Apply
+    q.append({
+        "question_id": "q_ch02_c0006_05",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "apply",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ କାରର ବେଗତା ୫ ସେକେଣ୍ଡରେ ୧୦ m/s ରୁ ବୃଦ୍ଧି ପାଇ ୩୦ m/s ହେଲା। କାରର ତ୍ୱରଣ କେତେ?",
+        "options": [
+            {"index": 0, "text_or": "୪ m/s²", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୮ m/s²", "misconception_tag": "dividing_final_velocity_only", "explanation_or": "କେବଳ ଅନ୍ତିମ ବେଗକୁ ସମୟ ଦ୍ୱାରା ଭାଗ କଲେ ହେବ ନାହିଁ, (v-u)/t ଦରକାର।"},
+            {"index": 2, "text_or": "୨୦ m/s²", "misconception_tag": "subtracting_without_dividing_time", "explanation_or": "ବେଗ ପରିବର୍ତ୍ତନ ୨୦ m/s, କିନ୍ତୁ ସମୟ ୫ ସେକେଣ୍ଡ ଦ୍ୱାରା ଭାଗ କରିବାକୁ ହେବ।"},
+            {"index": 3, "text_or": "୨ m/s²", "misconception_tag": "calculation_error", "explanation_or": "୨୦/୫ = ୪ m/s²।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ତ୍ୱରଣ a = (v - u) / t = (୩୦ - ୧୦) / ୫ = ୨୦ / ୫ = ୪ m/s²।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 6. Medium - Apply
+    q.append({
+        "question_id": "q_ch02_c0006_06",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "apply",
+        "qtype": "mcq",
+        "prompt_or": "ସ୍ଥିରାବସ୍ଥାରୁ (u = 0) ଯାତ୍ରା ଆରମ୍ଭ କରି ଏକ ଟ୍ରେନ ୨ m/s² ସୁଷମ ତ୍ୱରଣରେ ୧୦ ସେକେଣ୍ଡ ଗତି କଲା। ଏହି ସମୟ ମଧ୍ୟରେ ଟ୍ରେନ ଅତିକ୍ରମ କରିଥିବା ଦୂରତା (s) କେତେ?",
+        "options": [
+            {"index": 0, "text_or": "୨୦ ମିଟର", "misconception_tag": "using_speed_formula_instead_of_acceleration", "explanation_or": "s = ut + (1/2)at² ପ୍ରୟୋଗ କରିବା ଆବଶ୍ୟକ।"},
+            {"index": 1, "text_or": "୧୦୦ ମିଟର", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "୨୦୦ ମିଟର", "misconception_tag": "forgetting_half_in_formula", "explanation_or": "ସୂତ୍ରରେ ୧/୨ ଗୁଣିତ ହୁଏ; at² = ୨ × ୧୦୦ = ୨୦୦, ତାର ଅଧା ୧୦୦।"},
+            {"index": 3, "text_or": "୫୦ ମିଟର", "misconception_tag": "dividing_by_four", "explanation_or": "(1/2) × ୨ × ୧୦² = ୧୦୦ ମିଟର।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "s = ut + (1/2)at² = ୦ × ୧୦ + (୧/୨) × ୨ × (୧୦)² = ୧ × ୧୦୦ = ୧୦୦ ମିଟର।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.5",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 7. Medium - Analyze
+    q.append({
+        "question_id": "q_ch02_c0006_07",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "analyze",
+        "qtype": "mcq",
+        "prompt_or": "ବେଗତା-ସମୟ ଗ୍ରାଫ୍ (Velocity-Time graph) ରେ ବକ୍ରରେଖା ଏବଂ ସମୟ ଅକ୍ଷ ମଧ୍ୟବର୍ତ୍ତୀ କ୍ଷେତ୍ରଫଳ (area under the curve) କେଉଁ ଭୌତିକ ରାଶିକୁ ପ୍ରକାଶ କରେ?",
+        "options": [
+            {"index": 0, "text_or": "ତ୍ୱରଣ", "misconception_tag": "confusing_area_with_slope", "explanation_or": "ଗ୍ରାଫର ଢାଳୁ (slope) ତ୍ୱରଣ ଦର୍ଶାଏ, କ୍ଷେତ୍ରଫଳ ନୁହେଁ।"},
+            {"index": 1, "text_or": "ବିସ୍ଥାପନ ବା ଅତିକ୍ରାନ୍ତ ଦୂରତା", "misconception_tag": None, "explanation_or": None},
+            {"index": 2, "text_or": "ପ୍ରୟୋଗ କରାଯାଇଥିବା ବଳ", "misconception_tag": "confusing_kinematics_with_dynamics", "explanation_or": "ବେଗତା-ସମୟ କ୍ଷେତ୍ରଫଳ ଦୂରତା ମିଟରରେ ଦିଏ।"},
+            {"index": 3, "text_or": "ସମୁଦାୟ ସମୟ", "misconception_tag": "confusing_area_with_horizontal_axis", "explanation_or": "ସମୟ X-ଅକ୍ଷ ଦ୍ୱାରା ଦର୍ଶାଯାଏ।"}
+        ],
+        "correct_option": 1,
+        "explanation_or": "ବେଗତା (m/s) × ସମୟ (s) = ମିଟର (m)। ତେଣୁ Velocity-Time ଗ୍ରାଫର କ୍ଷେତ୍ରଫଳ ବସ୍ତୁର ବିସ୍ଥାପନ ବା ଦୂରତା ଦର୍ଶାଏ।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.4",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 8. Medium - Analyze
+    q.append({
+        "question_id": "q_ch02_c0006_08",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "analyze",
+        "qtype": "mcq",
+        "prompt_or": "ପୃଥିବୀ ପୃଷ୍ଠକୁ ମୁକ୍ତ ଭାବେ ତଳକୁ ଖସୁଥିବା ଏକ ଭାରୀ ପଥର ଏବଂ ଏକ ହାଲୁକା ପର (feather) କ୍ଷେତ୍ରରେ ବାୟୁ ଶୂନ୍ୟସ୍ଥାନରେ (vacuum) କଣ ଘଟିବ?",
+        "options": [
+            {"index": 0, "text_or": "ଉଭୟ ସମାନ ତ୍ୱରଣ (g = ୯.୮ m/s²) ରେ ଖସି ଏକା ସାଙ୍ଗରେ ଭୂମି ସ୍ପର୍ଶ କରିବେ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଭାରୀ ପଥରଟି ଦ୍ରୁତ ତ୍ୱରଣ ପାଇ ଆଗ ଭୂମି ଛୁଇଁବ", "misconception_tag": "aristotelian_fallacy_mass_determines_fall_speed", "explanation_or": "ମାଧ୍ୟାକର୍ଷଣ ତ୍ୱରଣ ବସ୍ତୁତ୍ୱ ଉପରେ ନିର୍ଭର କରେ ନାହିଁ।"},
+            {"index": 2, "text_or": "ହାଲୁକା ପରଟି ମହାକାଶକୁ ଉଡ଼ିଯିବ", "misconception_tag": "assuming_light_objects_float_in_vacuum", "explanation_or": "ଶୂନ୍ୟସ୍ଥାନରେ ମଧ୍ୟ ମାଧ୍ୟାକର୍ଷଣ ବଳ ସମାନ ଭାବେ କାର୍ଯ୍ୟ କରେ।"},
+            {"index": 3, "text_or": "ଉଭୟଙ୍କ ତ୍ୱରଣ ଶୂନ ହୋଇଯିବ", "misconception_tag": "confusing_vacuum_with_zero_gravity", "explanation_or": "ବାୟୁ ଶୂନ୍ୟତାର ଅର୍ଥ ମାଧ୍ୟାକର୍ଷଣ ଶୂନ୍ୟତା ନୁହେଁ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ବାୟୁ ବାଧା ଅନୁପସ୍ଥିତିରେ ମୁକ୍ତ ପତନ ହେଉଥିବା ସମସ୍ତ ବସ୍ତୁର ତ୍ୱରଣ g ସମାନ ରହେ; ଗାଲିଲିଓ ଏହା ପ୍ରମାଣିତ କରିଥିଲେ।",
+        "difficulty": "medium",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.5",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 9. Hard - Evaluate
+    q.append({
+        "question_id": "q_ch02_c0006_09",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "evaluate",
+        "qtype": "mcq",
+        "prompt_or": "ଜଣେ ଡ୍ରାଇଭର କାରର ପ୍ରାରମ୍ଭିକ ବେଗକୁ ୨ ଗୁଣ ବୃଦ୍ଧି କଲେ (ଯଥା ୨୦ m/s ରୁ ୪୦ m/s)। ସମାନ ବ୍ରେକିଂ ବଳ ପ୍ରୟୋଗ କଲେ କାରଟି ଅଟକିବା ପୂର୍ବରୁ ଅତିକ୍ରମ କରୁଥିବା ଦୂରତା (stopping distance) କିପରି ପରିବର୍ତ୍ତିତ ହେବ?",
+        "options": [
+            {"index": 0, "text_or": "ଦୂରତା ୪ ଗୁଣ ବୃଦ୍ଧି ପାଇବ କାରଣ v² - u² = 2as ଅନୁସାରେ ଦୂରତା ବେଗର ବର୍ଗ ସହ ସମାନୁପାତୀ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଦୂରତା କେବଳ ୨ ଗୁଣ ବଢ଼ିବ କାରଣ ବେଗ ୨ ଗୁଣ ହୋଇଛି", "misconception_tag": "assuming_linear_stopping_distance", "explanation_or": "ଦୂରତା ସିଧାସଳଖ u ସହ ନୁହେଁ, u² ସହିତ ସମାନୁପାତୀ।"},
+            {"index": 2, "text_or": "ଦୂରତା ଅପରିବର୍ତ୍ତିତ ରହିବ କାରଣ ବ୍ରେକ୍ ସମାନ", "misconception_tag": "ignoring_initial_kinetic_energy", "explanation_or": "ଅଧିକ ବେଗ ଥିବା ଗାଡ଼ିକୁ ଅଟକାଇବାକୁ ଅଧିକ ଦୂରତା ଲାଗେ।"},
+            {"index": 3, "text_or": "ଦୂରତା ଅଧା ହୋଇଯିବ", "misconception_tag": "inverting_relationship", "explanation_or": "ବେଗ ବଢ଼ିଲେ ବ୍ରେକିଂ ଦୂରତା ବୃଦ୍ଧି ପାଏ, ହ୍ରାସ ନୁହେଁ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "v = ୦ ହେଲେ, ୦ - u² = ୨as ⇒ s = u² / (୨|a|)। ତେଣୁ ପ୍ରାରମ୍ଭିକ ବେଗ u ଦୁଇଗୁଣ ହେଲେ ଅଟକିବା ଦୂରତା s ଚାରିଗୁଣ (୨² = ୪) ହୋଇଯାଏ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.5",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 10. Hard - Evaluate
+    q.append({
+        "question_id": "q_ch02_c0006_10",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "evaluate",
+        "qtype": "mcq",
+        "prompt_or": "କୌଣସି ବସ୍ତୁର କୌଣସି ଏକ ନିର୍ଦ୍ଦିଷ୍ଟ ମୁହୂର୍ତ୍ତରେ ବେଗତା ଶୂନ ଥାଇ ମଧ୍ୟ ଏକ ଅଶୂନ୍ୟ (non-zero) ତ୍ୱରଣ ରହିବା ସମ୍ଭବ କି?",
+        "options": [
+            {"index": 0, "text_or": "ହଁ ସମ୍ଭବ; ଯେପରିକି ଉପରକୁ ଫିଙ୍ଗାଯାଇଥିବା ବସ୍ତୁର ସର୍ବୋଚ୍ଚ ବିନ୍ଦୁରେ ବେଗତା ୦ କିନ୍ତୁ ତ୍ୱରଣ g ଥାଏ", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ନା, ବେଗତା ଶୂନ ହେଲେ ତ୍ୱରଣ କଦାପି ରହିପାରିବ ନାହିଁ", "misconception_tag": "believing_zero_velocity_forces_zero_acceleration", "explanation_or": "ତ୍ୱରଣ ବେଗର ପରିବର୍ତ୍ତନ ହାର, ତାତ୍କାଳିକ ମାନ ନୁହେଁ।"},
+            {"index": 2, "text_or": "ନା, ଏହା ନିୟମ ବିରୁଦ୍ଧ ଏବଂ ଏଥିପାଇଁ ବସ୍ତୁତ୍ୱ ଶୂନ ହେବା ଆବଶ୍ୟକ", "misconception_tag": "confusing_kinematic_variables_with_mass", "explanation_or": "ବସ୍ତୁତ୍ୱ ସ୍ଥିର ଥାଏ।"},
+            {"index": 3, "text_or": "କେବଳ ବସ୍ତୁଟି ଆଲୋକ ବେଗରେ ଗତି କଲେ ହିଁ ସମ୍ଭବ", "misconception_tag": "misapplying_relativistic_physics", "explanation_or": "ସାଧାରଣ କ୍ଲାସିକାଲ ପଦାର୍ଥବିଜ୍ଞାନରେ ଏହା ନିୟମିତ ଘଟେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ଯେତେବେଳେ ବସ୍ତୁ ଦିଗ ବଦଳାଏ (ଯଥା ସର୍ବୋଚ୍ଚ ବିନ୍ଦୁରେ), ସେହି ମୁହୂର୍ତ୍ତରେ v = ୦ ହେଲେ ମଧ୍ୟ ବେଗର ପରିବର୍ତ୍ତନ ଘଟୁଥିବାରୁ ତ୍ୱରଣ ଅଶୂନ୍ୟ ଥାଏ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 11. Hard - Create
+    q.append({
+        "question_id": "q_ch02_c0006_11",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "create",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ ଗଡ଼ାଣିଆ ତଳ (inclined plane) ଉପରେ ଗଡ଼ୁଥିବା ଟ୍ରଲିର ତ୍ୱରଣ ମାପିବା ପାଇଁ ଛାତ୍ରମାନେ ଏକ ଟିକର୍-ଟାଇପର୍ (ticker timer) ବ୍ୟବହାର କରିବାକୁ ଯୋଜନା କଲେ। ଟେପ୍‌ରେ ଡଟ୍‌ଗୁଡ଼ିକ ମଧ୍ୟବର୍ତ୍ତୀ ଦୂରତା କ୍ରମାଗତ ବଢୁଥିବାର ଦେଖାଗଲା। ଏଥିରୁ କି ନିଷ୍କର୍ଷ ଡିଜାଇନ କରାଯିବ?",
+        "options": [
+            {"index": 0, "text_or": "ଟ୍ରଲିଟି ସୁଷମ ତ୍ୱରଣରେ ଗତି କରୁଛି କାରଣ ସମାନ ସମୟ ବ୍ୟବଧାନରେ ଅତିକ୍ରାନ୍ତ ଦୂରତା କ୍ରମାନ୍ୱୟରେ ବଢୁଛି", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "ଟ୍ରଲିର ବେଗ କ୍ରମାଗତ ଭାବେ ହ୍ରାସ ପାଉଛି", "misconception_tag": "misinterpreting_ticker_tape_spacing", "explanation_or": "ଡଟ୍ ବ୍ୟବଧାନ ବଢ଼ିବା ଅର୍ଥ ବେଗ ବୃଦ୍ଧି ପାଉଛି।"},
+            {"index": 2, "text_or": "ଟାଇପରଟି ତ୍ରୁଟିପୂର୍ଣ୍ଣ ଏବଂ ସମୟ ବ୍ୟବଧାନ ବଦଳୁଛି", "misconception_tag": "blaming_apparatus_frequency", "explanation_or": "ଟିକର୍ ଟାଇମର ଏକ ସ୍ଥିର କମ୍ପାଙ୍କରେ (୫୦ Hz) ଡଟ୍ ପକାଏ।"},
+            {"index": 3, "text_or": "ଟ୍ରଲିର ତ୍ୱରଣ ଋଣାତ୍ମକ ଅଟେ", "misconception_tag": "confusing_acceleration_with_deceleration", "explanation_or": "ବେଗ ବୃଦ୍ଧି ପାଉଥିବାରୁ ତ୍ୱରଣ ଧନାତ୍ମକ ଅଟେ।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "ସ୍ଥିର ସମୟ ବ୍ୟବଧାନରେ ଦୂରତା ବୃଦ୍ଧି ପାଇବା ଏକ ସୁଷମ ତ୍ୱରିତ ଗତିର ପ୍ରାମାଣିକ ନିଦର୍ଶନ ଅଟେ।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.3",
+        "revision": 1,
+        "status": "active"
+    })
+
+    # 12. Hard - Create
+    q.append({
+        "question_id": "q_ch02_c0006_12",
+        "concept_id": "c0006",
+        "chapter_id": "ch002",
+        "bloom_level": "create",
+        "qtype": "mcq",
+        "prompt_or": "ଏକ ଗାଡ଼ିର ଗତି ବର୍ଣ୍ଣନା ପାଇଁ ଏକ ବେଗତା-ସମୟ ନକ୍ସା (v-t graph) ତିଆରି କରାଗଲା: ପ୍ରଥମେ ୦ ରୁ ୨୦ m/s କୁ ୫ ସେକେଣ୍ଡରେ ଉଠିଲା, ପରବର୍ତ୍ତୀ ୧୦ ସେକେଣ୍ଡ ସ୍ଥିର ରହିଲା, ଏବଂ ଶେଷ ୫ ସେକେଣ୍ଡରେ ବ୍ରେକ୍ ଲାଗି ୦ ହେଲା। ମୋଟ ଅତିକ୍ରାନ୍ତ ଦୂରତା କେତେ?",
+        "options": [
+            {"index": 0, "text_or": "୩୦୦ ମିଟର (ଟ୍ରାପିଜିୟମ ଆକାରର କ୍ଷେତ୍ରଫଳ ସୂତ୍ରରୁ)", "misconception_tag": None, "explanation_or": None},
+            {"index": 1, "text_or": "୪୦୦ ମିଟର", "misconception_tag": "multiplying_max_velocity_by_total_time", "explanation_or": "ସମଗ୍ର ଯାତ୍ରା ସର୍ବାଧିକ ବେଗରେ ହୋଇନାହିଁ, କ୍ଷେତ୍ରଫଳ ବାହାର କରିବା ଆବଶ୍ୟକ।"},
+            {"index": 2, "text_or": "୨୦୦ ମିଟର", "misconception_tag": "counting_only_middle_steady_phase", "explanation_or": "ପ୍ରଥମ ଓ ଶେଷ ତ୍ୱରିତ ପର୍ଯ୍ୟାୟର ଦୂରତା ମଧ୍ୟ ଯୋଗ ହେବ।"},
+            {"index": 3, "text_or": "୧୦୦ ମିଟର", "misconception_tag": "calculation_error", "explanation_or": "କ୍ଷେତ୍ରଫଳ = (୧/୨) × (୧୦ + ୨୦) × ୨୦ = ୩୦୦ ମିଟର।"}
+        ],
+        "correct_option": 0,
+        "explanation_or": "v-t ଗ୍ରାଫର କ୍ଷେତ୍ରଫଳ = ଟ୍ରାପିଜିୟମ କ୍ଷେତ୍ରଫଳ = (୧/୨) × (ସମାନ୍ତରାଳ ବାହୁର ଯୋଗଫଳ) × ଉଚ୍ଚତା = (୧/୨) × (୧୦ + ୨୦) × ୨୦ = ୩୦୦ ମିଟର।",
+        "difficulty": "hard",
+        "misconception_tag": None,
+        "source_ref": "ch02 §8.4",
+        "revision": 1,
+        "status": "active"
+    })
+
+    return q
