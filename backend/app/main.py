@@ -40,6 +40,7 @@ from .adapters.persistence.repositories import (
     SqlLearnerRepository,
     SqlMasteryRepository,
     SqlPackRepository,
+    SqlJobRepository,
 )
 from .content.pack_loader import load_pack_index
 from .core.errors import (
@@ -82,6 +83,7 @@ async def lifespan(app: FastAPI):
     mastery = SqlMasteryRepository(p)
     decisions = SqlDecisionRepository(p)
     gen_records = SqlGenerationRecordRepository(p)
+    jobs = SqlJobRepository(p)
     app.state.persistence = p
     app.state.pack_index = pack
     app.state.auth_service = AuthService(learners, devices)
@@ -92,7 +94,7 @@ async def lifespan(app: FastAPI):
     app.state.decision_service = DecisionService(pack, mastery, decisions)
     app.state.doubt_service = DoubtService(pack, decisions, gen_records)
     app.state.sync_service = SyncService(
-        events, mastery, decisions, pack=pack, persistence=p
+        events, mastery, decisions, pack=pack, persistence=p, pack_repo=pack_repo
     )
     from .services.rooms_service import RoomsService
     rooms = RoomsService(p)
@@ -108,6 +110,7 @@ async def lifespan(app: FastAPI):
     app.state.event_repository = events
     app.state.learner_repository = learners
     app.state.device_repository = devices
+    app.state.job_repository = jobs
     log.info("ready")
     yield
     log.info("shutdown")

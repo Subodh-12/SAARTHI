@@ -48,12 +48,16 @@ class Persistence:
     async def apply_schema(self) -> None:
         """Apply schema.sql to the connected DB and migrate legacy columns."""
         sql = SCHEMA_PATH.read_text(encoding="utf-8")
-        sql = _normalize_schema_sql(sql, postgres="postgres" in str(self.engine.url))
+        is_pg = "postgres" in str(self.engine.url)
+        sql = _normalize_schema_sql(sql, postgres=is_pg)
         async with self.engine.begin() as conn:
             for stmt in _split_statements(sql):
                 stmt = stmt.strip()
                 if not stmt:
                     continue
+                if is_pg:
+                    stmt = stmt.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+                    stmt = stmt.replace("AUTOINCREMENT", "")
                 await conn.exec_driver_sql(stmt) if hasattr(conn, "exec_driver_sql") else await conn.execute(_text(stmt))
             await _migrate_prior_schema(conn)
         log.info("schema_applied path=%s", SCHEMA_PATH)

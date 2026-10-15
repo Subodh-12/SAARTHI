@@ -1251,7 +1251,9 @@
     "target_bloom_level": "remember",
     "needs_help": false,
     "delivery_mode": "cached",
-    "background_actions": []
+    "background_actions": [
+     "PREFETCH"
+    ]
    }
   },
   {
@@ -3521,13 +3523,13 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0001",
     "delivery_mode": "rich",
     "background_actions": [
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -3625,7 +3627,9 @@
     "action": "REMEDIATE",
     "target_concept_id": "c0001",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
     "target_bloom_level": "remember",
     "needs_help": false
@@ -3707,14 +3711,13 @@
    },
    "expected": {
     "action": "REMEDIATE",
-    "target_concept_id": "c0004",
-    "delivery_mode": "prefetch_then_offline",
+    "target_concept_id": "c0002",
+    "delivery_mode": "rich",
     "background_actions": [
-     "PREFETCH",
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
-    "target_bloom_level": "remember",
+    "reason_code": "BLOCKED_BY_PREREQ",
+    "target_bloom_level": "understand",
     "needs_help": false
    }
   },
@@ -4138,7 +4141,7 @@
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -4407,7 +4410,7 @@
      "PREFETCH",
      "SYNC"
     ],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -4482,7 +4485,7 @@
     "target_concept_id": "c0001",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -4694,10 +4697,12 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0001",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
     "target_bloom_level": "remember",
     "needs_help": false
@@ -5686,7 +5691,7 @@
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -5900,10 +5905,12 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0001",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
     "target_bloom_level": "remember",
     "needs_help": false
@@ -6150,7 +6157,7 @@
     "background_actions": [
      "SYNC"
     ],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -7965,14 +7972,14 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0004",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH",
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -8098,7 +8105,7 @@
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -8590,7 +8597,9 @@
     "action": "RETRY",
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
     "target_bloom_level": "remember",
     "needs_help": false
@@ -8771,12 +8780,14 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
-    "target_bloom_level": "understand",
+    "target_bloom_level": "remember",
     "needs_help": false
    }
   },
@@ -9044,7 +9055,7 @@
     "target_concept_id": "c0003",
     "delivery_mode": "rich",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -9235,14 +9246,14 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH",
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -9622,11 +9633,11 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0001",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -10494,11 +10505,11 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -11061,12 +11072,12 @@
    },
    "expected": {
     "action": "REMEDIATE",
-    "target_concept_id": "c0004",
+    "target_concept_id": "c0002",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -11186,13 +11197,13 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0001",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -11772,13 +11783,13 @@
    },
    "expected": {
     "action": "REMEDIATE",
-    "target_concept_id": "c0002",
+    "target_concept_id": "c0001",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH"
     ],
-    "reason_code": "WEAK_CONCEPT",
-    "target_bloom_level": "remember",
+    "reason_code": "BLOCKED_BY_PREREQ",
+    "target_bloom_level": "understand",
     "needs_help": false
    }
   },
@@ -12276,12 +12287,14 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
-    "target_bloom_level": "understand",
+    "target_bloom_level": "remember",
     "needs_help": false
    }
   },
@@ -12580,13 +12593,13 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0006",
     "delivery_mode": "cached",
     "background_actions": [
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -14117,7 +14130,7 @@
     "target_concept_id": "c0001",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -14500,14 +14513,14 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH",
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -14960,7 +14973,7 @@
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -15068,7 +15081,7 @@
     "background_actions": [
      "PREFETCH"
     ],
-    "reason_code": "WEAK_PREREQ_GAP",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -15186,11 +15199,11 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -15327,7 +15340,9 @@
     "action": "REMEDIATE",
     "target_concept_id": "c0002",
     "delivery_mode": "cached",
-    "background_actions": [],
+    "background_actions": [
+     "PREFETCH"
+    ],
     "reason_code": "CONTENT_NOT_AVAILABLE_OFFLINE",
     "target_bloom_level": "remember",
     "needs_help": false
@@ -15448,13 +15463,13 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "rich",
     "background_actions": [
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -15750,14 +15765,14 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0003",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH",
      "SYNC"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -15861,13 +15876,13 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0005",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -15997,13 +16012,13 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0006",
     "delivery_mode": "prefetch_then_offline",
     "background_actions": [
      "PREFETCH"
     ],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -16408,10 +16423,10 @@
    },
    "expected": {
     "action": "REMEDIATE",
-    "target_concept_id": "c0002",
+    "target_concept_id": "c0001",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "BLOCKED_BY_PREREQ",
     "target_bloom_level": "remember",
     "needs_help": false
    }
@@ -16618,11 +16633,11 @@
     "available_bloom_levels_for_concept": {}
    },
    "expected": {
-    "action": "REMEDIATE",
+    "action": "ADVANCE",
     "target_concept_id": "c0002",
     "delivery_mode": "cached",
     "background_actions": [],
-    "reason_code": "WEAK_CONCEPT",
+    "reason_code": "MASTERED_ADVANCE",
     "target_bloom_level": "remember",
     "needs_help": false
    }

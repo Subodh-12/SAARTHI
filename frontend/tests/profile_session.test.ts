@@ -17,7 +17,7 @@ import {
 
 beforeEach(() => {
   // Fresh in-memory IndexedDB per test — profiles can never leak across.
-  new IDBFactory();
+  globalThis.indexedDB = new IDBFactory();
 });
 
 afterEach(async () => {
@@ -387,3 +387,89 @@ describe("corrupted state and storage failures", () => {
     expect(await s2.getMasterySnapshot()).toHaveLength(0);
   });
 });
+
+describe("startup recovery and profile switching (Design v2 Sec 4.1, 4.2, 4.3)", () => {
+  it("recovers active profile and device token across simulated reload", async () => {
+    const { saveProfile, getActiveProfile } = await import("../src/store/db");
+    const { closeActiveProfileSession, getActiveProfileSession } = await import("../src/store/profile_session");
+
+    const profileData = {
+      learner_id: "lrn_reloadtest000001",
+      device_id: "dev_reload00000001",
+      device_token: "tok_test_access_token_123",
+      refresh_token: "tok_test_refresh_token_456",
+      token_expires_at: Date.now() + 86400000,
+      display_label: "Sunita",
+      created_at: Date.now(),
+      active: true,
+      has_pin: false,
+    };
+
+    // Save profile and tokens
+    await saveProfile(profileData);
+
+    // Simulate browser reload: close active in-memory session
+    await closeActiveProfileSession();
+    expect(getActiveProfileSession()).toBeNull();
+
+    // Now call getActiveProfile() - must recover from saarthi-shared!
+    const recovered = await getActiveProfile();
+    expect(recovered).toBeDefined();
+    expect(recovered?.learner_id).toBe("lrn_reloadtest000001");
+    expect(recovered?.display_label).toBe("Sunita");
+    expect(recovered?.device_token).toBe("tok_test_access_token_123");
+    expect(recovered?.active).toBe(true);
+
+    // And active profile session should be open again
+    expect(getActiveProfileSession()).not.toBeNull();
+    expect(getActiveProfileSession()?.learnerId).toBe("lrn_reloadtest000001");
+  });
+
+  it("handles profile switching with PIN protection correctly", async () => {
+    const { saveProfile, setActiveProfile, listProfiles } = await import("../src/store/db");
+    const { openProfileSession } = await import("../src/store/profile_session");
+
+    // Create Profile A (no PIN)
+    await saveProfile({
+      learner_id: "lrn_switch_a_0000001",
+      device_id: "dev_switch000000001",
+      device_token: "tok_switch_a",
+      token_expires_at: Date.now() + 86400000,
+      display_label: "Learner A",
+      created_at: Date.now(),
+      active: true,
+      has_pin: false,
+    });
+
+    // Create Profile B (with PIN 5678)
+    await saveProfile({
+      learner_id: "lrn_switch_b_0000002",
+      device_id: "dev_switch000000001",
+      device_token: "tok_switch_a",
+      token_expires_at: Date.now() + 86400000,
+      display_label: "Learner B",
+      created_at: Date.now(),
+      active: false,
+      has_pin: true,
+    });
+    const sB = await openProfileSession("lrn_switch_b_0000002");
+    await sB.setPin("5678");
+
+    const all = await listProfiles();
+    expect(all).toHaveLength(2);
+    const bMeta = all.find((p) => p.learner_id === "lrn_switch_b_0000002");
+    expect(bMeta?.has_pin).toBe(true);
+
+    // Attempting to switch to B without PIN or with wrong PIN fails
+    await expect(setActiveProfile("lrn_switch_b_0000002")).rejects.toThrow(/PIN required/);
+    await expect(setActiveProfile("lrn_switch_b_0000002", "0000")).rejects.toThrow(/incorrect PIN/);
+
+    // Switching with correct PIN succeeds
+    await setActiveProfile("lrn_switch_b_0000002", "5678");
+    const { getActiveProfile } = await import("../src/store/db");
+    const active = await getActiveProfile();
+    expect(active?.learner_id).toBe("lrn_switch_b_0000002");
+    expect(active?.display_label).toBe("Learner B");
+  });
+});
+

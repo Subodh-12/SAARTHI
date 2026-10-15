@@ -333,8 +333,8 @@ CREATE TABLE IF NOT EXISTS langgraph_checkpoints (
   type                 TEXT NOT NULL DEFAULT 'dict',
   config_json          TEXT NOT NULL,
   metadata_json        TEXT NOT NULL DEFAULT '{}',
-  blob                 BLOB,
-  created_at           INTEGER NOT NULL,
+  blob                 BYTEA,
+  created_at           BIGINT NOT NULL,
   PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
 );
 
@@ -345,11 +345,11 @@ CREATE TABLE IF NOT EXISTS langgraph_writes (
   thread_id           TEXT NOT NULL,
   checkpoint_ns       TEXT NOT NULL DEFAULT '',
   checkpoint_id       TEXT NOT NULL,
-  task_id             INTEGER NOT NULL,
+  task_id             TEXT NOT NULL,
   channel             TEXT NOT NULL,
   type                TEXT NOT NULL,
-  blob                 BLOB,
-  created_at           INTEGER NOT NULL,
+  blob                 BYTEA,
+  created_at           BIGINT NOT NULL,
   PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, channel)
 );
 
@@ -463,3 +463,29 @@ CREATE TABLE IF NOT EXISTS room_summaries (
   created_at          INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_summaries_room ON room_summaries (room_id, created_at);
+
+-- Durable worker jobs (Design v2 Section 5 & 14)
+-- Arq runs the jobs; PostgreSQL/SQLite job table is the source of truth,
+-- so a lost queue loses nothing.
+-- ---------------------------------------------------------------- --
+CREATE TABLE IF NOT EXISTS jobs (
+  job_id              TEXT PRIMARY KEY,
+  type                TEXT NOT NULL,
+  payload_json        TEXT NOT NULL DEFAULT '{}',
+  dedupe_key          TEXT UNIQUE,
+  status              TEXT NOT NULL DEFAULT 'queued',
+  attempts            INTEGER NOT NULL DEFAULT 0,
+  max_attempts        INTEGER NOT NULL DEFAULT 6,
+  next_run_at         BIGINT NOT NULL,
+  lease_expires_at    BIGINT,
+  last_error          TEXT,
+  created_at          BIGINT NOT NULL,
+  updated_at          BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_status_next_run
+  ON jobs (status, next_run_at);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_lease_expires
+  ON jobs (status, lease_expires_at);
+

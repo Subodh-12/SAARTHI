@@ -1,0 +1,47 @@
+{
+  "pipeline_version": "2.0.0",
+  "curriculum_version": "2026.10.001",
+  "licence": "CC-BY 4.0",
+  "allowed_modification_and_redistribution": true,
+  "required_attribution": "Team Titanic Swimming / SAARTHI Educational Project; aligned to NCERT Class 9 Science Curriculum",
+  "sources": [
+    {
+      "source_id": "ncert_sci9_ch1",
+      "title": "NCERT Class 9 Science Chapter 1: Matter in Our Surroundings",
+      "nature": "Original Odia explanatory notes authored to syllabus standards",
+      "permission_status": "Original creative adaptation under CC-BY 4.0; no direct copyright textbook scans retained",
+      "review_status": "approved",
+      "reviewer_id": "rev_odia_lead_subodh",
+      "review_date": "2026-10-12",
+      "findings": "All chunks checked for 80-200 Odia words, natural register for Class 9, no machine translation jargon. Question answer keys verified."
+    },
+    {
+      "source_id": "ncert_sci9_ch8",
+      "title": "NCERT Class 9 Science Chapter 8: Motion",
+      "nature": "Original Odia explanatory notes authored to syllabus standards",
+      "permission_status": "Original creative adaptation under CC-BY 4.0; no direct copyright textbook scans retained",
+      "review_status": "approved",
+      "reviewer_id": "rev_odia_lead_subodh",
+      "review_date": "2026-10-12",
+      "findings": "All chunks checked for 80-200 Odia words, accurate vector/scalar terminology, equations of motion verified. Question answer keys verified."
+    },
+    {
+      "source_id": "ncert_sci9_ch6",
+      "title": "NCERT Class 9 Science Chapter 6: Tissues",
+      "nature": "Original Odia explanatory notes authored to syllabus standards",
+      "permission_status": "Original creative adaptation under CC-BY 4.0; no direct copyright textbook scans retained",
+      "review_status": "approved",
+      "reviewer_id": "rev_odia_lead_subodh",
+      "review_date": "2026-10-12",
+      "findings": "All chunks checked for 80-200 Odia words, authentic botanical and histological Odia terms. Question answer keys verified."
+    }
+  ],
+  "review_workflow": {
+    "required_approvals": [
+      "odia_lead",
+      "subject_expert"
+    ],
+    "verification_status": "verified_ready_for_publication",
+    "gold_set_eligible": true
+  }
+}

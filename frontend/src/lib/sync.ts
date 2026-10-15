@@ -207,29 +207,17 @@ export function resetSyncBackoffForTests() {
 
 export async function packInstallAvailable(pack_id: string, version: string,
                                            byte_size: number,
-                                           checksum_sha256: string): Promise<boolean> {
-  const base = await api.apiBaseUrl();
-  const url = `${base}/api/v1/packs/${pack_id}/versions/${version}/download`;
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) return false;
-    const blob = await resp.blob();
-    const buf = await blob.arrayBuffer();
-    const digest = await crypto.subtle.digest("SHA-256", buf);
-    const hashHex = Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0")).join("");
-    if (hashHex !== checksum_sha256) return false;
-    const text = await blob.text();
-    const { saveInstalledPack } = await import("../store/db");
-    await saveInstalledPack({
-      pack_id, version, byte_size, checksum_sha256,
-      installed_at: Date.now(),
-      manifest_json: text,
-    });
-    return true;
-  } catch {
-    return false;
-  }
+                                           checksum_sha256: string,
+                                           min_app_version?: string): Promise<boolean> {
+  const { downloadPackResumable } = await import("./pack_downloader");
+  const res = await downloadPackResumable({
+    pack_id,
+    version,
+    expected_byte_size: byte_size,
+    expected_checksum_sha256: checksum_sha256,
+    min_app_version,
+  });
+  return res.success;
 }
 
 export async function getInstalledPack(): Promise<{

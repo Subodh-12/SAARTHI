@@ -255,7 +255,7 @@ _golden("content_not_available_offline",
              installed_pack_versions={"pack_class9_ch2": 1},
              required_pack_for_concept=PACKS),
         "REMEDIATE", "c0004", "CONTENT_NOT_AVAILABLE_OFFLINE",
-        delivery="cached", background=[])
+        delivery="cached", background=["PREFETCH"])
 
 # 14b. No pack installed at all → fallback decision (v2 edge behaviour).
 _golden("no_pack_installed_offline",

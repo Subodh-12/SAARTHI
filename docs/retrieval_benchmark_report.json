@@ -1,0 +1,60 @@
+{
+  "benchmark_date": "2026-10-15",
+  "dataset": {
+    "path": "tests/fixtures/odia_queries.jsonl",
+    "query_count": 100,
+    "split": "70% tuning (70 queries), 30% held-out (30 queries)",
+    "reviewer": null,
+    "review_status": "PENDING_INDEPENDENT_HUMAN_REVIEW"
+  },
+  "models": {
+    "model_1_local_hybrid": {
+      "name": "LocalHybridRetriever (BM25 + Odia Morphology + Glossary Expansion + RRF)",
+      "status": "EVALUATED",
+      "metrics": {
+        "total_queries": 100,
+        "hits_at_5": 100,
+        "recall_at_5": 1.0,
+        "mean_reciprocal_rank": 0.851,
+        "precision_at_1": 0.74,
+        "category_metrics": {
+          "pure_odia": {
+            "total": 45,
+            "recall_5": 1.0,
+            "mrr": 0.8611
+          },
+          "latin_odia": {
+            "total": 20,
+            "recall_5": 1.0,
+            "mrr": 0.81
+          },
+          "code_mixed": {
+            "total": 35,
+            "recall_5": 1.0,
+            "mrr": 0.8614
+          }
+        },
+        "split_metrics": {
+          "tuning": {
+            "total": 70,
+            "recall_5": 1.0
+          },
+          "held_out": {
+            "total": 30,
+            "recall_5": 1.0
+          }
+        },
+        "failure_count": 0,
+        "sample_failures": []
+      }
+    },
+    "model_2_multilingual_dense": {
+      "name": "Multilingual Dense Embedding (BAAI/bge-m3 / AI4Bharat IndicBERT)",
+      "status": "BLOCKED_PENDING_CREDENTIALS",
+      "notes": "Evaluation requires HuggingFace Inference API token or GPU runner; marked blocked per Section 9.1/Rule 11.",
+      "metrics": null
+    }
+  },
+  "target_threshold_recall_5": 0.8,
+  "recommendation": "Deploy LocalHybridRetriever for offline and local evaluation (exceeds 80% Recall@5 threshold); integrate bge-m3 dense retrieval when hosted model service is provisioned."
+}

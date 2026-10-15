@@ -45,6 +45,15 @@ class AssessmentService:
             correct, evidence = evaluate_submission(question, sub)
         else:
             correct, evidence = evaluate_short_answer(question, sub)
+        misconception_tag = None
+        remediation_or = None
+        if question.qtype == "mcq" and sub.selected_option is not None:
+            if 0 <= sub.selected_option < len(question.options):
+                opt = question.options[sub.selected_option]
+                misconception_tag = getattr(opt, "misconception_tag", None)
+                remediation_or = getattr(opt, "explanation_or", None)
+        if not correct and not misconception_tag:
+            misconception_tag = getattr(question, "misconception_tag", None)
         ruleset = get_ruleset()
         ts = int(time.time() * 1000)
         attempt_id = sub.attempt_id or new_event_id()
@@ -66,6 +75,7 @@ class AssessmentService:
                 "evidence": evidence.value if hasattr(evidence, "value") else str(evidence),
                 "correct_claim": sub.correct_claim,  # client claim (audit only)
                 "selected_option": sub.selected_option,
+                "misconception_tag": misconception_tag,
                 "answer_text": sub.answer_text,
                 "duration_ms": sub.duration_ms,
                 "last_action": "ASSESS",
@@ -156,6 +166,8 @@ class AssessmentService:
             bloom_mastery_after=bm_after,
             diagnosis=diagnosis,
             next_decision_id="",  # filled by the route layer after DecisionService
+            misconception_tag=misconception_tag,
+            remediation_or=remediation_or,
         )
 
 

@@ -46,7 +46,7 @@ from ..domain.schemas import (
     PerEventResult, SyncEffect, SyncReason, SyncRequest, SyncResponse,
 )
 from ..repositories import (
-    DecisionRepository, EventRepository, MasteryRepository,
+    DecisionRepository, EventRepository, MasteryRepository, PackRepository,
 )
 from ..adapters.persistence import Persistence
 
@@ -60,12 +60,14 @@ def _etype(ev: LearnerEvent) -> str:
 class SyncService:
     def __init__(self, events: EventRepository, mastery: MasteryRepository,
                  decisions: DecisionRepository, pack: PackContentIndex | None = None,
-                 persistence: Persistence | None = None) -> None:
+                 persistence: Persistence | None = None,
+                 pack_repo: PackRepository | None = None) -> None:
         self.events = events
         self.mastery = mastery
         self.decisions = decisions
         self.pack = pack
         self.persistence = persistence
+        self.pack_repo = pack_repo
         self.settings = get_settings()
 
     # ------------------------------------------------------------------ #
@@ -206,6 +208,20 @@ class SyncService:
                 else:
                     # Late/out-of-order arrival: rebuild by full replay.
                     await self._session_replay(s, req.learner_id, ruleset)
+                for ev in accepted:
+                    if _etype(ev) == "PACK_INSTALLED" and self.pack_repo is not None:
+                        try:
+                            payload = ev.payload or {}
+                            p_id = payload.get("pack_id")
+                            ver = payload.get("version")
+                            if p_id and ver:
+                                await self.pack_repo.record_installed_pack(
+                                    ev.device_id, p_id, str(ver),
+                                    int(payload.get("byte_size", 0)),
+                                    str(payload.get("checksum_sha256", "")),
+                                )
+                        except Exception as ex:
+                            log.warning("sync_pack_installed_record_failed err=%s", ex)
             # 3. Advance the device cursor inside the same txn
             acked = [r.seq for r in results.values()
                      if r.outcome in (Outcome.ACCEPTED, Outcome.DUPLICATE)]
@@ -262,6 +278,20 @@ class SyncService:
                 await self._incremental_projection(owned[0].learner_id, accepted, ruleset)
             else:
                 await self._rebuild_projection(owned[0].learner_id, ruleset)
+            for ev in accepted:
+                if _etype(ev) == "PACK_INSTALLED" and self.pack_repo is not None:
+                    try:
+                        payload = ev.payload or {}
+                        p_id = payload.get("pack_id")
+                        ver = payload.get("version")
+                        if p_id and ver:
+                            await self.pack_repo.record_installed_pack(
+                                ev.device_id, p_id, str(ver),
+                                int(payload.get("byte_size", 0)),
+                                str(payload.get("checksum_sha256", "")),
+                            )
+                    except Exception as ex:
+                        log.warning("sync_pack_installed_record_failed err=%s", ex)
         return results
 
     # ------------------------------------------------------------------ #

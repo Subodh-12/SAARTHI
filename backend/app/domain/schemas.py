@@ -233,6 +233,16 @@ class Chunk(BaseModel):
     glossary_refs: list[str] = Field(default_factory=list)
 
 
+class QuestionOption(BaseModel):
+    index: int
+    text_or: str
+    misconception_tag: Optional[str] = None
+    explanation_or: Optional[str] = None
+
+    def __str__(self) -> str:
+        return self.text_or
+
+
 class Question(BaseModel):
     question_id: QuestionId
     concept_id: ConceptId
@@ -240,7 +250,7 @@ class Question(BaseModel):
     bloom_level: BloomLevel = BloomLevel.REMEMBER
     qtype: Literal["mcq", "short_answer"]
     prompt_or: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
-    options: list[str] = Field(default_factory=list)
+    options: list[QuestionOption] = Field(default_factory=list)
     correct_option: Optional[int] = None
     rubric_or: Optional[str] = None
     expected_concepts: list[str] = Field(default_factory=list)
@@ -260,6 +270,29 @@ class Question(BaseModel):
     revision: int = 1
     answer_key_hash: str = ""
     status: Literal["active", "legacy"] = "active"
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _validate_options(cls, v: Any) -> list[QuestionOption]:
+        if not v:
+            return []
+        res: list[QuestionOption] = []
+        for i, item in enumerate(v):
+            if isinstance(item, str):
+                res.append(QuestionOption(index=i, text_or=item))
+            elif isinstance(item, dict):
+                idx = item.get("index", i)
+                res.append(QuestionOption(
+                    index=idx,
+                    text_or=item.get("text_or", ""),
+                    misconception_tag=item.get("misconception_tag"),
+                    explanation_or=item.get("explanation_or"),
+                ))
+            elif isinstance(item, QuestionOption):
+                res.append(item)
+            else:
+                res.append(QuestionOption(index=i, text_or=str(item)))
+        return res
 
     @field_validator("bloom_level", mode="before")
     @classmethod
@@ -432,6 +465,8 @@ class AssessmentResult(BaseModel):
     # insufficient-evidence state), a discriminating follow-up question, and
     # the verification-gate status. Absent/None for correct or non-MCQ answers.
     diagnosis: Optional[dict] = None
+    misconception_tag: Optional[str] = None
+    remediation_or: Optional[str] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -618,6 +653,36 @@ class LearnerState(BaseModel):
     outbox_depth: int = 0
 
 
+class JobStatus(str, Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    RETRY = "retry"
+    DEAD = "dead"
+
+
+class JobRecord(BaseModel):
+    job_id: str
+    type: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    dedupe_key: Optional[str] = None
+    status: JobStatus = JobStatus.QUEUED
+    attempts: int = 0
+    max_attempts: int = 6
+    next_run_at: int
+    lease_expires_at: Optional[int] = None
+    last_error: Optional[str] = None
+    created_at: int
+    updated_at: int
+
+
+class JobsAdminResponse(BaseModel):
+    counts: dict[str, int]
+    dead_jobs: list[JobRecord]
+    retrying_jobs: list[JobRecord]
+    all_jobs: list[JobRecord]
+
+
 class HealthResponse(BaseModel):
     status: str
     project: str = "SAARTHI"
@@ -675,6 +740,7 @@ __all__ = [
     "GlossaryEntry",
     "Concept",
     "Chunk",
+    "QuestionOption",
     "Question",
     "Chapter",
     # env/mastery/event
@@ -707,4 +773,8 @@ __all__ = [
     # api
     "LearnerState",
     "HealthResponse",
+    # jobs
+    "JobStatus",
+    "JobRecord",
+    "JobsAdminResponse",
 ]

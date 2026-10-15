@@ -27,7 +27,23 @@
 // credentials in a profile database.
 
 const SHARED_DB = "saarthi-shared";
-const SHARED_VERSION = 1;
+const SHARED_VERSION = 2;
+
+export interface PartialDownloadSegment {
+  start: number;
+  end: number;
+  bytes: Uint8Array;
+}
+
+export interface PartialDownloadRecord {
+  id: string; // `${pack_id}:${version}`
+  pack_id: string;
+  version: string;
+  expected_byte_size: number;
+  expected_checksum_sha256: string;
+  updated_at: number;
+  segments: PartialDownloadSegment[];
+}
 
 export interface SharedProfileMeta {
   learner_id: string;
@@ -42,6 +58,9 @@ export interface DeviceMeta {
   device_id: string;
   public_key_spki_b64?: string;
   registered_at: number;
+  device_token?: string;
+  refresh_token?: string;
+  token_expires_at?: number;
 }
 
 export interface InstalledPack {
@@ -236,6 +255,168 @@ export async function verifyPin(pin: string,
 }
 
 // --------------------------------------------------------------------------- //
+// Shared database helpers (can be called without an active ProfileSession)
+// --------------------------------------------------------------------------- //
+export async function openSharedDatabase(): Promise<IDBDatabase> {
+  return openDatabase(SHARED_DB, SHARED_VERSION, (db) => {
+    if (!db.objectStoreNames.contains("profiles")) {
+      db.createObjectStore("profiles", { keyPath: "learner_id" });
+    }
+    if (!db.objectStoreNames.contains("device_meta")) {
+      db.createObjectStore("device_meta", { keyPath: "device_id" });
+    }
+    if (!db.objectStoreNames.contains("packs")) {
+      db.createObjectStore("packs", { keyPath: "pack_id" });
+    }
+    if (!db.objectStoreNames.contains("partial_downloads")) {
+      db.createObjectStore("partial_downloads", { keyPath: "id" });
+    }
+  }, SHARED_DB);
+}
+
+export async function getSharedInstalledPacks(): Promise<InstalledPack[]> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("packs", "readonly");
+    return await requestToPromise(
+      tx.objectStore("packs").getAll() as IDBRequest<InstalledPack[]>);
+  } finally {
+    db.close();
+  }
+}
+
+export async function getSharedInstalledPack(packId: string): Promise<InstalledPack | undefined> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("packs", "readonly");
+    return await requestToPromise(
+      tx.objectStore("packs").get(packId) as IDBRequest<InstalledPack | undefined>);
+  } finally {
+    db.close();
+  }
+}
+
+export async function putSharedInstalledPack(pack: InstalledPack): Promise<void> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("packs", "readwrite");
+    tx.objectStore("packs").put(pack);
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+export async function getPartialDownload(id: string): Promise<PartialDownloadRecord | undefined> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("partial_downloads", "readonly");
+    return await requestToPromise(
+      tx.objectStore("partial_downloads").get(id) as IDBRequest<PartialDownloadRecord | undefined>);
+  } finally {
+    db.close();
+  }
+}
+
+export async function putPartialDownload(record: PartialDownloadRecord): Promise<void> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("partial_downloads", "readwrite");
+    tx.objectStore("partial_downloads").put(record);
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+export async function deletePartialDownload(id: string): Promise<void> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("partial_downloads", "readwrite");
+    tx.objectStore("partial_downloads").delete(id);
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+export async function getSharedProfiles(): Promise<SharedProfileMeta[]> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("profiles", "readonly");
+    const all = await requestToPromise(
+      tx.objectStore("profiles").getAll() as IDBRequest<SharedProfileMeta[]>);
+    return all;
+  } finally {
+    db.close();
+  }
+}
+
+export async function getActiveSharedProfile(): Promise<SharedProfileMeta | undefined> {
+  const all = await getSharedProfiles();
+  return all.find((p) => p.active) ?? (all.length === 1 ? all[0] : undefined);
+}
+
+export async function setActiveSharedProfile(learnerId: string): Promise<void> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("profiles", "readwrite");
+    const store = tx.objectStore("profiles");
+    const all = await requestToPromise(store.getAll() as IDBRequest<SharedProfileMeta[]>);
+    for (const p of all) {
+      store.put({ ...p, active: p.learner_id === learnerId });
+    }
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+export async function getSharedDeviceMeta(deviceId = "saarthi-device"): Promise<DeviceMeta | undefined> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("device_meta", "readonly");
+    const store = tx.objectStore("device_meta");
+    if (deviceId && deviceId !== "saarthi-device") {
+      const byId = await requestToPromise(store.get(deviceId) as IDBRequest<DeviceMeta | undefined>);
+      if (byId) return byId;
+    }
+    const byKey = await requestToPromise(store.get(deviceId) as IDBRequest<DeviceMeta | undefined>);
+    if (byKey) return byKey;
+    const all = await requestToPromise(store.getAll() as IDBRequest<DeviceMeta[]>);
+    return all[0];
+  } finally {
+    db.close();
+  }
+}
+
+export async function putSharedDeviceMeta(meta: DeviceMeta): Promise<void> {
+  const db = await openSharedDatabase();
+  try {
+    const tx = db.transaction("device_meta", "readwrite");
+    tx.objectStore("device_meta").put(meta);
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+export async function verifyProfilePinDirect(learnerId: string, pin: string): Promise<boolean> {
+  const name = `saarthi-profile-${learnerId}`;
+  let db: IDBDatabase | null = null;
+  try {
+    db = await openDatabase(name, 2, () => {}, name);
+    const tx = db.transaction("session", "readonly");
+    const stored = await requestToPromise(
+      tx.objectStore("session").get("pin") as IDBRequest<PinVerifierRow>);
+    if (!stored) return true; // no PIN set
+    return verifyPin(pin, stored);
+  } finally {
+    if (db) db.close();
+  }
+}
+
+// --------------------------------------------------------------------------- //
 // ProfileSession
 // --------------------------------------------------------------------------- //
 export class ProfileSession {
@@ -279,17 +460,7 @@ export class ProfileSession {
 
   private async ensureShared(): Promise<IDBDatabase> {
     if (this.shared) return this.shared;
-    this.shared = await openDatabase(SHARED_DB, SHARED_VERSION, (db) => {
-      if (!db.objectStoreNames.contains("profiles")) {
-        db.createObjectStore("profiles", { keyPath: "learner_id" });
-      }
-      if (!db.objectStoreNames.contains("device_meta")) {
-        db.createObjectStore("device_meta", { keyPath: "device_id" });
-      }
-      if (!db.objectStoreNames.contains("packs")) {
-        db.createObjectStore("packs", { keyPath: "pack_id" });
-      }
-    }, SHARED_DB);
+    this.shared = await openSharedDatabase();
     return this.shared;
   }
 
@@ -398,17 +569,11 @@ export class ProfileSession {
   }
 
   async putInstalledPack(pack: InstalledPack): Promise<void> {
-    const db = await this.ensureShared();
-    const tx = db.transaction("packs", "readwrite");
-    tx.objectStore("packs").put(pack);
-    await txDone(tx);
+    await putSharedInstalledPack(pack);
   }
 
   async listInstalledPacks(): Promise<InstalledPack[]> {
-    const db = await this.ensureShared();
-    const tx = db.transaction("packs", "readonly");
-    return requestToPromise(
-      tx.objectStore("packs").getAll() as IDBRequest<InstalledPack[]>);
+    return getSharedInstalledPacks();
   }
 
   // ---- PIN (per profile DB) ------------------------------------------------

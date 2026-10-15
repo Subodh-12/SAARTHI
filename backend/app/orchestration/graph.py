@@ -58,18 +58,11 @@ def _prompt_hash() -> str:
     return hashlib.sha256(PROMPT_TEMPLATE.encode("utf-8")).hexdigest()[:32]
 
 
-class UnavailableEntailer(EntailmentProvider):
-    """Typed-unavailable entailment: grounding cannot be verified, so the
-    ordered contract forces the extractive answer or redirect path."""
-
-    name = "unavailable"
-
-    async def entail(self, answer: str, source_chunks: list[str]) -> EntailmentVerdict:
-        return EntailmentVerdict(supported=False, confidence=0.0,
-                                 detail="entailment provider unavailable")
+from ..adapters.ai.entailment import get_entailment_provider
 
 
-_entailer = UnavailableEntailer()
+def _get_entailer() -> EntailmentProvider:
+    return get_entailment_provider()
 
 
 # --------------------------------------------------------------------------- #
@@ -288,7 +281,7 @@ async def _tool_validate(state: OrchestrationState) -> OrchestrationState:
     verdict = await validators.validate_answer_full(
         state.answer,
         state.retrieval or RetrievedResult(chunks=[], provider="none", confidence=0.0),
-        entailer=_entailer, learner_input=state.learner_input,
+        entailer=_get_entailer(), learner_input=state.learner_input,
     )
     state.validation_results = {
         "ok": verdict.ok,
@@ -310,7 +303,7 @@ async def _tool_validate(state: OrchestrationState) -> OrchestrationState:
             verdict2 = await validators.validate_answer_full(
                 state.answer,
                 state.retrieval or RetrievedResult(chunks=[], provider="none", confidence=0.0),
-                entailer=_entailer, learner_input=state.learner_input,
+                entailer=_get_entailer(), learner_input=state.learner_input,
             )
             state.validation_results = {
                 "ok": verdict2.ok,
@@ -365,16 +358,61 @@ def _make_step(span, *, status: str, error_code: Optional[str] = None,
 
 
 # --------------------------------------------------------------------------- #
-# Top-level orchestration
+# Top-level orchestration (LangGraph state machine)
 # --------------------------------------------------------------------------- #
-async def run_doubt(req: DoubtRequest) -> DoubtResponse:
-    """Run the doubt branch of the LangGraph orchestration."""
-    state = OrchestrationState(query=req.query, learner_input=req.query)
-    # Doubt branch: normalize → translate (conditional) → retrieve → generate → validate
-    state = await _tool_translate(state)
-    state = await _tool_retrieve(state)
-    state = await _tool_generate(state)
-    state = await _tool_validate(state)
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+
+
+def build_doubt_graph(checkpointer=None):
+    """Compile the LangGraph state machine for the doubt branch."""
+    builder = StateGraph(OrchestrationState)
+    builder.add_node("translate", _tool_translate)
+    builder.add_node("retrieve", _tool_retrieve)
+    builder.add_node("generate", _tool_generate)
+    builder.add_node("validate", _tool_validate)
+
+    builder.add_edge(START, "translate")
+    builder.add_edge("translate", "retrieve")
+    builder.add_edge("retrieve", "generate")
+    builder.add_edge("generate", "validate")
+    builder.add_edge("validate", END)
+
+    return builder.compile(checkpointer=checkpointer)
+
+
+from ..adapters.persistence.checkpointer import SqlLangGraphCheckpointer
+
+_default_checkpointer = MemorySaver()
+doubt_graph = build_doubt_graph(checkpointer=_default_checkpointer)
+
+
+async def run_doubt(req: DoubtRequest, checkpointer=None, thread_id: Optional[str] = None) -> DoubtResponse:
+    """Run the doubt branch through the compiled LangGraph state machine.
+    
+    Durable checkpointer (PostgreSQL/SQLite) is used by default so graph state
+    persists across process interruptions and can be resumed.
+    """
+    tid = thread_id or new_decision_id()
+    initial_state = OrchestrationState(query=req.query, learner_input=req.query, decision_id=tid)
+    
+    if checkpointer is None:
+        try:
+            from ..adapters.persistence import get_persistence
+            p = await get_persistence()
+            active_checkpointer = SqlLangGraphCheckpointer(p)
+        except Exception as e:
+            log.warning("durable_checkpointer_init_fallback err=%s", e)
+            active_checkpointer = _default_checkpointer
+    else:
+        active_checkpointer = checkpointer
+
+    graph = build_doubt_graph(checkpointer=active_checkpointer)
+    config = {"configurable": {"thread_id": tid}}
+
+    result_dict = await graph.ainvoke(initial_state, config=config)
+    state = OrchestrationState(**result_dict)
+
     # Build the generation record (provider/model identity from settings)
     from ..core.settings import get_settings as _gs
     s = _gs()
@@ -408,5 +446,5 @@ def get_decision_trace(decision_id: str, state: OrchestrationState) -> DecisionT
     return DecisionTrace(decision_id=decision_id, trace=state.trace)
 
 
-__all__ = ["run_doubt", "OrchestrationState", "get_decision_trace",
-           "PROMPT_VERSION", "PROMPT_TEMPLATE"]
+__all__ = ["run_doubt", "build_doubt_graph", "doubt_graph", "OrchestrationState",
+           "get_decision_trace", "PROMPT_VERSION", "PROMPT_TEMPLATE"]
