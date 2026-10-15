@@ -39,6 +39,11 @@ export function PacksScreen() {
       const expectedSize = info.archive_byte_size || info.byte_size;
       const ok = await packInstallAvailable(m.pack_id, m.version, expectedSize, expectedSha, m.min_app_version);
       if (!ok) throw new Error("Install failed (checksum or download error)");
+      try {
+        await api.reportPackInstalled(m.pack_id, m.version);
+      } catch {
+        // Online notification optional; sync event also handles it
+      }
       await load();
     } catch (e: any) {
       setError(e.message || String(e));

@@ -24,11 +24,11 @@ def upgrade() -> None:
       status              TEXT NOT NULL DEFAULT 'queued',
       attempts            INTEGER NOT NULL DEFAULT 0,
       max_attempts        INTEGER NOT NULL DEFAULT 6,
-      next_run_at         INTEGER NOT NULL,
-      lease_expires_at    INTEGER,
+      next_run_at         BIGINT NOT NULL,
+      lease_expires_at    BIGINT,
       last_error          TEXT,
-      created_at          INTEGER NOT NULL,
-      updated_at          INTEGER NOT NULL
+      created_at          BIGINT NOT NULL,
+      updated_at          BIGINT NOT NULL
     );
     """)
 

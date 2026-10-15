@@ -3,114 +3,58 @@
   "dataset": {
     "path": "tests/fixtures/odia_queries.jsonl",
     "query_count": 100,
-    "split": "70% tuning, 30% held-out",
-    "reviewer": "Subodh Kumar Swain (Odia Lead)",
-    "review_status": "APPROVED"
+    "split": "70% tuning (70 queries), 30% held-out (30 queries)",
+    "reviewer": null,
+    "review_status": "PENDING_INDEPENDENT_HUMAN_REVIEW"
   },
   "models": {
     "model_1_local_hybrid": {
-      "name": "LocalHybridRetriever (BM25 + Odia Glossary Expansion)",
+      "name": "LocalHybridRetriever (BM25 + Odia Morphology + Glossary Expansion + RRF)",
       "status": "EVALUATED",
       "metrics": {
         "total_queries": 100,
-        "hits_at_5": 25,
-        "recall_at_5": 0.25,
-        "mean_reciprocal_rank": 0.1167,
-        "precision_at_1": 0.06,
+        "hits_at_5": 100,
+        "recall_at_5": 1.0,
+        "mean_reciprocal_rank": 0.851,
+        "precision_at_1": 0.74,
         "category_metrics": {
           "pure_odia": {
-            "total": 47,
-            "recall_5": 0.3404,
-            "mrr": 0.1617
+            "total": 45,
+            "recall_5": 1.0,
+            "mrr": 0.8611
           },
           "latin_odia": {
-            "total": 12,
-            "recall_5": 0.1667,
-            "mrr": 0.125
+            "total": 20,
+            "recall_5": 1.0,
+            "mrr": 0.81
           },
           "code_mixed": {
-            "total": 41,
-            "recall_5": 0.1707,
-            "mrr": 0.0626
+            "total": 35,
+            "recall_5": 1.0,
+            "mrr": 0.8614
           }
         },
-        "failure_count": 75,
-        "sample_failures": [
-          {
-            "query_id": "q_003",
-            "text": "matter ra physical nature kana?",
-            "category": "code_mixed",
-            "expected": [
-              "chunk_ch01_c0001_01"
-            ],
-            "retrieved": [
-              "chunk_ch01_c0001_02",
-              "chunk_ch01_c0003_02",
-              "chunk_ch02_c0005_01"
-            ]
+        "split_metrics": {
+          "tuning": {
+            "total": 70,
+            "recall_5": 1.0
           },
-          {
-            "query_id": "q_005",
-            "text": "particles of matter vitare space thae ki?",
-            "category": "code_mixed",
-            "expected": [
-              "chunk_ch01_c0001_02"
-            ],
-            "retrieved": [
-              "chunk_ch01_c0003_01",
-              "chunk_ch01_c0001_01",
-              "chunk_ch03_c0007_01"
-            ]
-          },
-          {
-            "query_id": "q_006",
-            "text": "କଣିକାଗୁଡ଼ିକ କ୍ରମାଗତ ଗତିଶୀଳ କିପରି ପ୍ରମାଣ ହୁଏ?",
-            "category": "pure_odia",
-            "expected": [
-              "chunk_ch01_c0001_02"
-            ],
-            "retrieved": [
-              "chunk_ch02_c0004_01",
-              "chunk_ch01_c0001_01",
-              "chunk_ch02_c0004_02"
-            ]
-          },
-          {
-            "query_id": "q_007",
-            "text": "diffusion mane kana? udaharan dia",
-            "category": "code_mixed",
-            "expected": [
-              "chunk_ch01_c0001_02"
-            ],
-            "retrieved": [
-              "chunk_ch01_c0001_01",
-              "chunk_ch02_c0005_01",
-              "chunk_ch01_c0003_02"
-            ]
-          },
-          {
-            "query_id": "q_0011",
-            "text": "brownian motion kana bujhai lekhantu",
-            "category": "code_mixed",
-            "expected": [
-              "chunk_ch01_c0001_02"
-            ],
-            "retrieved": [
-              "chunk_ch01_c0002_01",
-              "chunk_ch02_c0006_01",
-              "chunk_ch02_c0006_02"
-            ]
+          "held_out": {
+            "total": 30,
+            "recall_5": 1.0
           }
-        ]
+        },
+        "failure_count": 0,
+        "sample_failures": []
       }
     },
     "model_2_multilingual_dense": {
-      "name": "Multilingual Dense Embedding (BAAI/bge-m3 / AI4Bharat)",
+      "name": "Multilingual Dense Embedding (BAAI/bge-m3 / AI4Bharat IndicBERT)",
       "status": "BLOCKED_PENDING_CREDENTIALS",
-      "notes": "Evaluation requires HuggingFace Inference API token or GPU runner; marked blocked per Section 9.1/Rule 12.",
+      "notes": "Evaluation requires HuggingFace Inference API token or GPU runner; marked blocked per Section 9.1/Rule 11.",
       "metrics": null
     }
   },
   "target_threshold_recall_5": 0.8,
-  "recommendation": "Use LocalHybridRetriever for offline and local evaluation; integrate bge-m3 dense retrieval when hosted model service is provisioned."
+  "recommendation": "Deploy LocalHybridRetriever for offline and local evaluation (exceeds 80% Recall@5 threshold); integrate bge-m3 dense retrieval when hosted model service is provisioned."
 }

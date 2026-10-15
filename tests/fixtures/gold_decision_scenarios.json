@@ -1,25 +1,26 @@
 {
-  "dataset_name": "SAARTHI Gold Decision Scenarios",
+  "dataset_name": "SAARTHI Gold Decision Scenarios (Provisional Mechanical Corpus)",
+  "dataset_type": "provisional_mechanical_corpus",
+  "independent_human_reviewed": false,
+  "reviewers": [],
   "ruleset_version": "1.0.0",
   "total_scenarios": 120,
   "held_out_count": 42,
   "tuning_count": 78,
-  "reviewers": [
-    "Subodh Kumar Swain (Odia Lead)",
-    "Shuvakanta Patra (Agentic AI)"
-  ],
+  "held_out_share_pct": 35.0,
   "scenarios": [
     {
       "scenario_id": "gold_scen_001",
       "name": "Cold start online variant 1",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -69,7 +70,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -87,12 +89,13 @@
       "name": "Cold start offline variant 2",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -142,7 +145,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -158,12 +162,13 @@
       "name": "Cold start online variant 3",
       "category": "cold_start",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -213,7 +218,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -231,12 +237,13 @@
       "name": "Cold start offline variant 4",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -286,7 +293,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -302,12 +310,13 @@
       "name": "Cold start online variant 5",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -357,7 +366,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -375,12 +385,13 @@
       "name": "Cold start offline variant 6",
       "category": "cold_start",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -430,7 +441,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -446,12 +458,13 @@
       "name": "Cold start online variant 7",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -501,7 +514,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -519,12 +533,13 @@
       "name": "Cold start offline variant 8",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -574,7 +589,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -590,12 +606,13 @@
       "name": "Cold start online variant 9",
       "category": "cold_start",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -645,7 +662,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -663,12 +681,13 @@
       "name": "Cold start offline variant 10",
       "category": "cold_start",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": null,
@@ -718,7 +737,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -734,12 +754,13 @@
       "name": "Weak prereq gap variant 1",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -800,7 +821,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -816,12 +838,13 @@
       "name": "Weak prereq gap variant 2",
       "category": "prerequisite_gaps",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -882,7 +905,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -900,12 +924,13 @@
       "name": "Weak prereq gap variant 3",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -966,7 +991,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -982,12 +1008,13 @@
       "name": "Weak prereq gap variant 4",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1048,7 +1075,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1066,12 +1094,13 @@
       "name": "Weak prereq gap variant 5",
       "category": "prerequisite_gaps",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1132,7 +1161,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1148,12 +1178,13 @@
       "name": "Weak prereq gap variant 6",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1214,7 +1245,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1232,12 +1264,13 @@
       "name": "Weak prereq gap variant 7",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1298,7 +1331,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1314,12 +1348,13 @@
       "name": "Weak prereq gap variant 8",
       "category": "prerequisite_gaps",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1380,7 +1415,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1398,12 +1434,13 @@
       "name": "Weak prereq gap variant 9",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1464,7 +1501,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1480,12 +1518,13 @@
       "name": "Weak prereq gap variant 10",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1546,7 +1585,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1564,12 +1604,13 @@
       "name": "Weak prereq gap variant 11",
       "category": "prerequisite_gaps",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1630,7 +1671,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1646,12 +1688,13 @@
       "name": "Weak prereq gap variant 12",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1712,7 +1755,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1730,12 +1774,13 @@
       "name": "Weak prereq gap variant 13",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1796,7 +1841,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1812,12 +1858,13 @@
       "name": "Weak prereq gap variant 14",
       "category": "prerequisite_gaps",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1878,7 +1925,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1896,12 +1944,13 @@
       "name": "Weak prereq gap variant 15",
       "category": "prerequisite_gaps",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -1962,7 +2011,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -1978,12 +2028,13 @@
       "name": "Weak concept variant 1",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2039,7 +2090,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2057,12 +2109,13 @@
       "name": "Weak concept variant 2",
       "category": "weak_concept",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2118,7 +2171,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2134,12 +2188,13 @@
       "name": "Weak concept variant 3",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2195,7 +2250,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2211,12 +2267,13 @@
       "name": "Weak concept variant 4",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2272,7 +2329,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2290,12 +2348,13 @@
       "name": "Weak concept variant 5",
       "category": "weak_concept",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2351,7 +2410,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2367,12 +2427,13 @@
       "name": "Weak concept variant 6",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2428,7 +2489,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2444,12 +2506,13 @@
       "name": "Weak concept variant 7",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2505,7 +2568,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2523,12 +2587,13 @@
       "name": "Weak concept variant 8",
       "category": "weak_concept",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2584,7 +2649,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2600,12 +2666,13 @@
       "name": "Weak concept variant 9",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2661,7 +2728,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2677,12 +2745,13 @@
       "name": "Weak concept variant 10",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2738,7 +2807,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2756,12 +2826,13 @@
       "name": "Weak concept variant 11",
       "category": "weak_concept",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2817,7 +2888,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2833,12 +2905,13 @@
       "name": "Weak concept variant 12",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2894,7 +2967,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2910,12 +2984,13 @@
       "name": "Weak concept variant 13",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -2971,7 +3046,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REMEDIATE",
@@ -2989,12 +3065,13 @@
       "name": "Weak concept variant 14",
       "category": "weak_concept",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3050,7 +3127,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -3066,12 +3144,13 @@
       "name": "Weak concept variant 15",
       "category": "weak_concept",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3127,7 +3206,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -3143,12 +3223,13 @@
       "name": "Partial practice / wrong retry variant 1",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3204,7 +3285,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -3220,12 +3302,13 @@
       "name": "Partial practice / wrong retry variant 2",
       "category": "partial_practice",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3281,7 +3364,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -3299,12 +3383,13 @@
       "name": "Partial practice / wrong retry variant 3",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3360,7 +3445,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -3376,12 +3462,13 @@
       "name": "Partial practice / wrong retry variant 4",
       "category": "partial_practice",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3437,7 +3524,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -3455,12 +3543,13 @@
       "name": "Partial practice / wrong retry variant 5",
       "category": "repeated_wrong_answers",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3516,7 +3605,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -3532,12 +3622,13 @@
       "name": "Partial practice / wrong retry variant 6",
       "category": "partial_practice",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3593,7 +3684,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -3611,12 +3703,13 @@
       "name": "Partial practice / wrong retry variant 7",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3672,7 +3765,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -3688,12 +3782,13 @@
       "name": "Partial practice / wrong retry variant 8",
       "category": "partial_practice",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3749,7 +3844,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -3767,12 +3863,13 @@
       "name": "Partial practice / wrong retry variant 9",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3828,7 +3925,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -3844,12 +3942,13 @@
       "name": "Partial practice / wrong retry variant 10",
       "category": "partial_practice",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3905,7 +4004,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -3923,12 +4023,13 @@
       "name": "Partial practice / wrong retry variant 11",
       "category": "repeated_wrong_answers",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -3984,7 +4085,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -4000,12 +4102,13 @@
       "name": "Partial practice / wrong retry variant 12",
       "category": "partial_practice",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4061,7 +4164,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -4079,12 +4183,13 @@
       "name": "Partial practice / wrong retry variant 13",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4140,7 +4245,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -4156,12 +4262,13 @@
       "name": "Partial practice / wrong retry variant 14",
       "category": "partial_practice",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4217,7 +4324,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -4235,12 +4343,13 @@
       "name": "Partial practice / wrong retry variant 15",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4296,7 +4405,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -4312,12 +4422,13 @@
       "name": "Partial practice / wrong retry variant 16",
       "category": "partial_practice",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4373,7 +4484,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -4391,12 +4503,13 @@
       "name": "Partial practice / wrong retry variant 17",
       "category": "repeated_wrong_answers",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4452,7 +4565,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -4468,12 +4582,13 @@
       "name": "Partial practice / wrong retry variant 18",
       "category": "partial_practice",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4529,7 +4644,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -4547,12 +4663,13 @@
       "name": "Partial practice / wrong retry variant 19",
       "category": "repeated_wrong_answers",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4608,7 +4725,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "RETRY",
@@ -4624,12 +4742,13 @@
       "name": "Partial practice / wrong retry variant 20",
       "category": "partial_practice",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4685,7 +4804,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "RETRY",
@@ -4703,12 +4823,13 @@
       "name": "Mastered advance variant 1",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4764,7 +4885,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -4782,12 +4904,13 @@
       "name": "Mastered advance variant 2",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4843,7 +4966,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -4859,12 +4983,13 @@
       "name": "Mastered advance variant 3",
       "category": "mastered_concepts",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4920,7 +5045,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -4938,12 +5064,13 @@
       "name": "Mastered advance variant 4",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -4999,7 +5126,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -5015,12 +5143,13 @@
       "name": "Mastered advance variant 5",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5076,7 +5205,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -5094,12 +5224,13 @@
       "name": "Mastered advance variant 6",
       "category": "mastered_concepts",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5155,7 +5286,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -5171,12 +5303,13 @@
       "name": "Mastered advance variant 7",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5232,7 +5365,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -5250,12 +5384,13 @@
       "name": "Mastered advance variant 8",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5311,7 +5446,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -5327,12 +5463,13 @@
       "name": "Mastered advance variant 9",
       "category": "mastered_concepts",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5388,7 +5525,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -5406,12 +5544,13 @@
       "name": "Mastered advance variant 10",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5467,7 +5606,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -5483,12 +5623,13 @@
       "name": "Mastered advance variant 11",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5544,7 +5685,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -5562,12 +5704,13 @@
       "name": "Mastered advance variant 12",
       "category": "mastered_concepts",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5623,7 +5766,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -5639,12 +5783,13 @@
       "name": "Mastered advance variant 13",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5700,7 +5845,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -5718,12 +5864,13 @@
       "name": "Mastered advance variant 14",
       "category": "mastered_concepts",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5779,7 +5926,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -5795,12 +5943,13 @@
       "name": "Mastered advance variant 15",
       "category": "mastered_concepts",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -5856,7 +6005,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "ADVANCE",
@@ -5874,12 +6024,13 @@
       "name": "Slice complete variant 1",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -5960,7 +6111,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -5976,12 +6128,13 @@
       "name": "Slice complete variant 2",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6062,7 +6215,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REVISE",
@@ -6080,12 +6234,13 @@
       "name": "Slice complete variant 3",
       "category": "slice_complete",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6166,7 +6321,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -6182,12 +6338,13 @@
       "name": "Slice complete variant 4",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6268,7 +6425,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REVISE",
@@ -6286,12 +6444,13 @@
       "name": "Slice complete variant 5",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6372,7 +6531,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -6388,12 +6548,13 @@
       "name": "Slice complete variant 6",
       "category": "slice_complete",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6474,7 +6635,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REVISE",
@@ -6492,12 +6654,13 @@
       "name": "Slice complete variant 7",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6578,7 +6741,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -6594,12 +6758,13 @@
       "name": "Slice complete variant 8",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6680,7 +6845,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REVISE",
@@ -6698,12 +6864,13 @@
       "name": "Slice complete variant 9",
       "category": "slice_complete",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6784,7 +6951,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -6800,12 +6968,13 @@
       "name": "Slice complete variant 10",
       "category": "slice_complete",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0006",
@@ -6886,7 +7055,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": true
       },
       "expected": {
         "action": "REVISE",
@@ -6904,12 +7074,13 @@
       "name": "No gain alt content 1",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -6990,7 +7161,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -7006,12 +7178,13 @@
       "name": "No gain alt content 2",
       "category": "no_progress_after_remediation",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -7092,7 +7265,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -7108,12 +7282,13 @@
       "name": "No gain alt content 3",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -7194,7 +7369,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -7210,12 +7386,13 @@
       "name": "No gain alt content 4",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -7296,7 +7473,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -7312,12 +7490,13 @@
       "name": "No gain alt content 5",
       "category": "no_progress_after_remediation",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -7398,7 +7577,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -7414,12 +7594,13 @@
       "name": "No gain remediate prereq 1",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -7505,7 +7686,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -7521,12 +7703,13 @@
       "name": "No gain remediate prereq 2",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -7612,7 +7795,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -7628,12 +7812,13 @@
       "name": "No gain remediate prereq 3",
       "category": "no_progress_after_remediation",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -7719,7 +7904,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -7735,12 +7921,13 @@
       "name": "No gain remediate prereq 4",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -7826,7 +8013,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -7842,12 +8030,13 @@
       "name": "No gain remediate prereq 5",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0002",
@@ -7933,7 +8122,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REMEDIATE",
@@ -7949,12 +8139,13 @@
       "name": "Interventions exhausted 1",
       "category": "no_progress_after_remediation",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -8035,7 +8226,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -8051,12 +8243,13 @@
       "name": "Interventions exhausted 2",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -8137,7 +8330,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -8153,12 +8347,13 @@
       "name": "Interventions exhausted 3",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -8239,7 +8434,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -8255,12 +8451,13 @@
       "name": "Interventions exhausted 4",
       "category": "no_progress_after_remediation",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -8341,7 +8538,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -8357,12 +8555,13 @@
       "name": "Interventions exhausted 5",
       "category": "no_progress_after_remediation",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "ANSWER_SUBMITTED",
         "trigger_concept_id": "c0001",
@@ -8443,7 +8642,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "REVISE",
@@ -8459,12 +8659,13 @@
       "name": "Missing pack offline variant 1",
       "category": "missing_pack_offline",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -8529,7 +8730,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -8547,12 +8749,13 @@
       "name": "Missing pack offline variant 2",
       "category": "missing_pack_offline",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -8617,7 +8820,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -8635,12 +8839,13 @@
       "name": "Missing pack offline variant 3",
       "category": "missing_pack_offline",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -8705,7 +8910,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -8723,12 +8929,13 @@
       "name": "Missing pack offline variant 4",
       "category": "missing_pack_offline",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -8793,7 +9000,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -8811,12 +9019,13 @@
       "name": "Missing pack offline variant 5",
       "category": "missing_pack_offline",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -8881,7 +9090,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -8899,12 +9109,13 @@
       "name": "Missing pack offline variant 6",
       "category": "missing_pack_offline",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -8969,7 +9180,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -8987,12 +9199,13 @@
       "name": "Missing pack offline variant 7",
       "category": "missing_pack_offline",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -9057,7 +9270,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9075,12 +9289,13 @@
       "name": "Missing pack offline variant 8",
       "category": "missing_pack_offline",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -9145,7 +9360,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9163,12 +9379,13 @@
       "name": "Missing pack offline variant 9",
       "category": "missing_pack_offline",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -9233,7 +9450,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9251,12 +9469,13 @@
       "name": "Missing pack offline variant 10",
       "category": "missing_pack_offline",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "SESSION_STARTED",
         "trigger_concept_id": "c0004",
@@ -9321,7 +9540,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9339,12 +9559,13 @@
       "name": "Invalid state fallback variant 1",
       "category": "corrupt_or_stale_state",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9393,7 +9614,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9409,12 +9631,13 @@
       "name": "Invalid state fallback variant 2",
       "category": "corrupt_or_stale_state",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9463,7 +9686,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9479,12 +9703,13 @@
       "name": "Invalid state fallback variant 3",
       "category": "corrupt_or_stale_state",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9533,7 +9758,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9549,12 +9775,13 @@
       "name": "Invalid state fallback variant 4",
       "category": "corrupt_or_stale_state",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9603,7 +9830,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9619,12 +9847,13 @@
       "name": "Invalid state fallback variant 5",
       "category": "corrupt_or_stale_state",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9673,7 +9902,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9689,12 +9919,13 @@
       "name": "Invalid state fallback variant 6",
       "category": "corrupt_or_stale_state",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9743,7 +9974,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9759,12 +9991,13 @@
       "name": "Invalid state fallback variant 7",
       "category": "corrupt_or_stale_state",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9813,7 +10046,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9829,12 +10063,13 @@
       "name": "Invalid state fallback variant 8",
       "category": "corrupt_or_stale_state",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9883,7 +10118,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9899,12 +10135,13 @@
       "name": "Invalid state fallback variant 9",
       "category": "corrupt_or_stale_state",
       "split": "tuning",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -9953,7 +10190,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",
@@ -9969,12 +10207,13 @@
       "name": "Invalid state fallback variant 10",
       "category": "corrupt_or_stale_state",
       "split": "held_out",
-      "reviewers": [
-        "Subodh Kumar Swain (Odia Lead)",
-        "Shuvakanta Patra (Agentic AI)"
-      ],
-      "disagreement_resolved": true,
-      "review_date": "2026-10-14",
+      "provenance": {
+        "source": "mechanical_rule_derivation",
+        "independent_human_reviewed": false,
+        "reviewers": [],
+        "disagreement_resolved": null,
+        "review_date": null
+      },
       "input": {
         "trigger_event_type": "UNKNOWN_CORRUPT_TYPE",
         "trigger_concept_id": null,
@@ -10023,7 +10262,8 @@
           "c0004": "ch002",
           "c0005": "ch002",
           "c0006": "ch002"
-        }
+        },
+        "outbox_nonempty": false
       },
       "expected": {
         "action": "ADVANCE",

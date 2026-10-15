@@ -381,15 +381,34 @@ def build_doubt_graph(checkpointer=None):
     return builder.compile(checkpointer=checkpointer)
 
 
+from ..adapters.persistence.checkpointer import SqlLangGraphCheckpointer
+
 _default_checkpointer = MemorySaver()
 doubt_graph = build_doubt_graph(checkpointer=_default_checkpointer)
 
 
-async def run_doubt(req: DoubtRequest, checkpointer=None) -> DoubtResponse:
-    """Run the doubt branch through the compiled LangGraph state machine."""
-    initial_state = OrchestrationState(query=req.query, learner_input=req.query)
-    graph = doubt_graph if checkpointer is None else build_doubt_graph(checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": initial_state.decision_id}}
+async def run_doubt(req: DoubtRequest, checkpointer=None, thread_id: Optional[str] = None) -> DoubtResponse:
+    """Run the doubt branch through the compiled LangGraph state machine.
+    
+    Durable checkpointer (PostgreSQL/SQLite) is used by default so graph state
+    persists across process interruptions and can be resumed.
+    """
+    tid = thread_id or new_decision_id()
+    initial_state = OrchestrationState(query=req.query, learner_input=req.query, decision_id=tid)
+    
+    if checkpointer is None:
+        try:
+            from ..adapters.persistence import get_persistence
+            p = await get_persistence()
+            active_checkpointer = SqlLangGraphCheckpointer(p)
+        except Exception as e:
+            log.warning("durable_checkpointer_init_fallback err=%s", e)
+            active_checkpointer = _default_checkpointer
+    else:
+        active_checkpointer = checkpointer
+
+    graph = build_doubt_graph(checkpointer=active_checkpointer)
+    config = {"configurable": {"thread_id": tid}}
 
     result_dict = await graph.ainvoke(initial_state, config=config)
     state = OrchestrationState(**result_dict)

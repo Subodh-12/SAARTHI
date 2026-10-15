@@ -343,15 +343,18 @@ export function selectDeliveryMode(inp: DecisionInput,
 }
 
 export function selectBackgroundActions(inp: DecisionInput,
-                                        target: string): string[] {
+                                        target: string,
+                                        reasonCode = ""): string[] {
   const network = inp.env_network;
   const actions = new Set<string>();
   if (network !== "offline" && inp.outbox_nonempty) actions.add("SYNC");
   const prefetchOk =
-    (network === "online" || network === "reconnected")
+    (
+      ((network === "online" || network === "reconnected") && !targetPackInstalled(target, inp))
+      || (reasonCode === "CONTENT_NOT_AVAILABLE_OFFLINE")
+    )
     && !inp.battery_saver
-    && (inp.storage_free_mb ?? 1_000_000) >= (RULESET.prefetch.min_free_mb ?? 150)
-    && !targetPackInstalled(target, inp);
+    && (inp.storage_free_mb ?? 1_000_000) >= (RULESET.prefetch.min_free_mb ?? 150);
   if (prefetchOk) actions.add("PREFETCH");
   return Array.from(actions).sort(
     (a, b) => ["PREFETCH", "SYNC"].indexOf(a) - ["PREFETCH", "SYNC"].indexOf(b));
@@ -538,7 +541,7 @@ function finish(inp: DecisionInput,
   const out: DecisionOutput = {
     action, target_concept_id: outTarget,
     delivery_mode: selectDeliveryMode(inp, outTarget),
-    background_actions: selectBackgroundActions(inp, outTarget),
+    background_actions: selectBackgroundActions(inp, outTarget, reason),
     reason_code: reason,
     target_bloom_level: targetBloom,
     needs_help: needsHelp,
@@ -626,7 +629,19 @@ export function decide(inp: DecisionInput): DecisionOutput {
   if (!target) {
     return finish(inp, "RETRY", "", "STATE_INVALID_FALLBACK", false, 0, true);
   }
-  const p = inp.mastery[target]?.p_bp ?? (RULESET.bkt.p_init_bp ?? 2000);
+  const m = inp.mastery[target];
+  if (m === undefined || (m.attempts === 0 && (inp.trigger_correct === null || inp.trigger_correct === undefined))) {
+    // Target has never been attempted: advance if prereqs are mastered, else remediate prereq gap
+    if (prereqsMastered(target, inp)) {
+      return finish(inp, "ADVANCE", target, "MASTERED_ADVANCE", false, 7);
+    } else {
+      const weakest = weakestPrereq(target, inp) || mostBlockedPrereq(inp);
+      if (weakest !== null) {
+        return finish(inp, "REMEDIATE", weakest, "BLOCKED_BY_PREREQ", false, 7);
+      }
+    }
+  }
+  const p = m?.p_bp ?? (RULESET.bkt.p_init_bp ?? 2000);
 
   // Rule 2: repeated-attempt guard.
   const [attemptsWithoutGain, altShown] = guardState(inp, target);

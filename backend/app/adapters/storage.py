@@ -157,17 +157,44 @@ class LocalObjectStorage(ObjectStorage):
         return target.stat().st_size
 
 
-class S3MinIOStorage(ObjectStorage):
-    """S3-compatible / MinIO storage adapter using HTTP requests."""
+import httpx
 
-    def __init__(self, endpoint_url: str, bucket: str, access_key: str, secret_key: str) -> None:
+
+class S3MinIOStorage(ObjectStorage):
+    """S3-compatible / MinIO storage adapter using actual S3 REST API calls."""
+
+    def __init__(
+        self,
+        endpoint_url: str,
+        bucket: str,
+        access_key: str,
+        secret_key: str,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> None:
         self.endpoint_url = endpoint_url.rstrip("/")
         self.bucket = bucket
         self.access_key = access_key
         self.secret_key = secret_key
-        # In a real environment with MinIO or AWS S3, aiobotocore / boto3 or S3 HTTP API is used.
-        # As a robust fallback when MinIO is not running, delegates to local file cache
-        self._fallback_local = LocalObjectStorage(Path("packs/minio_cache"))
+        self._client = client
+
+    def _client_context(self) -> httpx.AsyncClient:
+        if self._client is not None:
+            return self._client
+        return httpx.AsyncClient(timeout=30.0)
+
+    def _url_for(self, key: str) -> str:
+        clean_key = key.lstrip("/")
+        return f"{self.endpoint_url}/{self.bucket}/{clean_key}"
+
+    def _headers(self, extra: Optional[dict[str, str]] = None) -> dict[str, str]:
+        import base64
+        headers = {}
+        if self.access_key and self.secret_key:
+            auth_str = f"{self.access_key}:{self.secret_key}"
+            headers["Authorization"] = f"Basic {base64.b64encode(auth_str.encode()).decode()}"
+        if extra:
+            headers.update(extra)
+        return headers
 
     async def upload_artifact(
         self,
@@ -176,30 +203,124 @@ class S3MinIOStorage(ObjectStorage):
         content_type: str = "application/octet-stream",
         expected_sha256: Optional[str] = None,
     ) -> str:
-        # Validates integrity before storage
         if expected_sha256:
             actual_sha = hashlib.sha256(data).hexdigest()
             if actual_sha.lower() != expected_sha256.lower():
                 raise IntegrityError(f"checksum mismatch: expected {expected_sha256}, got {actual_sha}")
-        return await self._fallback_local.upload_artifact(key, data, content_type, expected_sha256)
+
+        url = self._url_for(key)
+        headers = self._headers({"Content-Type": content_type, "Content-Length": str(len(data))})
+        client = self._client_context()
+        try:
+            resp = await client.put(url, content=data, headers=headers)
+            if resp.status_code not in (200, 201, 204):
+                raise StorageError(f"upload failed for {key}: HTTP {resp.status_code} - {resp.text}")
+            return key
+        except httpx.RequestError as e:
+            raise StorageError(f"upload connection error: {e}")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     async def download_artifact(self, key: str) -> bytes:
-        return await self._fallback_local.download_artifact(key)
+        url = self._url_for(key)
+        headers = self._headers()
+        client = self._client_context()
+        try:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 404:
+                raise ObjectNotFoundError(f"object not found: {key}")
+            if resp.status_code != 200:
+                raise StorageError(f"download failed for {key}: HTTP {resp.status_code} - {resp.text}")
+            return resp.content
+        except httpx.RequestError as e:
+            raise StorageError(f"download connection error: {e}")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     async def download_range(self, key: str, start: int, end: int) -> bytes:
-        return await self._fallback_local.download_range(key, start, end)
+        url = self._url_for(key)
+        headers = self._headers({"Range": f"bytes={start}-{end}"})
+        client = self._client_context()
+        try:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 404:
+                raise ObjectNotFoundError(f"object not found: {key}")
+            if resp.status_code == 416:
+                raise StorageError(f"invalid byte range: {start}-{end}")
+            if resp.status_code not in (200, 206):
+                raise StorageError(f"range download failed: HTTP {resp.status_code}")
+            return resp.content
+        except httpx.RequestError as e:
+            raise StorageError(f"range download connection error: {e}")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     async def promote_artifact(self, temp_key: str, final_key: str) -> None:
-        await self._fallback_local.promote_artifact(temp_key, final_key)
+        final_url = self._url_for(final_key)
+        source_header = f"/{self.bucket}/{temp_key.lstrip('/')}"
+        headers = self._headers({"x-amz-copy-source": source_header})
+        client = self._client_context()
+        try:
+            resp = await client.put(final_url, headers=headers)
+            if resp.status_code == 404:
+                raise ObjectNotFoundError(f"temp object not found: {temp_key}")
+            if resp.status_code not in (200, 201, 204):
+                raise StorageError(f"promotion failed from {temp_key} to {final_key}: HTTP {resp.status_code}")
+            await self.delete_artifact(temp_key)
+        except httpx.RequestError as e:
+            raise StorageError(f"promotion connection error: {e}")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     async def delete_artifact(self, key: str) -> bool:
-        return await self._fallback_local.delete_artifact(key)
+        url = self._url_for(key)
+        headers = self._headers()
+        client = self._client_context()
+        try:
+            resp = await client.delete(url, headers=headers)
+            return resp.status_code in (200, 204)
+        except httpx.RequestError as e:
+            raise StorageError(f"delete connection error: {e}")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     async def exists(self, key: str) -> bool:
-        return await self._fallback_local.exists(key)
+        url = self._url_for(key)
+        headers = self._headers()
+        client = self._client_context()
+        try:
+            resp = await client.head(url, headers=headers)
+            return resp.status_code == 200
+        except httpx.RequestError:
+            return False
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     async def get_size(self, key: str) -> int:
-        return await self._fallback_local.get_size(key)
+        url = self._url_for(key)
+        headers = self._headers()
+        client = self._client_context()
+        try:
+            resp = await client.head(url, headers=headers)
+            if resp.status_code == 404:
+                raise ObjectNotFoundError(f"object not found: {key}")
+            if resp.status_code != 200:
+                raise StorageError(f"head failed for {key}: HTTP {resp.status_code}")
+            cl = resp.headers.get("Content-Length")
+            if cl is None:
+                raise StorageError("missing Content-Length header")
+            return int(cl)
+        except httpx.RequestError as e:
+            raise StorageError(f"get_size connection error: {e}")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
 
 _storage_singleton: Optional[ObjectStorage] = None

@@ -48,13 +48,16 @@ class Persistence:
         """Apply schema.sql to the connected DB, then migrate a prior
         schema in place (guarded column additions). Idempotent."""
         sql = SCHEMA_PATH.read_text(encoding="utf-8")
-        # SQLite + async: use raw_connection for batch DDL.
+        is_pg = "postgres" in str(self.engine.url)
         async with self.engine.begin() as conn:
             # split on semicolons (statements only, no procedures)
             for stmt in _split_statements(sql):
                 stmt = stmt.strip()
                 if not stmt:
                     continue
+                if is_pg:
+                    stmt = stmt.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+                    stmt = stmt.replace("AUTOINCREMENT", "")
                 await conn.exec_driver_sql(stmt) if hasattr(conn, "exec_driver_sql") else await conn.execute(_text(stmt))
             await _migrate_prior_schema(conn)
         log.info("schema_applied path=%s", SCHEMA_PATH)

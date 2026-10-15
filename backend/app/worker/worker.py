@@ -47,15 +47,60 @@ async def execute_job_payload(job_type: str, payload: dict[str, Any]) -> dict[st
     
     if job_type == "build_pack":
         pack_id = payload.get("pack_id")
-        version = payload.get("version", 1)
         if not pack_id:
             raise NonRetryableError("missing_pack_id")
-        # In a real environment, executes pack building logic
-        return {"status": "ok", "pack_id": pack_id, "version": version}
+        strict = payload.get("strict", False)
+        try:
+            import sys
+            from pathlib import Path
+            root = Path(__file__).resolve().parents[3]
+            if str(root) not in sys.path:
+                sys.path.insert(0, str(root))
+            from scripts.build_packs import build_pack, ValidationError
+        except Exception as e:
+            raise NonRetryableError(f"build_pack_import_failed: {e}")
+
+        try:
+            manifest = build_pack(strict=strict)
+        except ValidationError as e:
+            raise NonRetryableError(f"validation_failed: {e}")
+        except Exception as e:
+            raise RetryableJobError(f"pack_build_failed: {e}")
+
+        root = Path(__file__).resolve().parents[3]
+        pack_dir = root / "packs"
+        gz_path = pack_dir / f"{manifest['pack_id']}-{manifest['version']}.srt.tar.gz"
+        json_path = pack_dir / f"{manifest['pack_id']}-{manifest['version']}.json"
+        if not gz_path.exists() or not json_path.exists():
+            raise RetryableJobError("pack_output_file_missing")
+
+        return {
+            "status": "ok",
+            "pack_id": manifest["pack_id"],
+            "version": manifest["version"],
+            "byte_size": manifest["byte_size"],
+            "archive_byte_size": manifest.get("archive_byte_size"),
+            "checksum_sha256": manifest["checksum_sha256"],
+            "archive_sha256": manifest.get("archive_sha256"),
+        }
 
     elif job_type == "rebuild_index":
         chapter_id = payload.get("chapter_id")
-        return {"status": "ok", "indexed_chapter": chapter_id}
+        try:
+            from ..content.pack_loader import load_pack_index
+            from ..adapters.ai.retrieval import LocalHybridRetriever, get_embeddings_provider
+            pack = load_pack_index()
+            retriever = LocalHybridRetriever(pack=pack, embeddings=get_embeddings_provider())
+            vecs = await retriever._ensure_chunk_embeds()
+            return {
+                "status": "ok",
+                "indexed_chapter": chapter_id or "all",
+                "chunks_indexed": len(retriever._chunk_ids),
+                "bm25_ready": retriever._bm25 is not None,
+                "embeddings_ready": vecs is not None and len(vecs) > 0,
+            }
+        except Exception as e:
+            raise RetryableJobError(f"rebuild_index_failed: {e}")
 
     elif job_type == "reconcile_cron":
         return {"status": "ok", "reconciled": True}

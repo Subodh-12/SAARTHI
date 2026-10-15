@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     @classmethod
     def _db_url(cls, v: str, info) -> str:
         if info.data.get("persistence_backend") == "postgres":
-            if not v.startswith(("postgres://", "postgresql://", "postgres+asyncpg://")):
+            if not v.startswith(("postgres://", "postgresql://", "postgres+asyncpg://", "postgresql+asyncpg://")):
                 raise ValueError("postgres backend requires a postgres* DATABASE_URL")
         return v
 

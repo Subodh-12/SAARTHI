@@ -6,7 +6,7 @@ interface Chunk { chunk_id: string; concept_id: string; chapter_id: string; text
 interface GlossaryEntry { term_or: string; term_en: string; definition_or: string; definition_en: string; }
 
 function tokenize(text: string): string[] {
-  return text.toLowerCase().split(/[\s\u0B01-\u0B7F,.!?;:()[\]{}"\x27]+/).filter(Boolean);
+  return text.toLowerCase().split(/[\s,.!?;:()[\]{}"\x27।\-–—/\\«»]+/).filter(Boolean);
 }
 
 export interface OfflineRetrievedChunk {

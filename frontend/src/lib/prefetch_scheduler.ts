@@ -73,11 +73,14 @@ export async function scheduleBackgroundPrefetch(opts: PrefetchOptions): Promise
     activePrefetchPackId = candidate.pack_id;
 
     // 6. Non-blocking background download using resumable downloader
+    const expectedSize = candidate.archive_byte_size || candidate.byte_size;
+    const expectedSha = candidate.archive_sha256 || candidate.checksum_sha256;
     downloadPackResumable({
       pack_id: candidate.pack_id,
       version: String(candidate.version),
-      expected_byte_size: candidate.byte_size,
-      expected_checksum_sha256: candidate.checksum_sha256,
+      expected_byte_size: expectedSize,
+      expected_checksum_sha256: expectedSha,
+      min_app_version: candidate.min_app_version,
       onProgress: (p) => {
         if (opts.onProgress) opts.onProgress(p.percent);
       },

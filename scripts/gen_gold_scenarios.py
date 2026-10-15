@@ -40,14 +40,23 @@ def add_scenario(name, cat, inp_data, expected_data):
     # 30% held out (every 3rd or index divisible by 3 -> 36/120 = 30%)
     split = "held_out" if (idx % 3 == 0 and len(SCENARIOS) < 108) or (idx > 108 and idx % 2 == 0) else "tuning"
     
+    if "SYNC" in expected_data.get("background_actions", []):
+        inp_data["outbox_nonempty"] = True
+    elif "outbox_nonempty" not in inp_data:
+        inp_data["outbox_nonempty"] = False
+
     scenario = {
         "scenario_id": scen_id,
         "name": name,
         "category": cat,
         "split": split,
-        "reviewers": ["Subodh Kumar Swain (Odia Lead)", "Shuvakanta Patra (Agentic AI)"],
-        "disagreement_resolved": True,
-        "review_date": "2026-10-14",
+        "provenance": {
+            "source": "mechanical_rule_derivation",
+            "independent_human_reviewed": False,
+            "reviewers": [],
+            "disagreement_resolved": None,
+            "review_date": None,
+        },
         "input": inp_data,
         "expected": expected_data,
     }
@@ -430,12 +439,15 @@ def main():
     print(f"Generated {len(SCENARIOS)} scenarios ({tuning_count} tuning, {held_out_count} held-out = {held_out_count/len(SCENARIOS)*100:.1f}%)")
 
     data = {
-        "dataset_name": "SAARTHI Gold Decision Scenarios",
+        "dataset_name": "SAARTHI Gold Decision Scenarios (Provisional Mechanical Corpus)",
+        "dataset_type": "provisional_mechanical_corpus",
+        "independent_human_reviewed": False,
+        "reviewers": [],
         "ruleset_version": "1.0.0",
         "total_scenarios": len(SCENARIOS),
         "held_out_count": held_out_count,
         "tuning_count": tuning_count,
-        "reviewers": ["Subodh Kumar Swain (Odia Lead)", "Shuvakanta Patra (Agentic AI)"],
+        "held_out_share_pct": round(held_out_count / len(SCENARIOS) * 100, 1),
         "scenarios": SCENARIOS,
     }
     OUT_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

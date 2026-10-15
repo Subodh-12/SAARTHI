@@ -21,9 +21,9 @@ def upgrade() -> None:
       device_id          TEXT PRIMARY KEY,
       hardware_label     TEXT NOT NULL DEFAULT 'shared-android-low-end',
       public_key_spki    TEXT,
-      created_at         INTEGER NOT NULL,
-      last_seen_at       INTEGER,
-      revoked_at         INTEGER
+      created_at         BIGINT NOT NULL,
+      last_seen_at       BIGINT,
+      revoked_at         BIGINT
     );
     """)
 
@@ -35,7 +35,7 @@ def upgrade() -> None:
       grade              TEXT NOT NULL DEFAULT 'class9',
       subject            TEXT NOT NULL DEFAULT 'science',
       pin_hash           TEXT,
-      created_at         INTEGER NOT NULL,
+      created_at         BIGINT NOT NULL,
       active_device_id   TEXT REFERENCES devices(device_id) ON DELETE SET NULL,
       UNIQUE (active_device_id)
     );
@@ -46,8 +46,8 @@ def upgrade() -> None:
       learner_id         TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
       device_id          TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
       status             TEXT NOT NULL DEFAULT 'active',
-      first_seen_at      INTEGER NOT NULL,
-      last_active_at     INTEGER NOT NULL,
+      first_seen_at      BIGINT NOT NULL,
+      last_active_at     BIGINT NOT NULL,
       PRIMARY KEY (learner_id, device_id)
     );
     """)
@@ -56,8 +56,8 @@ def upgrade() -> None:
     CREATE TABLE IF NOT EXISTS device_tokens (
       device_id          TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
       token_hash         TEXT NOT NULL,
-      issued_at          INTEGER NOT NULL,
-      expires_at         INTEGER NOT NULL,
+      issued_at          BIGINT NOT NULL,
+      expires_at         BIGINT NOT NULL,
       revoked            INTEGER NOT NULL DEFAULT 0
     );
     """)
@@ -68,9 +68,9 @@ def upgrade() -> None:
       id                 TEXT PRIMARY KEY,
       device_id          TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
       token_hash         TEXT NOT NULL,
-      issued_at          INTEGER NOT NULL,
-      expires_at         INTEGER NOT NULL,
-      used_at            INTEGER,
+      issued_at          BIGINT NOT NULL,
+      expires_at         BIGINT NOT NULL,
+      used_at            BIGINT,
       revoked            INTEGER NOT NULL DEFAULT 0
     );
     """)
@@ -80,9 +80,9 @@ def upgrade() -> None:
     CREATE TABLE IF NOT EXISTS auth_challenges (
       nonce              TEXT PRIMARY KEY,
       device_id          TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
-      created_at         INTEGER NOT NULL,
-      expires_at         INTEGER NOT NULL,
-      used_at            INTEGER
+      created_at         BIGINT NOT NULL,
+      expires_at         BIGINT NOT NULL,
+      used_at            BIGINT
     );
     """)
 
@@ -176,21 +176,50 @@ def upgrade() -> None:
     # 3. Events & Mastery
     op.execute("""
     CREATE TABLE IF NOT EXISTS learner_events (
-      event_id           TEXT PRIMARY KEY,
-      device_id          TEXT NOT NULL,
-      learner_id         TEXT NOT NULL,
-      seq                INTEGER NOT NULL,
-      event_type         TEXT NOT NULL,
-      payload_json       TEXT NOT NULL,
-      client_ts          INTEGER,
-      server_ts          INTEGER NOT NULL,
-      status             TEXT NOT NULL DEFAULT 'accepted',
-      effect             TEXT,
-      reason             TEXT,
-      UNIQUE (device_id, seq)
+      device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+      learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
+      seq                 INTEGER NOT NULL,
+      event_id            TEXT NOT NULL,
+      client_ts           BIGINT NOT NULL,
+      event_type          TEXT NOT NULL,
+      concept_id          TEXT,
+      chapter_id          TEXT,
+      question_id         TEXT,
+      payload_json        TEXT NOT NULL DEFAULT '{}',
+      status              TEXT NOT NULL DEFAULT 'accepted',
+      effect              TEXT,
+      reason              TEXT,
+      received_at         BIGINT NOT NULL,
+      server_seq          INTEGER,
+      PRIMARY KEY (device_id, seq),
+      UNIQUE (event_id)
     );
     """)
-    op.execute("CREATE INDEX IF NOT EXISTS idx_events_learner_seq ON learner_events (learner_id, seq);")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_events_learner_seq ON learner_events (learner_id, server_seq);")
+
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS sync_cursors (
+      device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+      learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
+      last_acked_seq      INTEGER NOT NULL DEFAULT 0,
+      last_server_seq     INTEGER NOT NULL DEFAULT 0,
+      last_acked_at       BIGINT NOT NULL DEFAULT 0,
+      PRIMARY KEY (device_id, learner_id)
+    );
+    """)
+
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS dead_letter_events (
+      event_id            TEXT PRIMARY KEY,
+      device_id           TEXT NOT NULL,
+      learner_id          TEXT NOT NULL,
+      seq                 INTEGER NOT NULL,
+      reason              TEXT NOT NULL,
+      last_error_code     TEXT NOT NULL,
+      received_at         BIGINT NOT NULL,
+      dead_at             BIGINT NOT NULL
+    );
+    """)
 
     op.execute("""
     CREATE TABLE IF NOT EXISTS learner_progress (
@@ -199,7 +228,7 @@ def upgrade() -> None:
       p_bp               INTEGER NOT NULL DEFAULT 2000,
       attempts           INTEGER NOT NULL DEFAULT 0,
       correct            INTEGER NOT NULL DEFAULT 0,
-      last_seen_at       INTEGER,
+      last_seen_at       BIGINT,
       last_event_seq     INTEGER,
       bkt_version        TEXT NOT NULL DEFAULT '1',
       PRIMARY KEY (learner_id, concept_id)
@@ -224,7 +253,7 @@ def upgrade() -> None:
       network            TEXT NOT NULL DEFAULT 'offline',
       source             TEXT NOT NULL DEFAULT 'server',
       produced_by        TEXT NOT NULL DEFAULT 'rule_engine',
-      created_at         INTEGER NOT NULL,
+      created_at         BIGINT NOT NULL,
       target_bloom_level TEXT,
       trigger_event_id   TEXT
     );
@@ -243,7 +272,7 @@ def upgrade() -> None:
       output_or          TEXT NOT NULL DEFAULT '',
       validation_results_json TEXT NOT NULL DEFAULT '{}',
       fallback_used      INTEGER NOT NULL DEFAULT 0,
-      created_at         INTEGER NOT NULL
+      created_at         BIGINT NOT NULL
     );
     """)
 
@@ -256,28 +285,30 @@ def upgrade() -> None:
       type               TEXT NOT NULL DEFAULT 'dict',
       config_json        TEXT NOT NULL,
       metadata_json      TEXT NOT NULL DEFAULT '{}',
-      blob               BLOB,
-      created_at         INTEGER NOT NULL,
+      blob               BYTEA,
+      created_at         BIGINT NOT NULL,
       PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
     );
     """)
 
 
 def downgrade() -> None:
-    op.execute("DROP TABLE IF EXISTS langgraph_checkpoints;")
-    op.execute("DROP TABLE IF EXISTS generation_records;")
-    op.execute("DROP TABLE IF EXISTS decisions;")
-    op.execute("DROP TABLE IF EXISTS learner_progress;")
-    op.execute("DROP TABLE IF EXISTS learner_events;")
-    op.execute("DROP TABLE IF EXISTS installed_packs;")
-    op.execute("DROP TABLE IF EXISTS pack_manifests;")
-    op.execute("DROP TABLE IF EXISTS questions;")
-    op.execute("DROP TABLE IF EXISTS chunks;")
-    op.execute("DROP TABLE IF EXISTS concepts;")
-    op.execute("DROP TABLE IF EXISTS chapters;")
-    op.execute("DROP TABLE IF EXISTS auth_challenges;")
-    op.execute("DROP TABLE IF EXISTS refresh_tokens;")
-    op.execute("DROP TABLE IF EXISTS device_tokens;")
-    op.execute("DROP TABLE IF EXISTS learner_devices;")
-    op.execute("DROP TABLE IF EXISTS learner_profiles;")
-    op.execute("DROP TABLE IF EXISTS devices;")
+    op.execute("DROP TABLE IF EXISTS langgraph_checkpoints CASCADE;")
+    op.execute("DROP TABLE IF EXISTS generation_records CASCADE;")
+    op.execute("DROP TABLE IF EXISTS decisions CASCADE;")
+    op.execute("DROP TABLE IF EXISTS learner_progress CASCADE;")
+    op.execute("DROP TABLE IF EXISTS dead_letter_events CASCADE;")
+    op.execute("DROP TABLE IF EXISTS sync_cursors CASCADE;")
+    op.execute("DROP TABLE IF EXISTS learner_events CASCADE;")
+    op.execute("DROP TABLE IF EXISTS installed_packs CASCADE;")
+    op.execute("DROP TABLE IF EXISTS pack_manifests CASCADE;")
+    op.execute("DROP TABLE IF EXISTS questions CASCADE;")
+    op.execute("DROP TABLE IF EXISTS chunks CASCADE;")
+    op.execute("DROP TABLE IF EXISTS concepts CASCADE;")
+    op.execute("DROP TABLE IF EXISTS chapters CASCADE;")
+    op.execute("DROP TABLE IF EXISTS auth_challenges CASCADE;")
+    op.execute("DROP TABLE IF EXISTS refresh_tokens CASCADE;")
+    op.execute("DROP TABLE IF EXISTS device_tokens CASCADE;")
+    op.execute("DROP TABLE IF EXISTS learner_devices CASCADE;")
+    op.execute("DROP TABLE IF EXISTS learner_profiles CASCADE;")
+    op.execute("DROP TABLE IF EXISTS devices CASCADE;")

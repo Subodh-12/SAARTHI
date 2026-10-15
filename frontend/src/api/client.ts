@@ -242,6 +242,9 @@ export const api = {
   getPackDownloadInfo: (pack_id: string, version: string) =>
     requestWithRenewal<PackDownloadInfo>(
       `/api/v1/packs/${pack_id}/versions/${version}`),
+  reportPackInstalled: (pack_id: string, version: string) =>
+    requestWithRenewal<{ status: string; pack_id: string; version: string }>(
+      `/api/v1/packs/${pack_id}/versions/${version}/installed`, { method: "POST" }),
 
   getLearnerState: () =>
     requestWithRenewal<LearnerState>("/api/v1/state"),

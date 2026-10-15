@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
     app.state.decision_service = DecisionService(pack, mastery, decisions)
     app.state.doubt_service = DoubtService(pack, decisions, gen_records)
     app.state.sync_service = SyncService(events, mastery, decisions,
-                                         pack=pack, persistence=p)
+                                         pack=pack, persistence=p, pack_repo=pack_repo)
     app.state.pack_repository = pack_repo
     app.state.mastery_repository = mastery
     app.state.decision_repository = decisions

@@ -14,6 +14,7 @@ import {
   SharedProfileMeta,
   getActiveSharedProfile, getSharedProfiles, setActiveSharedProfile,
   getSharedDeviceMeta, putSharedDeviceMeta, verifyProfilePinDirect,
+  putSharedInstalledPack, getSharedInstalledPacks, getSharedInstalledPack,
 } from "./profile_session";
 
 // --------------------------------------------------------------------------- //
@@ -389,13 +390,11 @@ export async function listRecentDecisions(limit: number = 5): Promise<LocalDecis
 // Packs (shared DB — content only, nothing personal)
 // --------------------------------------------------------------------------- //
 export async function saveInstalledPack(pack: LocalPack): Promise<void> {
-  await requireSession().putInstalledPack(pack);
+  await putSharedInstalledPack(pack);
 }
 
 export async function getInstalledPacks(): Promise<LocalPack[]> {
-  const session = getActiveProfileSession();
-  if (!session) return [];
-  return session.listInstalledPacks();
+  return getSharedInstalledPacks();
 }
 
 export async function getFirstInstalledPack(): Promise<LocalPack | undefined> {

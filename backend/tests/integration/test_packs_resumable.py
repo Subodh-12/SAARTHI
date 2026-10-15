@@ -142,3 +142,13 @@ def test_pack_resumable_range_download(client):
         headers=invalid_headers,
     )
     assert invalid_resp.status_code == 416
+
+
+def test_pack_path_traversal_rejected(client):
+    """Malicious pack_id or version with path traversal must be rejected with 400/404."""
+    headers = _auth_headers(client)
+    resp = client.get("/api/v1/packs/..%2F..%2Fetc%2Fpasswd/versions/1.0.0/download", headers=headers)
+    assert resp.status_code in (400, 404)
+
+    resp2 = client.get("/api/v1/packs/pack_id/versions/..%2F1.0.0/download", headers=headers)
+    assert resp2.status_code in (400, 404)

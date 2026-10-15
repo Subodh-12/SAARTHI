@@ -322,16 +322,18 @@ def select_delivery_mode(inp: DecisionInput, ruleset: Ruleset,
 
 
 def select_background_actions(inp: DecisionInput, ruleset: Ruleset,
-                              target: str) -> list[str]:
+                              target: str, reason_code: str = "") -> list[str]:
     network = inp.env_network
     actions: list[str] = []
     if network != "offline" and inp.outbox_nonempty:
         actions.append("SYNC")
     prefetch_ok = (
-        network in ("online", "reconnected")
+        (
+            (network in ("online", "reconnected") and not _target_pack_installed(target, inp))
+            or (reason_code == "CONTENT_NOT_AVAILABLE_OFFLINE")
+        )
         and not inp.battery_saver
         and inp.storage_free_mb >= int(ruleset.prefetch.get("min_free_mb", 150))
-        and not _target_pack_installed(target, inp)
     )
     if prefetch_ok:
         actions.append("PREFETCH")
@@ -535,8 +537,18 @@ def decide(inp: DecisionInput, ruleset: Ruleset,
     if not target:
         return _finish(inp, ruleset, rm, "RETRY", "",
                        "STATE_INVALID_FALLBACK", rule_index=0, fallback=True)
-    m = inp.mastery.get(target, MasteryEntry(ruleset.bkt.get("p_init_bp", 2000)))
-    p = m.p_bp
+    m = inp.mastery.get(target)
+    if m is None or (m.attempts == 0 and inp.trigger_correct is None):
+        # Target has never been attempted: advance if prereqs are mastered, else remediate prereq gap
+        if _prereqs_mastered(target, inp, ruleset):
+            return _finish(inp, ruleset, rm, "ADVANCE", target,
+                           "MASTERED_ADVANCE", rule_index=7)
+        else:
+            weakest = _weakest_prereq(target, inp) or _most_blocked_prereq(inp)
+            if weakest:
+                return _finish(inp, ruleset, rm, "REMEDIATE", weakest,
+                               "BLOCKED_BY_PREREQ", rule_index=7)
+    p = m.p_bp if m is not None else int(ruleset.bkt.get("p_init_bp", 2000))
 
     # --- Rule 2: repeated-attempt guard (3+ graded answers on T without a
     # gain of at least min_gain_bp).
@@ -650,7 +662,7 @@ def _finish(inp: DecisionInput, ruleset: Ruleset, rm: dict[str, str],
     out = DecisionOutput(
         action=action, target_concept_id=out_target,
         delivery_mode=select_delivery_mode(inp, ruleset, out_target),
-        background_actions=select_background_actions(inp, ruleset, out_target),
+        background_actions=select_background_actions(inp, ruleset, out_target, reason),
         reason_code=reason,
         target_bloom_level=target_bloom,
         needs_help=needs_help,

@@ -26,6 +26,8 @@ async def get_pack_download_info(
     request: Request,
     ctx: tuple[str, str] = Depends(require_device_auth),
 ):
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", pack_id) or not re.match(r"^[a-zA-Z0-9_.\-]+$", version):
+        raise HTTPException(status_code=400, detail="invalid pack_id or version format")
     pack_repo = request.app.state.pack_repository
     m = await pack_repo.get_pack_manifest(pack_id, version)
     if not m:
@@ -50,6 +52,8 @@ async def get_pack_by_id(
     ctx: tuple[str, str] = Depends(require_device_auth),
 ):
     """Section 8 alias: GET /packs/{id}."""
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", pack_id):
+        raise HTTPException(status_code=400, detail="invalid pack_id format")
     pack_repo = request.app.state.pack_repository
     manifests = await pack_repo.list_pack_manifests()
     matching = [m for m in manifests if m.pack_id == pack_id]
@@ -65,11 +69,16 @@ async def download_pack(
     request: Request,
     ctx: tuple[str, str] = Depends(require_device_auth),
 ):
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", pack_id) or not re.match(r"^[a-zA-Z0-9_.\-]+$", version):
+        raise HTTPException(status_code=400, detail="invalid pack_id or version format")
     s = get_settings()
-    p_path = Path(s.packs_dir) / f"{pack_id}-{version}.srt.tar.gz"
+    packs_dir_resolved = Path(s.packs_dir).resolve()
+    p_path = (packs_dir_resolved / f"{pack_id}-{version}.srt.tar.gz").resolve()
+    if not str(p_path).startswith(str(packs_dir_resolved)):
+        raise HTTPException(status_code=400, detail="invalid pack path traversal attempt")
     media_type = "application/gzip"
     if not p_path.exists():
-        p_path = Path(s.packs_dir) / f"{pack_id}-{version}.json"
+        p_path = (packs_dir_resolved / f"{pack_id}-{version}.json").resolve()
         media_type = "application/json"
         if not p_path.exists():
             raise HTTPException(status_code=404, detail="pack file not found")
@@ -108,14 +117,6 @@ async def download_pack(
             f.seek(start)
             data = f.read(length)
 
-        # Full install marked when the final byte of the archive is served
-        if end == file_size - 1 and m:
-            await pack_repo.record_installed_pack(
-                device_id, pack_id, version,
-                m.archive_byte_size or m.byte_size,
-                m.archive_sha256 or m.checksum_sha256,
-            )
-
         headers = {
             "Content-Range": f"bytes {start}-{end}/{file_size}",
             "Accept-Ranges": "bytes",
@@ -124,14 +125,6 @@ async def download_pack(
             "Content-Disposition": f'attachment; filename="{p_path.name}"',
         }
         return Response(content=data, status_code=206, headers=headers, media_type=media_type)
-
-    # Full non-range download
-    if m:
-        await pack_repo.record_installed_pack(
-            device_id, pack_id, version,
-            m.archive_byte_size or m.byte_size,
-            m.archive_sha256 or m.checksum_sha256,
-        )
 
     with open(p_path, "rb") as f:
         data = f.read()
@@ -143,6 +136,27 @@ async def download_pack(
         "Content-Disposition": f'attachment; filename="{p_path.name}"',
     }
     return Response(content=data, status_code=200, headers=headers, media_type=media_type)
+
+
+@router.post("/{pack_id}/versions/{version}/installed")
+async def report_pack_installed(
+    pack_id: str, version: str,
+    request: Request,
+    ctx: tuple[str, str] = Depends(require_device_auth),
+):
+    """Explicit client acknowledgement after successful checksum verification and atomic installation."""
+    pack_repo = request.app.state.pack_repository
+    device_id, _ = ctx
+    m = await pack_repo.get_pack_manifest(pack_id, version)
+    if not m:
+        raise HTTPException(status_code=404, detail="pack not found")
+    await pack_repo.record_installed_pack(
+        device_id, pack_id, version,
+        m.archive_byte_size or m.byte_size,
+        m.archive_sha256 or m.checksum_sha256,
+    )
+    return {"status": "ok", "pack_id": pack_id, "version": version}
+
 
 
 __all__ = ["router"]

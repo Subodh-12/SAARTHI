@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 .venv/
 __pycache__/
 *.py[cod]
@@ -21,3 +21,7 @@ dist/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Test outputs
+frontend/test-results/
+frontend/playwright-report/
