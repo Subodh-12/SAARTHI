@@ -42,7 +42,7 @@ def _make_learner(label: str) -> tuple[str, dict]:
     r = client.post("/api/v1/learners", json={
         "display_label": label, "locale": "or", "grade": "class9",
         "subject": "science"})
-    assert r.status_code == 200, r.text
+    assert r.status_code == 201, r.text
     data = r.json()
     headers = {"Authorization": f"Bearer {data['device_token']}",
                "X-Device-Id": data["device_id"]}

@@ -21,7 +21,7 @@ from ...services import AuthService
 router = APIRouter(prefix="/learners", tags=["learners"])
 
 
-@router.post("", response_model=AuthResponse, status_code=200)
+@router.post("", response_model=AuthResponse, status_code=201)
 async def create_learner(
     body: LearnerProfileCreate,
     request: Request,
