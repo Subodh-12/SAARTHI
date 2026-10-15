@@ -65,8 +65,6 @@ export const OR: Record<string, string> = {
   rooms_status_verification: "ଯାଞ୍ଚ ପ୍ରଶ୍ନ",
   rooms_status_completed: "ସମାପ୍ତ",
   rooms_submit_relay: "ମୋତ ଉତ୍ତର ଦାଖଲ କରନ୍ତୁ",
-  rooms_waiting: "ଆପଣ ଉତ୍ତର ଦେଇଛନ୍ତି। ଅନ୍ୟ ସଦସ୍ୟମାନଙ୍କ ଅପେକ୍ଷା କରୁଛି।",
-  rooms_reveal_now: "ବର୍ତ୍ତମାନ ଉପସ୍ଥାପନ କରନ୍ତୁ",
   rooms_answer_label: "ଉତ୍ତର",
   rooms_pattern_label: "ଗୋଷ୍ଠୀ ନିର୍ମାଣ",
   rooms_expected_answer: "ଅପେକ୍ଷିତ ଉତ୍ତର:",
