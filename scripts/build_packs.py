@@ -39,6 +39,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CURRIC = ROOT / "curriculum"
 PACKS_DIR = ROOT / "packs"
 
+sys.path.insert(0, str(ROOT / "backend"))
+from app.domain.bloom import BloomLevel, is_valid_bloom_level, parse_bloom_level
+
 PACK_ID = "pack_class9_science_or_v1"
 PACK_VERSION = "1.0.0"
 CONTENT_VERSION = "2026.10.001"
@@ -106,9 +109,12 @@ def validate_chunk(c: dict) -> None:
 
 def validate_question(q: dict) -> None:
     for f in ("question_id", "concept_id", "qtype", "prompt_or",
-              "explanation_or", "difficulty", "source_ref"):
+              "explanation_or", "difficulty", "source_ref", "bloom_level"):
         if not q.get(f):
-            raise ValidationError(f"question missing {f}: {q}")
+            raise ValidationError(f"question missing {f} (publication gate): {q.get('question_id')}")
+    if not is_valid_bloom_level(q["bloom_level"]):
+        raise ValidationError(f"question {q['question_id']} has invalid bloom_level: {q['bloom_level']}")
+    q["bloom_level"] = parse_bloom_level(q["bloom_level"]).value
     if not re.match(r"^q_[A-Za-z0-9_-]{6,32}$", q["question_id"]):
         raise ValidationError(f"question_id format invalid: {q['question_id']}")
     if q["qtype"] == "mcq":
@@ -125,23 +131,6 @@ def validate_question(q: dict) -> None:
         raise ValidationError(f"unknown qtype: {q['qtype']}")
     if q["difficulty"] not in ("easy", "medium", "hard"):
         raise ValidationError(f"invalid difficulty: {q['difficulty']}")
-    # Phase 6 metadata validation — optional fields, validated when present.
-    BLOOM_LEVELS = ("remember", "understand", "apply", "analyze", "evaluate", "create")
-    if q.get("bloom_level") is not None and q["bloom_level"] not in BLOOM_LEVELS:
-        raise ValidationError(f"{q['question_id']} invalid bloom_level: {q['bloom_level']}")
-    miscopts = q.get("misconception_options") or {}
-    for k, tag in miscopts.items():
-        if not isinstance(tag, str) or not tag.strip():
-            raise ValidationError(f"{q['question_id']} empty misconception tag for option {k}")
-        if q["qtype"] != "mcq" or not k.isdigit() or not (0 <= int(k) < len(q.get("options", []))):
-            raise ValidationError(
-                f"{q['question_id']} misconception_options key {k!r} is not a valid option index")
-        if q.get("correct_option") is not None and int(k) == q["correct_option"]:
-            raise ValidationError(
-                f"{q['question_id']} misconception mapped onto the correct option {k}")
-    if q.get("review_status") is not None and \
-            q["review_status"] not in ("pending_teacher_review", "teacher_reviewed"):
-        raise ValidationError(f"{q['question_id']} invalid review_status")
 
 
 def validate_glossary_entry(g: dict) -> None:
@@ -264,6 +253,17 @@ def build_pack(strict: bool = True) -> dict:
         "questions": questions_data,
         "glossary": glossary_data,
     }
+    # Question revisions: every question gets a stable revision number and an
+    # answer-key hash so events made against a specific revision can be
+    # interpreted after upgrades (Design v2 Section 7 "Stable identifiers").
+    import hashlib as _hashlib
+    for q in payload["questions"]:
+        q.setdefault("revision", 1)
+        key_src = json.dumps({"correct_option": q.get("correct_option"),
+                              "rubric_or": q.get("rubric_or")},
+                             ensure_ascii=False, sort_keys=True)
+        q["answer_key_hash"] = _hashlib.sha256(key_src.encode("utf-8")).hexdigest()[:32]
+        q["status"] = "active"
     # Step 1: serialise with byte_size=0 placeholder to measure true size
     payload["manifest"]["byte_size"] = 0
     blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -279,33 +279,46 @@ def build_pack(strict: bool = True) -> dict:
             blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         else:
             break
-    # Step 3: compute checksum on the canonical manifest with checksum blanked.
-    # This ensures the stored checksum is stable and verifiable by re-serialising
-    # the same JSON without the checksum field.
-    payload["manifest"].pop("archive_sha256", None)
-    payload["manifest"].pop("archive_byte_size", None)
+    # Step 3: compute checksum over the FINAL manifest shape with
+    # checksum_sha256 blanked AND archive_sha256=""/archive_byte_size=0 in
+    # their final key positions. This makes the stored checksum canonically
+    # verifiable from the published JSON: a client blanks checksum_sha256,
+    # blanks the archive fields, re-serialises canonically, and computes
+    # SHA-256 — which matches the stored value.
+    payload["manifest"]["archive_sha256"] = ""
+    payload["manifest"]["archive_byte_size"] = 0
     payload["manifest"]["checksum_sha256"] = ""
-    blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    checksum = hashlib.sha256(blob).hexdigest()
+    blob_no_checksum = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    checksum = hashlib.sha256(blob_no_checksum).hexdigest()
     payload["manifest"]["checksum_sha256"] = checksum
 
-    if len(blob) > MAX_BYTES:
-        raise ValidationError(f"pack payload {len(blob)} > max {MAX_BYTES}")
-
-    blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-
-    out_path = PACKS_DIR / f"{PACK_ID}-{PACK_VERSION}.json"
-    tmp = out_path.with_suffix(".json.tmp")
-    tmp.write_bytes(blob)
-    tmp.replace(out_path)
+    # Step 4: build the download archive. The archive's inner manifest carries
+    # archive_sha256/archive_byte_size blank (they cover the archive itself);
+    # the standalone JSON manifest gets the real values after hashing.
+    inner_blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    if len(inner_blob) > MAX_BYTES:
+        raise ValidationError(f"pack payload {len(inner_blob)} > max {MAX_BYTES}")
 
     gz_path = PACKS_DIR / f"{PACK_ID}-{PACK_VERSION}.srt.tar.gz"
     tmp_gz = gz_path.with_suffix(".tar.gz.tmp")
     with open(tmp_gz, "wb") as dst_f:
-        # mtime=0 keeps the gzip deterministic across rebuilds.
+        # mtime=0 keeps the gzip deterministic across rebuilds
         with gzip.GzipFile(fileobj=dst_f, mode="wb", mtime=0) as dst:
-            dst.write(blob)
+            dst.write(inner_blob)
     tmp_gz.replace(gz_path)
+    archive_bytes = gz_path.read_bytes()
+    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
+
+    # Standalone JSON manifest: canonical blob + real archive integrity fields.
+    payload["manifest"]["archive_sha256"] = archive_sha
+    payload["manifest"]["archive_byte_size"] = len(archive_bytes)
+    blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+    # Atomic write
+    out_path = PACKS_DIR / f"{PACK_ID}-{PACK_VERSION}.json"
+    tmp = out_path.with_suffix(".json.tmp")
+    tmp.write_bytes(blob)
+    tmp.replace(out_path)
 
     print(f"\nBuilt pack: {out_path}")
     print(f"  pack_id: {PACK_ID}")
@@ -317,7 +330,8 @@ def build_pack(strict: bool = True) -> dict:
     print(f"  glossary entries: {len(glossary_data)}")
     print(f"  byte_size: {payload['manifest']['byte_size']}")
     print(f"  checksum_sha256: {checksum}")
-    print(f"  archive: {gz_path} ({len(blob)} bytes)")
+    print(f"  archive: {gz_path} ({len(archive_bytes)} bytes)")
+    print(f"  archive_sha256: {archive_sha}")
     return payload["manifest"]
 
 

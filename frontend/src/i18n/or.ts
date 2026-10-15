@@ -46,6 +46,9 @@ export const OR: Record<string, string> = {
   back: "ପଛକୁ ଯାଅ",
   empty: "କିଛି ନାହିଁ",
   retry: "ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ",
+  ask_teacher_prompt: "ଏହି ଧାରଣା କଷ୍ଟ ହେଉଛି — ଶିକ୍ଷକଙ୍କ ସହିତ ଯୋଗାଯୋଗ କର।",
+  sync_paused_auth: "ସିଙ୍କ ବିଳମ୍ବ — ଶିଖ ଜାରି ରହିଛି।",
+  quarantine_notice: "କିଛି ଘଟଣା ଯାଞ୍ଚ ପାଇଁ ରଖାଯାଇଛି।",
 };
 
 export function t(key: keyof typeof OR): string {

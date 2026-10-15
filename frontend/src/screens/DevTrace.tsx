@@ -2,13 +2,9 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { listRecentDecisions, LocalDecision } from "../store/db";
 import { DecisionTrace } from "../generated/api";
-import { OR, t } from "../i18n/or";
+import { t } from "../i18n/or";
 
-interface Props {
-  profile: { learner_id: string; device_id: string; display_label: string };
-}
-
-export function DevTraceScreen({ profile }: Props) {
+export function DevTraceScreen() {
   const [decisions, setDecisions] = useState<LocalDecision[]>([]);
   const [trace, setTrace] = useState<DecisionTrace | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<string | null>(null);

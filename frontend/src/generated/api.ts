@@ -1,5 +1,6 @@
-// Auto-generated from backend Pydantic schemas + ruleset.
-// Do NOT edit by hand. Regenerate via `python scripts/gen_types.py`.
+// Auto-generated from backend Pydantic schemas + ruleset (kept in sync by
+// `scripts/dev.py check`; do NOT hand-edit divergently — see Design v2
+// Section 14 "Contract change process").
 
 export enum NetworkState {
   ONLINE = "online",
@@ -26,16 +27,18 @@ export enum BackgroundAction {
   PREFETCH = "PREFETCH",
 }
 
+// v2 event types (frozen — Design v2 Section 8)
 export enum EventType {
-  LESSON_OPENED = "lesson_opened",
-  LESSON_COMPLETED = "lesson_completed",
-  CHUNK_VIEWED = "chunk_viewed",
-  MCQ_ANSWERED = "mcq_answered",
-  SHORT_ANSWER_ATTEMPTED = "short_answer_attempted",
-  DOUBT_ASKED = "doubt_asked",
-  NEXT_ACTION_SHOWN = "next_action_shown",
-  PACK_INSTALLED = "pack_installed",
-  SYNC_ACKED = "sync_acked",
+  SESSION_STARTED = "SESSION_STARTED",
+  SESSION_ENDED = "SESSION_ENDED",
+  CONTENT_VIEWED = "CONTENT_VIEWED",
+  ANSWER_SUBMITTED = "ANSWER_SUBMITTED",
+  QUESTION_ABANDONED = "QUESTION_ABANDONED",
+  DOUBT_ASKED = "DOUBT_ASKED",
+  DOUBT_ANSWERED = "DOUBT_ANSWERED",
+  PACK_INSTALLED = "PACK_INSTALLED",
+  DECISION_MADE_LOCAL = "DECISION_MADE_LOCAL",
+  NETWORK_STATE_CHANGED = "NETWORK_STATE_CHANGED",
 }
 
 export enum EvidenceType {
@@ -45,11 +48,38 @@ export enum EvidenceType {
   NONE = "none",
 }
 
+export enum BloomLevel {
+  REMEMBER = "remember",
+  UNDERSTAND = "understand",
+  APPLY = "apply",
+  ANALYZE = "analyze",
+  EVALUATE = "evaluate",
+  CREATE = "create",
+}
+
+// v2 per-event sync outcomes (frozen)
 export enum Outcome {
-  ACCEPTED = "accepted",
-  DUPLICATE = "duplicate",
-  RETRYABLE = "retryable",
-  REJECTED = "rejected",
+  ACCEPTED = "ACCEPTED",
+  DUPLICATE = "DUPLICATE",
+  RETRYABLE = "RETRYABLE",
+  REJECTED = "REJECTED",
+}
+
+export enum SyncEffect {
+  MASTERY_UPDATED = "mastery_updated",
+  NONE = "none",
+}
+
+export enum SyncReason {
+  REPEAT_SUBMISSION = "REPEAT_SUBMISSION",
+  LEGACY_QUESTION = "LEGACY_QUESTION",
+  INVALID_PAYLOAD = "INVALID_PAYLOAD",
+  UNKNOWN_EVENT_TYPE = "UNKNOWN_EVENT_TYPE",
+  LEARNER_NOT_LINKED = "LEARNER_NOT_LINKED",
+  DEVICE_REVOKED = "DEVICE_REVOKED",
+  PAYLOAD_CONFLICT = "PAYLOAD_CONFLICT",
+  SERVER_BUSY = "SERVER_BUSY",
+  DB_TIMEOUT = "DB_TIMEOUT",
 }
 
 export interface Problem {
@@ -68,7 +98,7 @@ export interface LearnerProfileCreate {
   locale?: "or" | "en";
   grade?: "class9";
   subject?: "science";
-  pin_hash?: string | null;
+  pin_verifier?: string | null;
 }
 
 export interface LearnerProfile extends LearnerProfileCreate {
@@ -76,11 +106,47 @@ export interface LearnerProfile extends LearnerProfileCreate {
   created_at: number;
 }
 
+export interface DeviceRegistration {
+  public_key_spki_b64: string;
+  hardware_label?: string;
+}
+
+export interface DeviceTokenResponse {
+  device_id: string;
+  access_token: string;
+  access_expires_at: number;
+  refresh_token: string;
+  refresh_expires_at: number;
+  token_type: "Bearer";
+}
+
+export interface AuthChallenge {
+  nonce: string;
+  expires_at: number;
+}
+
+export interface AuthChallengeRequest {
+  device_id: string;
+}
+
+export interface AuthRenewRequest {
+  device_id: string;
+  nonce: string;
+  signature_b64: string;
+}
+
+export interface RefreshRequest {
+  device_id: string;
+  refresh_token: string;
+}
+
 export interface AuthResponse {
-  learner_id: string;
+  learner_id?: string | null;
   device_id: string;
   device_token: string;
   token_expires_at: number;
+  refresh_token?: string | null;
+  refresh_expires_at?: number | null;
 }
 
 export interface GlossaryEntry {
@@ -114,6 +180,7 @@ export interface Question {
   question_id: string;
   concept_id: string;
   chapter_id: string;
+  bloom_level?: BloomLevel;
   qtype: "mcq" | "short_answer";
   prompt_or: string;
   options: string[];
@@ -124,85 +191,138 @@ export interface Question {
   difficulty: "easy" | "medium" | "hard";
   misconception_tag?: string | null;
   source_ref: string;
+  revision: number;
+  answer_key_hash: string;
+  status: "active" | "legacy";
 }
 
 export interface Chapter {
   chapter_id: string;
-  subject: "science";
-  grade: "class9";
+  subject?: "science";
+  grade?: "class9";
   title_or: string;
   title_en: string;
-  summary_or: string;
-  source_refs: string[];
+  summary_or?: string;
+  source_refs?: string[];
 }
 
 export interface EnvironmentSnapshot {
   network: NetworkState;
-  measured_rt_ms?: number | null;
-  measured_loss?: number | null;
+  measured_rtt_ms?: number | null;
+  measured_downlink_kbps?: number | null;
   battery_saver: boolean;
-  free_storage_bytes?: number | null;
-  installed_pack_versions: Record<string, string>;
+  free_storage_mb?: number | null;
+  installed_pack_versions: Record<string, number>;
   ruleset_version: string;
 }
 
+// v2: mastery is an INTEGER in basis points (0..10000).
 export interface MasteryRecord {
   concept_id: string;
-  p_known: number;
-  band: "unstarted" | "novice" | "developing" | "proficient" | "mastered";
+  p_bp: number;
+  band: "weak" | "partial" | "mastered";
   attempts: number;
   correct: number;
-  last_updated_event_seq?: number | null;
+  last_event_seq: number;
+}
+
+export interface BloomMasteryRecord {
+  concept_id: string;
+  bloom_level: BloomLevel;
+  p_bp: number;
+  band: "weak" | "partial" | "mastered";
+  attempts: number;
+  correct: number;
+  last_event_seq: number;
 }
 
 export interface LearnerEvent {
   event_id: string;
   device_id: string;
-  seq: number;
   learner_id: string;
-  ts: number;
-  event_type: EventType;
+  seq: number;
+  type: EventType;
+  client_ts: number;
+  payload: Record<string, any>;
   concept_id?: string | null;
   chapter_id?: string | null;
   question_id?: string | null;
-  payload: Record<string, any>;
-  outbox_state: "pending" | "inflight" | "acked" | "dead";
-  retry_count: number;
+}
+
+export interface PerEventResult {
+  event_id: string;
+  seq: number;
+  outcome: Outcome;
+  effect?: SyncEffect | null;
+  reason?: SyncReason | null;
+  detail: string;
+}
+
+export interface SyncRequest {
+  device_id: string;
+  learner_id: string;
+  from_seq: number;
+  events: LearnerEvent[];
+}
+
+export interface SyncResponse {
+  results: PerEventResult[];
+  mastery: MasteryRecord[];
+  bloom_mastery?: BloomMasteryRecord[];
+  decision?: Decision | null;
+  decision_status: "computed" | "deferred";
+  server_cursor: number;
+  ruleset_version: string;
+  // Back-compat mirrors
+  accepted: PerEventResult[];
+  server_learner_seq: number;
+  canonical_mastery: MasteryRecord[];
+  canonical_bloom_mastery?: BloomMasteryRecord[];
+  next_decision?: Decision | null;
 }
 
 export interface AssessmentSubmission {
   question_id: string;
+  revision?: number;
+  attempt_id?: string | null;
   selected_option?: number | null;
   answer_text?: string | null;
   duration_ms: number;
   submitted_at: number;
-  evidence: EvidenceType;
+  correct_claim?: boolean | null;
+  seq?: number;
 }
 
 export interface AssessmentResult {
   question_id: string;
+  attempt_id?: string | null;
   correct: boolean;
   evidence: EvidenceType;
   explanation_or: string;
   concept_id: string;
+  bloom_level?: BloomLevel | null;
   mastery_after: MasteryRecord;
+  bloom_mastery_after?: BloomMasteryRecord | null;
   next_decision_id: string;
 }
 
 export interface Decision {
   decision_id: string;
-  learner_id: string;
+  learner_id?: string | null;
   ruleset_version: string;
   target_concept_id: string;
+  target_bloom_level?: BloomLevel | null;
   action: Action;
   delivery_mode: DeliveryMode;
   background_actions: BackgroundAction[];
   reason_code: string;
   reason_or: string;
+  needs_help: boolean;
   chapter_id: string;
   suggested_question_id?: string | null;
   suggested_chunk_id?: string | null;
   network: NetworkState;
+  source: "server" | "local";
   produced_by: "local_engine" | "server_engine";
   created_at: number;
 }
@@ -210,6 +330,7 @@ export interface Decision {
 export interface TraceStep {
   step_id: string;
   node: string;
+  stage?: string | null;
   tool?: string | null;
   provider?: string | null;
   ruleset_version?: string | null;
@@ -233,6 +354,7 @@ export interface DoubtRequest {
   query: string;
   learner_id: string;
   pack_ids: string[];
+  concept_hint?: string | null;
 }
 
 export interface RetrievedChunk {
@@ -255,9 +377,25 @@ export interface RetrievedResult {
 export interface GeneratedAnswer {
   text_or: string;
   citations: string[];
+  chapter_refs: string[];
   confidence: number;
   provenance: "extractive" | "llm_grounded" | "basic";
   basic_answer_status?: string | null;
+}
+
+export interface GenerationRecord {
+  record_id: string;
+  decision_id: string;
+  provider: string;
+  model_id?: string | null;
+  prompt_version: string;
+  prompt_hash: string;
+  params: Record<string, any>;
+  chunk_ids: string[];
+  output_or: string;
+  validation_results: Record<string, any>;
+  fallback_used: boolean;
+  created_at: number;
 }
 
 export interface DoubtResponse {
@@ -266,28 +404,7 @@ export interface DoubtResponse {
   decision_id: string;
   translated_query?: string | null;
   used_translation_tool: boolean;
-}
-
-export interface SyncRequest {
-  device_id: string;
-  learner_id: string;
-  from_seq: number;
-  events: LearnerEvent[];
-}
-
-export interface PerEventResult {
-  event_id: string;
-  seq: number;
-  outcome: Outcome;
-  detail: string;
-}
-
-export interface SyncResponse {
-  accepted: PerEventResult[];
-  server_learner_seq: number;
-  canonical_mastery: MasteryRecord[];
-  ruleset_version: string;
-  next_decision?: Decision | null;
+  generation_record?: GenerationRecord | null;
 }
 
 export interface PackManifest {
@@ -297,6 +414,8 @@ export interface PackManifest {
   language: "or" | "en";
   byte_size: number;
   checksum_sha256: string;
+  archive_sha256: string;
+  archive_byte_size: number;
   min_app_version: string;
   chapters: string[];
   licence: string;
@@ -310,13 +429,16 @@ export interface PackDownloadInfo {
   url: string;
   byte_size: number;
   checksum_sha256: string;
+  archive_sha256: string;
+  archive_byte_size: number;
 }
 
 export interface LearnerState {
   learner_id: string;
   device_id: string;
   mastery: MasteryRecord[];
-  active_pack_versions: Record<string, string>;
+  bloom_mastery?: BloomMasteryRecord[];
+  active_pack_versions: Record<string, number>;
   last_decision_id?: string | null;
   outbox_depth: number;
 }
@@ -331,15 +453,8 @@ export interface HealthResponse {
   llm_provider: string;
   retrieval_provider: string;
   ruleset_version: string;
+  bkt_version: string;
   has_hf_token: boolean;
   has_llm_key: boolean;
   request_id: string;
-}
-
-export interface ToolError {
-  error_code: string;
-  detail: string;
-  provider?: string | null;
-  model_id?: string | null;
-  retryable: boolean;
 }

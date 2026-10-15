@@ -62,6 +62,7 @@ class PackContentIndex:
             q["question_id"]: Question(
                 question_id=q["question_id"], concept_id=q["concept_id"],
                 chapter_id=q.get("chapter_id", ""),
+                bloom_level=q.get("bloom_level", "remember"),
                 qtype=q["qtype"], prompt_or=q["prompt_or"],
                 options=q.get("options", []),
                 correct_option=q.get("correct_option"),
@@ -74,9 +75,11 @@ class PackContentIndex:
                     str(k): v.strip() for k, v in (q.get("misconception_options") or {}).items()
                     if isinstance(v, str) and v.strip()
                 },
-                bloom_level=q.get("bloom_level"),
                 review_status=q.get("review_status"),
                 source_ref=q.get("source_ref", ""),
+                revision=int(q.get("revision", 1)),
+                answer_key_hash=q.get("answer_key_hash", ""),
+                status=q.get("status", "active"),
             ) for q in payload["questions"]
         }
         self.glossary: list[GlossaryEntry] = [
@@ -97,6 +100,28 @@ class PackContentIndex:
         self.prereqs: dict[str, list[str]] = {
             c["concept_id"]: c.get("prerequisites", []) for c in payload["concepts"]
         }
+        # Concepts grouped by pack — every concept in this pack belongs to the
+        # single pack that carries it (v2 packs are chapter-scoped).
+        self._pack_id = m["pack_id"]
+
+    def required_pack_for_concept(self) -> dict[str, str]:
+        """concept_id -> pack_id that serves its content (v2 offline rule)."""
+        return {cid: self._pack_id for cid in self.concept_order}
+
+    def installed_pack_versions(self, device_packs: Optional[dict[str, str]] = None) -> dict[str, int]:
+        """Installed pack versions for the decision input.
+
+        The SERVER treats its own served packs as installed for decision
+        purposes (delivery feasibility is about the target device — when a
+        device pack list is supplied it wins)."""
+        try:
+            version_int = int(str(self.manifest.version).split(".")[0] or 1)
+        except ValueError:
+            version_int = 1
+        if device_packs is not None:
+            return {pid: int(v) for pid, v in device_packs.items()
+                    if str(v).split(".")[0].isdigit()}
+        return {self._pack_id: version_int}
 
     def get_chunk(self, chunk_id: str) -> Optional[Chunk]:
         return self.chunks.get(chunk_id)
@@ -110,11 +135,26 @@ class PackContentIndex:
     def get_chapter(self, chapter_id: str) -> Optional[Chapter]:
         return self.chapters.get(chapter_id)
 
-    def list_questions_for_concept(self, concept_id: str, difficulty: Optional[str] = None) -> list[Question]:
+    def list_questions_for_concept(
+        self, concept_id: str, difficulty: Optional[str] = None, bloom_level: Optional[str] = None
+    ) -> list[Question]:
         out = [q for q in self.questions.values() if q.concept_id == concept_id]
         if difficulty:
             out = [q for q in out if q.difficulty == difficulty]
+        if bloom_level:
+            bl_str = str(bloom_level.value if hasattr(bloom_level, "value") else bloom_level).lower()
+            out = [q for q in out if str(q.bloom_level.value if hasattr(q.bloom_level, "value") else q.bloom_level).lower() == bl_str]
         return out
+
+    def available_bloom_levels_for_concept(self, concept_id: str) -> list[str]:
+        levels = set()
+        for q in self.questions.values():
+            if q.concept_id == concept_id and getattr(q, "status", "active") == "active":
+                lvl = q.bloom_level
+                lvl_str = lvl.value if hasattr(lvl, "value") else str(lvl)
+                levels.add(lvl_str.lower())
+        order = ["remember", "understand", "apply", "analyze", "evaluate", "create"]
+        return [l for l in order if l in levels]
 
     def list_chunks_for_concept(self, concept_id: str) -> list[Chunk]:
         return sorted(

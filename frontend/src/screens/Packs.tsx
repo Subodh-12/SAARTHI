@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { db } from "../store/db";
-import { PackManifest, PackDownloadInfo } from "../generated/api";
-import { OR, t } from "../i18n/or";
+import { PackManifest } from "../generated/api";
+import { t } from "../i18n/or";
 import { packInstallAvailable, getInstalledPack } from "../lib/sync";
 
 export function PacksScreen() {
@@ -12,11 +11,7 @@ export function PacksScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  const load = async () => {
+  async function load() {
     setLoading(true); setError("");
     try {
       const ms = await api.listPackManifests();
@@ -28,7 +23,13 @@ export function PacksScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // Defer out of the effect body: the loader flips state synchronously.
+    const t = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const install = async (m: PackManifest) => {
     setBusy(m.pack_id); setError("");

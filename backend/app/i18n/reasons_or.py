@@ -1,20 +1,22 @@
-"""Odia learner-facing reason messages — shipped, not LLM-generated."""
+"""Odia learner-facing reason messages — shipped, not LLM-generated.
+
+Reason codes are stable (Design v2 Appendix A): never renamed, only added.
+"""
 REASON_MESSAGES = {
-    "target.unstarted_no_prereqs_needed": "ନୂଆ ଧାରଣା ଆରମ୍ଭ କରିବା।",
-    "target.prerequisite_unstarted": "ପ୍ରଥମ ଆଧାର ଧାରଣା ଶିଖ।",
-    "target.prerequisite_not_mastered": "ପ୍ରଥମ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
-    "target.first_unmastered_with_prereqs": "ଏହି ଧାରଣା ଉପରେ କାମ କର।",
-    "target.fallback_first_concept": "ପ୍ରଥମ ଧାରଣା ଆରମ୍ଭ କର।",
-    "target.lowest_mastery_fallback": "ସବୁଠା ଦୁର୍ବଳ ଧାରଣା ଉପରେ ମନ୍ଦନ କର।",
-    "action.remediate_low_mastery_or_incorrect": "ଆଜି ଉତ୍ତର ଭୁଲ ଥିଲା। ପୁଣି ଶିଖ।",
-    "action.retry_below_threshold": "ଆଉକି ଚେଷ୍ଟା କର।",
-    "action.revise_below_threshold": "ପୁଣି ରିଭିଜନ୍ କର।",
-    "action.revise_safe_default": "ପୁଣି ରିଭିଜନ୍ କର।",
-    "action.advance_mastered": "ସାବଧାନ! ପରବର୍ତ୍ତୀ ଧାରଣା କୁ ଯାଅ।",
-    "guard.escape_to_revise_not_ready_to_advance": "ବାରମ୍ବାର ଉନ୍ନତି ପାଇﬁ ରିଭିଜନ୍ କର।",
-    "guard.escape_action": "ପୁଣି ରିଭିଜନ୍ କର।",
-    "guard.escape_loop_on_same_concept": "ଏହି ଧାରଣା କୁ ବାରମ୍ବାର ବଦ୍ଧ କର।",
-    "guard.no_override": "ଆଗାମୀ କାମ ଜାରି ରଖ।",
+    "STATE_INVALID_FALLBACK": "ଅସ୍ଥାୟୀ ସମସ୍ୟା। ପୁଣି ଚେଷ୍ଟା କର।",
+    "COLD_START": "ପ୍ରଥମ ଧାରଣା ଆରମ୍ଭ କର।",
+    "WEAK_PREREQ_GAP": "ପ୍ରଥମେ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
+    "WEAK_CONCEPT": "ଏହି ଧାରଣା ପୁଣି ଶିଖ।",
+    "WRONG_RETRY": "ଉତ୍ତର ଭୁଲ ଥିଲା। ପୁଣି ଚେଷ୍ଟା କର।",
+    "PARTIAL_PRACTICE": "ଭଲ ହେଲା! ଆଉ ଏକ ଅଭ୍ୟାସ କର।",
+    "MASTERED_ADVANCE": "ବାହ୍! ପରବର୍ତ୍ତୀ ଧାରଣା କୁ ଯାଅ।",
+    "NO_GAIN_ALT_CONTENT": "ଅନ୍ୟ ଉପାୟରେ ପାଠ ପଢ।",
+    "NO_GAIN_REMEDIATE_PREREQ": "ପ୍ରଥମେ ଆଧାର ଧାରଣା ବଦ୍ଧ କର।",
+    "INTERVENTIONS_EXHAUSTED": "ଶିକ୍ଷକଙ୍କ ସହିତ ଯୋଗାଯୋଗ କର।",
+    "SLICE_COMPLETE": "ସମସ୍ତ ପାଠ ସମ୍ପୂର୍ଣ୍ଣ! ପୁଣି ରିଭିଜନ୍ କର।",
+    "BLOCKED_BY_PREREQ": "ପ୍ରଥମେ ଆଧାର ଧାରଣା ଶିଖ।",
+    "CONTENT_NOT_AVAILABLE_OFFLINE": "ଏହି ପାଠ ଅଫଲାଇନ୍ ଉପଲବ୍ଧ ନାହିଁ। ଅନ୍ୟ ପାଠ ପଢ।",
+    # Non-decision strings retained from v1
     "content.out_of_lessons": "ଏହି ପ୍ରଶ୍ନ ଆମ ପାଠ୍ୟକ୍ରମ ବାହାରେ। ସାମ୍ନାରେ ଥିବା ଧାରଣା ପଢ।",
     "translation.unavailable": "ଅନୁବାଦ ସେବା ଅନୁପଲବ୍ଧ। ମୂଳ ଓଡ଼ିଆ ପ୍ରଶ୍ନ ସହ ପାଠ ଖୋଜାଯାଉ।",
     "generation.basic_answer": "ଆମ ଉତ୍ତର ପାଠ୍ୟରୁ।",
