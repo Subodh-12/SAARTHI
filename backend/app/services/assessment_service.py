@@ -24,10 +24,12 @@ from ..repositories import EventRepository, MasteryRepository
 
 class AssessmentService:
     def __init__(self, pack: PackContentIndex, events: EventRepository,
-                 mastery: MasteryRepository) -> None:
+                 mastery: MasteryRepository, diagnosis=None) -> None:
         self.pack = pack
         self.events = events
         self.mastery = mastery
+        # Optional DiagnosisService (Phase 5): attached when wired in main.py.
+        self.diagnosis = diagnosis
 
     async def submit_assessment(
         self, learner_id: str, device_id: str, sub: AssessmentSubmission,
@@ -70,6 +72,7 @@ class AssessmentService:
                 "response": (sub.selected_option if question.qtype == "mcq"
                              else sub.answer_text),
                 "correct": correct,           # server-regraded result
+                "evidence": evidence.value if hasattr(evidence, "value") else str(evidence),
                 "correct_claim": sub.correct_claim,  # client claim (audit only)
                 "selected_option": sub.selected_option,
                 "misconception_tag": misconception_tag,
@@ -100,37 +103,59 @@ class AssessmentService:
                 attempts=attempts, correct=correct_n, last_event_seq=seq,
             )
 
-            existing_bloom = await self.mastery.get_bloom_mastery(learner_id, question.concept_id)
-            bm = next((r for r in existing_bloom if r.bloom_level == bloom_lvl), None)
-            bm_p_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
-            bm_p_new = bkt_update_bp(bm_p_prior, bool(correct), ruleset, question.concept_id)
-            bm_band = mastery_band_bp(bm_p_new, ruleset)
-            bm_attempts = (bm.attempts if bm else 0) + 1
-            bm_correct_n = (bm.correct if bm else 0) + (1 if correct else 0)
-            await self.mastery.upsert_bloom_mastery(
-                learner_id=learner_id, concept_id=question.concept_id,
-                bloom_level=bloom_lvl.value,
-                p_bp=bm_p_new, band=bm_band, attempts=bm_attempts,
-                correct=bm_correct_n, last_event_seq=seq,
-                bkt_version=ruleset.bkt_version,
-            )
-            bm_after = BloomMasteryRecord(
-                concept_id=question.concept_id, bloom_level=bloom_lvl,
-                p_bp=bm_p_new, band=bm_band,
-                attempts=bm_attempts, correct=bm_correct_n, last_event_seq=seq,
-            )
+            get_bloom_mastery = getattr(self.mastery, "get_bloom_mastery", None)
+            if callable(get_bloom_mastery):
+                existing_bloom = await get_bloom_mastery(learner_id, question.concept_id)
+                bm = next((r for r in existing_bloom if r.bloom_level == bloom_lvl), None)
+                bm_p_prior = bm.p_bp if bm else int(ruleset.bkt.get("p_init_bp", 2000))
+                bm_p_new = bkt_update_bp(bm_p_prior, bool(correct), ruleset, question.concept_id)
+                bm_band = mastery_band_bp(bm_p_new, ruleset)
+                bm_attempts = (bm.attempts if bm else 0) + 1
+                bm_correct_n = (bm.correct if bm else 0) + (1 if correct else 0)
+                upsert_bloom_mastery = getattr(self.mastery, "upsert_bloom_mastery", None)
+                if callable(upsert_bloom_mastery):
+                    await upsert_bloom_mastery(
+                        learner_id=learner_id, concept_id=question.concept_id,
+                        bloom_level=bloom_lvl.value,
+                        p_bp=bm_p_new, band=bm_band, attempts=bm_attempts,
+                        correct=bm_correct_n, last_event_seq=seq,
+                        bkt_version=ruleset.bkt_version,
+                    )
+                bm_after = BloomMasteryRecord(
+                    concept_id=question.concept_id, bloom_level=bloom_lvl,
+                    p_bp=bm_p_new, band=bm_band,
+                    attempts=bm_attempts, correct=bm_correct_n, last_event_seq=seq,
+                )
+            else:
+                bm_after = BloomMasteryRecord(
+                    concept_id=question.concept_id, bloom_level=bloom_lvl,
+                    p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
+                    band="weak", attempts=0, correct=0, last_event_seq=seq,
+                )
         else:
             existing = await self.mastery.get_mastery(learner_id)
             m_after = next((r for r in existing if r.concept_id == question.concept_id),
                            MasteryRecord(concept_id=question.concept_id,
                                          p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
                                          band="weak", attempts=0, correct=0))
-            existing_bloom = await self.mastery.get_bloom_mastery(learner_id, question.concept_id)
-            bm_after = next((r for r in existing_bloom if r.bloom_level == bloom_lvl),
-                            BloomMasteryRecord(concept_id=question.concept_id,
-                                               bloom_level=bloom_lvl,
-                                               p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
-                                               band="weak", attempts=0, correct=0, last_event_seq=0))
+            get_bloom_mastery = getattr(self.mastery, "get_bloom_mastery", None)
+            if callable(get_bloom_mastery):
+                existing_bloom = await get_bloom_mastery(learner_id, question.concept_id)
+                bm_after = next((r for r in existing_bloom if r.bloom_level == bloom_lvl),
+                                BloomMasteryRecord(concept_id=question.concept_id,
+                                                   bloom_level=bloom_lvl,
+                                                   p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
+                                                   band="weak", attempts=0, correct=0, last_event_seq=0))
+            else:
+                bm_after = BloomMasteryRecord(
+                    concept_id=question.concept_id, bloom_level=bloom_lvl,
+                    p_bp=int(ruleset.bkt.get("p_init_bp", 2000)),
+                    band="weak", attempts=0, correct=0, last_event_seq=0,
+                )
+        diagnosis = None
+        if (result.outcome == Outcome.ACCEPTED and self.diagnosis is not None and not correct):
+            diagnosis = await self.diagnosis.for_submission(
+                learner_id, question, sub.selected_option)
         return AssessmentResult(
             question_id=question.question_id, attempt_id=attempt_id,
             correct=correct, evidence=evidence,
@@ -139,6 +164,7 @@ class AssessmentService:
             bloom_level=bloom_lvl,
             mastery_after=m_after,
             bloom_mastery_after=bm_after,
+            diagnosis=diagnosis,
             next_decision_id="",  # filled by the route layer after DecisionService
             misconception_tag=misconception_tag,
             remediation_or=remediation_or,

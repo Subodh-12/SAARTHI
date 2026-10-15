@@ -6,6 +6,7 @@
    - real curriculum from the built pack (same ids as backend)
    - back navigation, logout, real pack download with checksum verify      */
 import {PACK, CHAPTERS, CONCEPTS, QB, GL, CHUNKS} from './curriculum.js';
+import { getDraftValue, syncRoomDraftField } from './lib/roomDrafts';
 
 /* ================= utilities ================= */
 const $=(s,r=document)=>r.querySelector(s);
@@ -90,6 +91,7 @@ const D={
 'nav.settings':['Settings','ସେଟିଂସ୍'],'nav.more':['More','ଅଧିକ'],'nav.teacher':['Class view','ଶ୍ରେଣୀ ଦୃଶ୍ୟ'],
 'nav.logout':['Log out','ଲଗ୍ ଆଉଟ୍'],
 'nav.search':['Search or jump to…','ଖୋଜ ବା ଯାଅ…'],
+'nav.rooms':['Study rooms','ପାଠଗତ କକ୍ଷ'],
 'net.online':['Online','ଅନଲାଇନ୍'],'net.weak':['Weak signal','ଦୁର୍ବଳ ସିଗ୍ନାଲ୍'],'net.offline':['Offline','ଅଫଲାଇନ୍'],'net.auto':['Auto (device)','ସ୍ୱତଃ (ଡିଭାଇସ୍)'],
 'net.demo':['Demo network','ଡେମୋ ନେଟୱାର୍କ'],'net.demo.note':['Switch the network to see how the agent adapts. Learning never stops.','ନେଟୱାର୍କ ବଦଳାଇ ଦେଖ ଏଜେଣ୍ଟ କିପରି ମାନିଯାଏ। ଶିଖିବା କେବେ ବନ୍ଦ ହୁଏ ନାହିଁ।'],
 'net.to.offline':['Network lost. Saved on this phone; learning continues.','ନେଟୱାର୍କ ଗଲା। ଫୋନ୍‌ରେ ସଂରକ୍ଷିତ; ଶିଖିବା ଚାଲିବ।'],
@@ -852,8 +854,8 @@ function answerDoubt(raw,net){
 const R={role:null,route:'home',concept:null,fmt:'text',prac:null,thread:[],askText:'',agentTab:'trace',hist:[],
  login:{mode:'signin',role:'student',id:'',pw:'',name:'',err:'',busy:false},
  pop:false,cmd:false,cmdQ:'',more:false,expand:{},testRes:null,scroll:{},altNote:false,quick:'',busy:false,askSeq:0,serverOk:null};
-const NAV={learner:['home','learn','practice','ask','progress','packs','sync','agent','settings'],teacher:['teacher','settings']};
-const NAVIC={home:'home',learn:'book',practice:'check',ask:'chat',progress:'chart',packs:'download',sync:'sync',agent:'agent',settings:'sliders',teacher:'users'};
+const NAV={learner:['home','learn','practice','ask','rooms','progress','packs','sync','agent','settings'],teacher:['teacher','settings']};
+const NAVIC={home:'home',learn:'book',practice:'check',ask:'chat',rooms:'users',progress:'chart',packs:'download',sync:'sync',agent:'agent',settings:'sliders',teacher:'users'};
 const BN=['home','learn','practice','ask'];
 const bandOfId=id=>S.p&&S.p.mastery[id]?bandOf(S.p.mastery[id].p_bp):'n';
 const pctOf=id=>S.p&&S.p.mastery[id]?Math.max(4,Math.round(S.p.mastery[id].p_bp/100)):0;
@@ -1303,7 +1305,7 @@ function teacherView(){
  <div class="stack"><div class="card"><h3>${ic('alert')}${t('tch.attn')}</h3><div class="list">${attn.map(r=>`<div class="li"><span class="ic">${ic('users')}</span><span class="tx"><b>${esc(r.n)}</b><br><span class="mut sm">${r.help?t('tch.flag.help'):t('tch.flag.weak',{n:N(weak(r))})}</span></span></div>`).join('')}</div></div>
  <div class="card"><h3>${ic('chart')}${t('tch.mis')}</h3><div class="list">${mis.map(m=>`<div class="li"><span class="tx">${t('mis.'+m[0])||m[0]}<br><span class="mut sm">${tn('tch.mis.n',{n:m[1]})}</span></span></div>`).join('')}</div></div></div></div>`;
 }
-const VIEWS={home:homeView,learn:learnView,practice:practiceView,ask:askView,progress:progressView,packs:packsView,sync:syncView,agent:agentView,settings:settingsView,teacher:teacherView};
+const VIEWS={home:homeView,learn:learnView,practice:practiceView,ask:askView,rooms:roomsView,progress:progressView,packs:packsView,sync:syncView,agent:agentView,settings:settingsView,teacher:teacherView};
 
 /* ================= wiring ================= */
 function applyPrefs(){
@@ -1457,3 +1459,379 @@ async function checkServer(){
  }
  render();
 })();
+
+/* ================= Karana Collective Learning Rooms =================
+   Collaborative 4–6 member study rooms with the Doubt Relay flow and the
+   Find the Mistake game. Karana responses come from the backend's
+   DemoKaranaAgent — deterministic, simulated, no AI model connected.
+   Realtime is a 3s polling fallback + presence heartbeat.               */
+Object.assign(R,{roomId:null,rooms:[],roomsLoading:false,roomsErr:'',
+ roomTab:'chat',roomDetail:null,roomErr:'',roomCreateOpen:false,
+ relay:null,game:null,roomDrafts:{}});
+
+const ROOM_API={
+ list:()=>apiFetch('/rooms'),
+ detail:id=>apiFetch('/rooms/'+id),
+ create:b=>apiFetch('/rooms/create',{method:'POST',body:b}),
+ join:code=>apiFetch('/rooms/join',{method:'POST',body:{room_code:code}}),
+ leave:id=>apiFetch('/rooms/'+id+'/leave',{method:'POST'}),
+ heartbeat:id=>apiFetch('/rooms/'+id+'/heartbeat',{method:'POST'}),
+ msg:(id,body,reply_to)=>apiFetch('/rooms/'+id+'/messages',{method:'POST',body:{body,reply_to:reply_to||null}}),
+ relayStart:(id,q)=>apiFetch('/rooms/'+id+'/relay/start',{method:'POST',body:{question:q}}),
+ relaySubmit:(id,a,c)=>apiFetch(`/rooms/${id}/relay/${a}/submit`,{method:'POST',body:{content:c}}),
+ relayReveal:(id,a)=>apiFetch(`/rooms/${id}/relay/${a}/reveal`,{method:'POST'}),
+ relayAdvance:(id,a,st)=>apiFetch(`/rooms/${id}/relay/${a}/advance`,{method:'POST',body:{stage:st}}),
+ relayVerify:(id,a,opt)=>apiFetch(`/rooms/${id}/relay/${a}/verify`,{method:'POST',body:{selected_option:opt}}),
+ gameStart:id=>apiFetch('/rooms/'+id+'/game/start',{method:'POST'}),
+ gameSubmit:(id,a,line,why)=>apiFetch(`/rooms/${id}/game/${a}/submit`,{method:'POST',body:{mistake_line:line,reasoning:why}}),
+ gameReveal:(id,a)=>apiFetch(`/rooms/${id}/game/${a}/reveal`,{method:'POST'}),
+ activities:id=>apiFetch('/rooms/'+id+'/activities'),
+};
+
+async function roomsLoad(silent){
+ if(!silent){R.roomsLoading=true;R.roomsErr='';render()}
+ try{const r=await ROOM_API.list();R.rooms=r.rooms||[];R.roomsErr=''}
+ catch(e){R.roomsErr=e&&e.status===401?'rooms.err.auth':'rooms.err.net'}
+ finally{if(!silent){R.roomsLoading=false;render()}else if(R.route==='rooms')render()}
+}
+async function roomOpenSilent(){
+ if(!R.roomId)return;
+ try{
+  const d=await ROOM_API.detail(R.roomId);R.roomDetail=d;R.roomErr='';
+  const acts=await ROOM_API.activities(R.roomId);
+  const openR=(acts.activities||[]).find(a=>a.status!=='completed'&&a.activity_type==='doubt_relay');
+  const openG=(acts.activities||[]).find(a=>a.status!=='completed'&&a.activity_type==='find_the_mistake');
+  R.relay=openR?await ROOM_API.relayDetail(R.roomId,openR.activity_id):null;
+  R.game=openG?await ROOM_API.gameDetail(R.roomId,openG.activity_id):null;
+ }catch(e){
+  if(e&&e.status===404||e&&e.detail==='you are not a member of this room'){R.roomId=null;R.roomErr='rooms.err.gone'}
+  else R.roomErr='rooms.err.net';
+ }
+ if(R.route==='rooms')render();
+}
+ROOM_API.relayDetail=(rid,a)=>apiFetch(`/rooms/${rid}/relay/${a}`);
+ROOM_API.gameDetail=(rid,a)=>apiFetch(`/rooms/${rid}/game/${a}`);
+
+function roomsView(){
+ if(R.roomId)return roomDetailView();
+ const err=R.roomsErr?`<div class="fb bad sm">${esc(t(R.roomsErr))}</div>`:'';
+ const cards=R.rooms.map(({room:rm})=>{
+  const exp=rm.expires_at?Math.max(0,rm.expires_at-Date.now()):null;
+  const acts=(rm.recent_activity||[]).slice(-1)[0]||'';
+  return`<button class="tile" style="border-left-color:var(--ind)" data-a="roomOpen" data-v="${esc(rm.room_id)}">
+    <b>${esc(rm.title)} <span class="tag">${esc(rm.room_code)}</span></b>
+    <span class="mut sm">${esc(rm.chapter_title||rm.subject)}${rm.learning_topic?' · '+esc(rm.learning_topic):''}</span>
+    <div class="wrap" style="margin-top:6px">
+      ${(rm.members||[]).map(m=>`<span class="tag ${m.online?'m':'info'}">${esc(m.display_label)}${m.role==='host'?' 👑':''}</span>`).join('')}
+      <span class="mut sm">${rm.member_count}/${rm.capacity}</span>
+    </div>
+    ${acts?`<div class="mut sm" style="margin-top:6px">💬 ${esc(acts)}</div>`:''}
+    ${exp!==null?`<div class="tag w" style="margin-top:6px">⏳ ${t('rooms.expire')} ${Math.round(exp/60000)} min</div>`:''}
+  </button>`}).join('');
+ return`<div class="stack">
+  <div class="pagehead"><h2>${t('rooms.title')}</h2><p>${t('rooms.sub')}</p></div>
+  ${err}
+  <div class="card">
+    <div class="wrap">
+      <button class="btn sm" data-a="roomCreateToggle">${t('rooms.create')}</button>
+      <input type="text" id="rJoinCode" placeholder="${t('rooms.code')}" maxlength="8"
+             style="width:120px;text-transform:uppercase" value="${esc(R.roomDrafts.join||'')}">
+      <button class="btn sm ghost" data-a="roomJoin">${t('rooms.join')}</button>
+    </div>
+    <div id="rCreate" style="display:${R.roomCreateOpen?'block':'none'};margin-top:12px">
+      <label class="field"><span>${t('rooms.f.title')}</span><input type="text" id="rTitle" maxlength="80" value="${esc(R.roomDrafts.title||'')}"></label>
+      <label class="field"><span>${t('rooms.f.topic')}</span><input type="text" id="rTopic" maxlength="120" value="${esc(R.roomDrafts.topic||'')}"></label>
+      <div class="field"><span>${t('rooms.f.chapter')}</span><div class="seg">${Object.keys(CMAP).slice(0,3).map(c=>`<button class="${R.roomDrafts.chapter===c?'on':''}" data-a="roomSet" data-v="chapter:${esc(c)}">${esc(L(CMAP[c].t))}</button>`).join('')}</div></div>
+      <div class="field"><span>${t('rooms.f.cap')}</span><div class="seg">${[4,5,6].map(n=>`<button class="${R.roomDrafts.cap===n?'on':''}" data-a="roomSet" data-v="cap:${n}">${n}</button>`).join('')}</div></div>
+      <button class="btn" data-a="roomCreate">${t('rooms.create')}</button>
+    </div>
+  </div>
+  ${R.roomsLoading?`<div class="emp"><span class="spin"></span> ${t('loading')}</div>`:''}
+  ${!R.roomsLoading&&!R.rooms.length?`<div class="emp"><div class="big">${t('rooms.empty')}</div>${t('rooms.emptySub')}</div>`:''}
+  <div class="stack">${cards}</div>
+ </div>`;
+}
+
+function karanaBubble(text,label){
+ return`<div class="ans" style="border-color:var(--ind);background:var(--info)">
+   <b>${esc(label||'Karana')}</b> <span class="tag info">${t('rooms.demoTag')}</span>
+   <div>${annotate(text,'en',new Set())}</div></div>`;
+}
+const STATUS_KEY={collecting:'rooms.st.collecting',revealed:'rooms.st.revealed',followup:'rooms.st.followup',discussion:'rooms.st.discussion',verification:'rooms.st.verification',completed:'rooms.st.completed'};
+
+function roomDetailView(){
+ const d=R.roomDetail;if(!d)return`<div class="emp"><span class="spin"></span></div>`;
+ const rm=d.room;
+ const tabs=[['chat','nav.ask'],['activity','rooms.activity'],['history','rooms.history']];
+ let body='';
+ if(R.roomTab==='chat')body=roomChatView(d);
+ else if(R.roomTab==='activity')body=roomActivityView();
+ else body=roomHistoryView(d);
+ return`<div class="stack">
+  <div class="card">
+   <div class="wrap" style="justify-content:space-between">
+    <b style="font-size:18px">${esc(rm.title)}</b>
+    <span class="wrap"><span class="tag">${esc(rm.room_code)}</span>
+    <button class="btn sm warn" data-a="roomLeave">${t('rooms.leave')}</button></span>
+   </div>
+   <div class="mut sm">${esc(rm.chapter_title||rm.subject)}${rm.learning_topic?' · '+esc(rm.learning_topic):''}</div>
+   <div class="wrap" style="margin-top:6px">${(rm.members||[]).map(m=>`<span class="tag ${m.online?'m':''}">${m.role==='host'?'👑 ':''}${esc(m.display_label)}${m.online?' ●':''}</span>`).join('')}</div>
+   ${rm.expires_at?`<div class="tag w" style="margin-top:6px">⏳ ${t('rooms.expire')} ${Math.max(0,Math.round((rm.expires_at-Date.now())/60000))} min</div>`:''}
+  </div>
+  <div class="tabs">${tabs.map(([k,l])=>`<button class="${R.roomTab===k?'on':''}" data-a="roomTab" data-v="${k}">${t(l)}</button>`).join('')}</div>
+  ${R.roomErr?`<div class="fb bad sm">${esc(t(R.roomErr))}</div>`:''}
+  ${body}
+ </div>`;
+}
+
+function roomChatView(d){
+ const byId=new Map(d.messages.map(m=>[m.message_id,m]));
+ const msgs=d.messages.map(m=>{
+  if(m.sender_kind==='system')return`<div class="mut sm" style="text-align:center">${esc(m.body)}</div>`;
+  if(m.sender_kind==='karana')return karanaBubble(m.body)+`<div class="mut sm">${fmtTime(m.created_at)}</div>`;
+  return`<div><b class="sm">${esc(m.sender_label)}</b> <span class="mut sm">${fmtTime(m.created_at)}
+    <a href="#" class="link sm" data-a="roomReply" data-v="${esc(m.message_id)}">${t('rooms.reply')}</a></span>
+    ${m.reply_to&&byId.get(m.reply_to)?`<div class="mut sm" style="border-left:3px solid var(--ln);padding-left:8px">↩ ${esc((byId.get(m.reply_to).sender_label||'')+": "+byId.get(m.reply_to).body.slice(0,60))}</div>`:''}
+    <div>${annotate(m.body,m.body.match(/[\u0B00-\u0B7F]/)?'or':'en',new Set())}</div></div>`;
+ }).join('');
+ return`<div class="card thread" style="max-height:50vh;overflow:auto">${msgs||`<div class="emp">${t('rooms.noMsgs')}</div>`}</div>
+  ${R.roomDrafts.reply?`<div class="tag info">${t('rooms.replying')} <a href="#" class="link" data-a="roomReply" data-v="">✕</a></div>`:''}
+  <div class="askbar card">
+   <textarea id="rMsg" style="flex:1;min-height:44px" placeholder="${t('rooms.type')}">${esc(R.roomDrafts.msg||'')}</textarea>
+   <button class="btn sm" data-a="roomSend">${t('rooms.send')}</button>
+  </div>`;
+}
+
+function roomActivityView(){
+ const startBar=`<div class="wrap card">
+   <button class="btn sm" data-a="relayStart">${t('rooms.relayStart')}</button>
+   <button class="btn sm ghost" data-a="gameStart">${t('rooms.gameStart')}</button>
+ </div>`;
+ return startBar+(R.relay?relayView(R.relay):'')+(R.game?gameView(R.game):'')
+   +(!R.relay&&!R.game?`<div class="emp">${t('rooms.noActivity')}</div>`:'');
+}
+
+function relayView(st){
+ let inner='';
+ if(st.status==='collecting'){
+  inner=`<div class="mut sm">${t('rooms.progress')} ${st.submission_count}/${st.eligible_count}</div>
+   ${(st.submissions||[]).map(s=>`<div class="sm">✅ <b>${esc(s.display_label)}</b> ${t('rooms.submitted')}</div>`).join('')}`;
+  if(!st.my_submission){
+   inner+=`<label class="field"><span>${t('rooms.yourAnswer')}</span><textarea id="rAnswer">${esc(R.roomDrafts.answer||'')}</textarea></label>
+    <button class="btn" data-a="relaySubmit">${t('rooms.submitAnswer')}</button>
+    <div class="mut sm">${t('rooms.hiddenNote')}</div>`;
+  }else{
+   inner+=`<div class="fb ok sm">${t('rooms.youSubmitted')} <a href="#" class="link" data-a="relayReveal">${t('rooms.reveal')}</a></div>`;
+  }
+ }else{
+  inner=`<div class="sm"><b>${t('rooms.answers')}:</b> ${st.pattern?`<span class="tag ${st.pattern==='agree'?'m':st.pattern==='disagree'?'w':'p'}">${t('rooms.pattern.'+st.pattern)}</span>`:''}</div>
+   ${(st.submissions||[]).map(s=>`<div class="sm">👤 <b>${esc(s.display_label)}</b>: ${esc(s.content||'—')}</div>`).join('')}`;
+  if(st.followup)inner+=karanaBubble(st.followup.text);
+  if(st.status==='followup')inner+=`<button class="btn sm" data-a="relayAdvance" data-v="discussion">${t('rooms.discussed')}</button>`;
+  if(st.explanation&&(st.status==='discussion'||st.status==='verification'||st.status==='completed'))inner+=karanaBubble(st.explanation);
+  if((st.status==='discussion'||st.status==='followup')&&st.verification)inner+=`<button class="btn sm" data-a="relayAdvance" data-v="verification">${t('rooms.startVerify')}</button>`;
+  if(st.status==='verification'&&st.verification){
+   inner+=`<div class="sm"><b>${t('rooms.verifyQ')}</b> ${esc(st.verification.question)}</div>`+
+    st.verification.options.map((o,i)=>`<button class="opt ${R.roomDrafts.vopt===i?'on':''}" data-a="relayVopt" data-v="${i}"><span class="l">${'ABCD'[i]}</span> ${esc(o)}</button>`).join('');
+   if(st.verification_result)inner+=`<div class="fb ${st.verification_result.correct?'ok':'bad'} sm">${st.verification_result.correct?t('rooms.verOk'):t('rooms.verBad')}</div>`;
+   else inner+=`<button class="btn" data-a="relayVerify" ${R.roomDrafts.vopt==null?'disabled':''}>${t('rooms.submitAnswer')}</button>`;
+  }
+  if(st.status==='completed')inner+=`<div class="fb ok sm">${t('rooms.done')}${st.verification&&st.verification.group?` (${st.verification.group.correct}/${st.verification.group.total} ${t('rooms.verGroup')})`:''}</div>`;
+  if(st.trace&&st.trace.length)inner+=`<details class="sm mut"><summary>${t('rooms.trace')}</summary><ul>${st.trace.map(x=>`<li><b>${esc(x.step)}</b>: ${esc(x.detail)}</li>`).join('')}</ul></details>`;
+ }
+ return`<div class="card" style="border-left:6px solid var(--tur)">
+  <div class="wrap" style="justify-content:space-between"><b>🔥 ${t('rooms.relay')}</b><span class="tag p">${t(STATUS_KEY[st.status]||st.status)}</span></div>
+  <div class="q">${esc(st.question)}</div>${inner}</div>`;
+}
+
+function gameView(st){
+ if(!st.problem)return'';
+ let inner=`<ol class="sm" style="background:var(--bg);border:1.5px solid var(--ln);border-radius:12px;padding:10px 24px">${st.problem.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ol>
+  <div class="mut sm">${t('rooms.gameHint')} ${st.submission_count}/${st.eligible_count}</div>`;
+ if(st.status==='collecting'){
+  if(!st.my_submission){
+   inner+=`<label class="field"><span>${t('rooms.whichLine')}</span><input type="text" id="rLine" value="${esc(R.roomDrafts.line||'')}" placeholder="${t('rooms.linePh')}"></label>
+    <label class="field"><span>${t('rooms.why')}</span><textarea id="rWhy">${esc(R.roomDrafts.why||'')}</textarea></label>
+    <button class="btn" data-a="gameSubmit">${t('rooms.submitAnswer')}</button>`;
+  }else inner+=`<div class="fb ok sm">${t('rooms.youSubmitted')} <a href="#" class="link" data-a="gameReveal">${t('rooms.reveal')}</a></div>`;
+ }else if(st.expected){
+  inner+=`<div class="sm"><b>${t('rooms.expected')}:</b> ${esc(st.expected.answer)}</div>`+karanaBubble(st.expected.explanation)
+   +(st.group_stats?`<div class="mut sm">${st.group_stats.found}/${st.group_stats.total} ${t('rooms.foundCount')} · ${st.group_stats.reasoned}/${st.group_stats.total} ${t('rooms.reasonCount')}</div>`:'')
+   +(st.followup?karanaBubble(st.followup.text):'')
+   +`<div class="fb ok sm">${t('rooms.gameStored')}</div>`;
+ }
+ return`<div class="card" style="border-left:6px solid var(--m)">
+  <div class="wrap" style="justify-content:space-between"><b>🕵️ ${t('rooms.game')}</b><span class="tag m">${t(STATUS_KEY[st.status]||st.status)}</span></div>
+  <div class="q">${esc(st.problem.title)}</div>${inner}</div>`;
+}
+
+function roomHistoryView(d){
+ const q=(R.roomDrafts.histQ||'').toLowerCase();
+ const msgs=(q?d.messages.filter(m=>m.body.toLowerCase().includes(q)):d.messages)
+  .map(m=>`<div class="li"><span class="ic">${m.sender_kind==='karana'?'🤖':m.sender_kind==='system'?'ℹ️':'💬'}</span><span class="tx"><b class="sm">${m.sender_kind==='karana'?'Karana ('+t('rooms.demoShort')+')':m.sender_kind==='system'?'system':esc(m.sender_label)}</b> <span class="mut sm">${fmtTime(m.created_at)}</span><div class="sm">${esc(m.body)}</div></span></div>`).join('');
+ const sums=(d.summaries||[]).slice().reverse().map(s=>`<div class="card"><b class="sm">${s.activity_type==='find_the_mistake'?'🕵️':'🔥'} ${esc(s.original_question)}</b>
+   <div class="sm">${esc(s.explanation)}</div>
+   ${s.verification&&s.verification.completed_by!=null?`<span class="tag m">${t('rooms.verDone')} ${s.verification.completed_by}</span>`:''}
+   ${(s.unresolved||[]).length?`<div class="sm"><b class="no">${t('rooms.unresolved')}:</b> <ul>${s.unresolved.map(u=>`<li>${esc(u)}</li>`).join('')}</ul></div>`:''}
+  </div>`).join('');
+ return`<div class="stack">
+  ${sums?`<div><h3 class="sm mut">${t('rooms.summaryTitle')}</h3><div class="stack">${sums}</div></div>`:''}
+  <div class="card"><input type="text" id="rHistQ" placeholder="${t('rooms.search')}" value="${esc(R.roomDrafts.histQ||'')}">
+   <div class="list" style="max-height:40vh;overflow:auto;margin-top:8px">${msgs||`<div class="emp">${t('rooms.noMsgs')}</div>`}</div></div>
+ </div>`;
+}
+
+Object.assign(A,{
+ async roomOpen(v){navPush();R.route='rooms';R.roomId=v;R.roomTab='chat';R.roomErr='';R.roomDetail=null;render();
+  try{const d=await ROOM_API.detail(v);R.roomDetail=d;R.roomErr='';const acts=await ROOM_API.activities(v);
+   const or_=(acts.activities||[]).find(a=>a.status!=='completed'&&a.activity_type==='doubt_relay');
+   const og=(acts.activities||[]).find(a=>a.status!=='completed'&&a.activity_type==='find_the_mistake');
+   R.relay=or_?await ROOM_API.relayDetail(v,or_.activity_id):null;
+   R.game=og?await ROOM_API.gameDetail(v,og.activity_id):null;}
+  catch(e){R.roomErr='rooms.err.gone';R.roomId=null}
+  render()},
+ roomBack(){R.roomId=null;R.roomDetail=null;roomsLoad(true)},
+ roomCreateToggle(){R.roomCreateOpen=!R.roomCreateOpen;if(!R.roomDrafts.chapter)R.roomDrafts.chapter=Object.keys(CMAP)[0];if(!R.roomDrafts.cap)R.roomDrafts.cap=6;render()},
+ roomSet(v){const[k,val]=v.split(':');if(k==='chapter')R.roomDrafts.chapter=val;else R.roomDrafts.cap=+val;render()},
+ async roomCreate(){
+  const title=getDraftValue(R.roomDrafts,'rTitle',($('#rTitle')||{}).value||'');
+  const topic=getDraftValue(R.roomDrafts,'rTopic',($('#rTopic')||{}).value||'');
+  if(!title.trim())return;
+  const ch=R.roomDrafts.chapter||Object.keys(CMAP)[0];
+  try{const d=await ROOM_API.create({title:title.trim(),subject:'science',chapter_id:ch,chapter_title:L(CMAP[ch].t),learning_topic:topic.trim(),language:'or',capacity:R.roomDrafts.cap||6});
+   R.roomCreateOpen=false;R.roomDrafts={};A.roomOpen(d.room.room_id)}
+  catch(e){toast(t(e&&e.status===0?'rooms.err.net':'rooms.err.create'))}},
+ async roomJoin(){
+  const code=getDraftValue(R.roomDrafts,'rJoinCode',($('#rJoinCode')||{}).value||'').trim().toUpperCase();
+  if(!code)return;
+  try{const d=await ROOM_API.join(code);R.roomDrafts.join='';A.roomOpen(d.room.room_id)}
+  catch(e){toast(e&&e.status===404?t('rooms.noRoom'):e&&e.status===409?t('rooms.full'):e&&e.status===410?t('rooms.expired'):t('rooms.err.net'))}},
+ async roomLeave(){try{await ROOM_API.leave(R.roomId)}catch(e){}R.roomId=null;R.roomDetail=null;roomsLoad(true)},
+ roomTab(v){R.roomTab=v;render()},
+ roomReply(v){R.roomDrafts.reply=v||null;render()},
+ async roomSend(){
+  const el=$('#rMsg');const body=(el?el.value:'').trim();
+  if(!body)return;
+  try{await ROOM_API.msg(R.roomId,body,R.roomDrafts.reply||undefined);R.roomDrafts.msg='';R.roomDrafts.reply=null;await roomOpenSilent()}
+  catch(e){toast(e&&e.status===429?t('rooms.slowDown'):t('rooms.err.net'))}},
+ async relayStart(){
+  const q=prompt(t('rooms.relayPrompt'));if(!q||q.trim().length<3)return;
+  try{R.relay=await ROOM_API.relayStart(R.roomId,q.trim());R.roomTab='activity';roomOpenSilent()}
+  catch(e){toast(t('rooms.err.net'))}},
+ async relaySubmit(){
+  const v=($('#rAnswer')||{}).value||'';if(!v.trim())return;
+  try{R.relay=await ROOM_API.relaySubmit(R.roomId,R.relay.activity_id,v.trim());R.roomDrafts.answer='';roomOpenSilent()}
+  catch(e){toast(e&&e.status===409?t('rooms.dup'):t('rooms.err.net'))}},
+ async relayReveal(){try{R.relay=await ROOM_API.relayReveal(R.roomId,R.relay.activity_id);roomOpenSilent()}catch(e){toast(t('rooms.err.net'))}},
+ async relayAdvance(v){try{R.relay=await ROOM_API.relayAdvance(R.roomId,R.relay.activity_id,v);roomOpenSilent()}catch(e){toast(t('rooms.err.net'))}},
+ relayVopt(v){R.roomDrafts.vopt=+v;render()},
+ async relayVerify(){
+  if(R.roomDrafts.vopt==null)return;
+  try{R.relay=await ROOM_API.relayVerify(R.roomId,R.relay.activity_id,R.roomDrafts.vopt);R.roomDrafts.vopt=null;roomOpenSilent()}
+  catch(e){toast(e&&e.status===409?t('rooms.dup'):t('rooms.err.net'))}},
+ async gameStart(){try{R.game=await ROOM_API.gameStart(R.roomId);R.roomTab='activity';roomOpenSilent()}catch(e){toast(t('rooms.err.net'))}},
+ async gameSubmit(){
+  const line=($('#rLine')||{}).value||'';const why=($('#rWhy')||{}).value||'';
+  if(!line.trim())return;
+  try{R.game=await ROOM_API.gameSubmit(R.roomId,R.game.activity_id,line.trim(),why.trim());R.roomDrafts.line='';R.roomDrafts.why='';roomOpenSilent()}
+  catch(e){toast(e&&e.status===409?t('rooms.dup'):t('rooms.err.net'))}},
+ async gameReveal(){try{R.game=await ROOM_API.gameReveal(R.roomId,R.game.activity_id);roomOpenSilent()}catch(e){toast(t('rooms.err.net'))}},
+});
+
+document.addEventListener('input',e=>{
+ const id=e.target.id;
+ if(id==='rTitle'||id==='rTopic'||id==='rMsg'||id==='rAnswer'||id==='rLine'||id==='rWhy'||id==='rJoinCode'||id==='rHistQ'){
+  syncRoomDraftField(R.roomDrafts, id, e.target.value);
+ }
+ if(id==='rHistQ'){const c=$('#content');const y=c?c.scrollTop:0;render();const c2=$('#content');if(c2)c2.scrollTop=y}
+});
+document.addEventListener('keydown',e=>{
+ if(e.target.id==='rMsg'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();A.roomSend()}
+ if(e.target.id==='rJoinCode'&&e.key==='Enter'){A.roomJoin()}
+});
+
+/* polling fallback: refresh room view + presence heartbeat every 3s */
+setInterval(()=>{
+ if(R.role&&R.route==='rooms'){
+  if(R.roomId){ROOM_API.heartbeat(R.roomId).catch(()=>{});roomOpenSilent()}
+  else roomsLoad(true);
+ }
+},3000);
+
+/* i18n additions */
+Object.assign(D,{
+ 'nav.rooms':['Study rooms','ପାଠଗତ କକ୍ଷ'],
+ 'rooms.title':['Karana Collective Learning Rooms','କରଣ ସାମୂହିକ ଶିକ୍ଷା କକ୍ଷ'],
+ 'rooms.sub':['Study a chapter with 4–6 friends. Answer a doubt independently first — your different reasonings drive the discussion. Karana is a demo agent (simulated, no AI model).','୪–୬ ଜଣ ସାଙ୍ଗୀ ସହ ପାଠ ପଢ଼। ପ୍ରଥମେ ନିଜେ ଉତ୍ତର ଦିଅ — ତୁମମାନଙ୍କ ଭିନ୍ନ ବୁଝାପଣ ଆଲୋଚନା ଚଲାଇବ। କରଣ ଏଠାରେ ଏକ ଡେମୋ ଏଜେଣ୍ଟ।'],
+ 'rooms.create':['+ Create room','+ ନୂଆ କକ୍ଷ'],
+ 'rooms.join':['Join','ଯୋଗ ଦିଅ'],
+ 'rooms.code':['ROOM CODE','କକ୍ଷ କୋଡ୍'],
+ 'rooms.f.title':['Room title','କକ୍ଷ ନାମ'],
+ 'rooms.f.topic':['Learning topic','ଶିକ୍ଷା ବିଷୟ'],
+ 'rooms.f.chapter':['Chapter','ଅଧ୍ୟାୟ'],
+ 'rooms.f.cap':['Max members','ସର୍ବାଧିକ ସଦସ୍ୟ'],
+ 'rooms.empty':['No study rooms yet','ଏପରି କୌଣସି କକ୍ଷ ନାହିଁ'],
+ 'rooms.emptySub':['Create one above, or join with a friend’s room code.','ଉପରେ ଗୋଟିଏ ତିଆରି କର, କିମ୍ବା ସାଙ୍ଗର କୋଡ୍ ଦ୍ୱାରା ଯୋଗ ଦିଅ।'],
+ 'rooms.expire':['Deletes in','ବିଲୋପ ହେବ'],
+ 'rooms.activity':['Activity','କାର୍ଯ୍ୟକଳାପ'],
+ 'rooms.history':['History & summary','ଇତିହାସ'],
+ 'rooms.leave':['Leave','ଛାଡ଼'],
+ 'rooms.reply':['reply','ଉତ୍ତର'],
+ 'rooms.replying':['Replying —','ଉତ୍ତର ଦେଉଛି —'],
+ 'rooms.noMsgs':['No messages yet','ଏପରି କୌଣସି ବାର୍ତ୍ତା ନାହିଁ'],
+ 'rooms.type':['Type a message…','ବାର୍ତ୍ତା ଲେଖ…'],
+ 'rooms.send':['Send','ପଠାଅ'],
+ 'rooms.relayStart':['🔥 Start Doubt Relay','🔥 ସନ୍ଦେହ ରିଲେ ଆରମ୍ଭ'],
+ 'rooms.gameStart':['🕵️ Find the Mistake','🕵️ ଭୁଲ ଖୋଜ'],
+ 'rooms.noActivity':['No activity running yet','ଏପରି କାର୍ଯ୍ୟକଳାପ ଚାଲୁ ନାହିଁ'],
+ 'rooms.relay':['Doubt Relay','ସନ୍ଦେହ ରିଲେ'],
+ 'rooms.game':['Find the Mistake','ଭୁଲ ଖୋଜ'],
+ 'rooms.progress':['Submitted','ଦାଖଲ'],
+ 'rooms.submitted':['submitted','ଦାଖଲ କଲା'],
+ 'rooms.yourAnswer':['Your answer (others can’t see it yet)','ତୁମ ଉତ୍ତର (ଅନ୍ୟମାନେ ଏହା ଦେଖିପାରିବେ ନାହିଁ)'],
+ 'rooms.submitAnswer':['Submit answer','ଉତ୍ତର ଦାଖଲ'],
+ 'rooms.hiddenNote':['Answers stay hidden until everyone submits or the relay is revealed.','ସମସ୍ତେ ଦାଖଲ କରିବା ପର୍ଯ୍ୟନ୍ତ ଉତ୍ତର ଲୁଚା ରହିବ।'],
+ 'rooms.youSubmitted':['You submitted.','ତୁମେ ଦାଖଲ କଲ।'],
+ 'rooms.reveal':['Reveal now','ଏବେ ଦେଖାଅ'],
+ 'rooms.answers':['Answers','ଉତ୍ତର'],
+ 'rooms.pattern.agree':['agree','ଏକମତ'],
+ 'rooms.pattern.disagree':['disagree','ମତଭେଦ'],
+ 'rooms.pattern.insufficient':['not enough evidence','ଯଥେଷ୍ଟ ପ୍ରମାଣ ନାହିଁ'],
+ 'rooms.discussed':['We discussed it → show explanation','ଆଲୋଚନା ହେଲା → ବ୍ୟାଖ୍ୟା ଦେଖାଅ'],
+ 'rooms.startVerify':['Start verification question','ଯାଞ୍ଚ ପ୍ରଶ୍ନ ଆରମ୍ଭ'],
+ 'rooms.verifyQ':['Fresh verification question (private to you):','ନୂଆ ଯାଞ୍ଚ ପ୍ରଶ୍ନ (କେବଳ ତୁମ ପାଇଁ):'],
+ 'rooms.verOk':['✅ Correct — nice work!','✅ ଠିକ୍ — ବାହ୍!'],
+ 'rooms.verBad':['❌ Not quite — revisit the explanation.','❌ ଠିକ୍ ନୁହେଁ — ବ୍ୟାଖ୍ୟା ପୁଣି ଦେଖ।'],
+ 'rooms.done':['✅ Session complete — summary stored in room history.','✅ ସ୍ପତି ସମ୍ପୂର୍ଣ୍ଣ — ସାରାଂଶ ଇତିହାସରେ ସଂରକ୍ଷିତ।'],
+ 'rooms.verGroup':['correct','ଠିକ୍'],
+ 'rooms.trace':['Demo-agent decision trace (deterministic, simulated)','ଡେମୋ-ଏଜେଣ୍ଟ ନିଷ୍ପତ୍ତି ଟ୍ରେସ୍'],
+ 'rooms.demoTag':['demo agent · simulated','ଡେମୋ ଏଜେଣ୍ଟ'],
+ 'rooms.demoShort':['demo','ଡେମୋ'],
+ 'rooms.gameHint':['One line has a seeded error. Reasoning counts more than speed. Submitted:','ଗୋଟିଏ ଧାଡ଼ିରେ ଭୁଲ ଅଛି। ଯୁକ୍ତି ଗତିଠାରୁ ଜରୁରୀ। ଦାଖଲ:'],
+ 'rooms.whichLine':['Which line is wrong?','କେଉଁ ଧାଡ଼ି ଭୁଲ?'],
+ 'rooms.linePh':['e.g. "Line 2"','ଯଥା "ଧାଡ଼ି 2"'],
+ 'rooms.why':['Explain your reasoning','ତୁମ ଯୁକ୍ତି ଲେଖ'],
+ 'rooms.expected':['Expected answer','ପ୍ରତ୍ୟାଶିତ ଉତ୍ତର'],
+ 'rooms.foundCount':['found the error','ଭୁଲ ପାଇଲେ'],
+ 'rooms.reasonCount':['gave reasoning','ଯୁକ୍ତି ଦେଲେ'],
+ 'rooms.gameStored':['✅ Result stored in room history.','✅ ଫଳାଫଳ ଇତିହାସରେ ସଂରକ୍ଷିତ।'],
+ 'rooms.summaryTitle':['Room summary — key outcomes','କକ୍ଷ ସାରାଂଶ'],
+ 'rooms.unresolved':['Unresolved','ଅମୀମାଂସିତ'],
+ 'rooms.search':['Search room history…','ଇତିହାସ ଖୋଜ…'],
+ 'rooms.st.collecting':['Collecting independent answers','ସ୍ୱାଧୀନ ଉତ୍ତର ସଂଗ୍ରହ'],
+ 'rooms.st.revealed':['Answers revealed','ଉତ୍ତର ପ୍ରକାଶ'],
+ 'rooms.st.followup':['Karana follow-up','କରଣ ପ୍ରଶ୍ନ'],
+ 'rooms.st.discussion':['Group discussion','ଦଳଗତ ଆଲୋଚନା'],
+ 'rooms.st.verification':['Verification','ଯାଞ୍ଚ'],
+ 'rooms.st.completed':['Completed','ସମ୍ପୂର୍ଣ୍ଣ'],
+ 'rooms.relayPrompt':['Post your doubt — the group answers independently first:','ତୁମ ପ୍ରଶ୍ନ ଲେଖ — ପ୍ରଥମେ ସମସ୍ତେ ସ୍ୱାଧୀନ ଭାବେ ଉତ୍ତର ଦେବେ:'],
+ 'rooms.noRoom':['No room with that code.','ଏହି କୋଡ୍ ର କୌଣସି କକ୍ଷ ନାହିଁ।'],
+ 'rooms.full':['That room is full.','ସେହି କକ୍ଷ ପୂର୍ଣ୍ଣ।'],
+ 'rooms.expired':['That room has expired.','ସେହି କକ୍ଷର ସମୟ ସମାପ୍ତ।'],
+ 'rooms.dup':['You already submitted.','ତୁମେ ପୂର୍ବରୁ ଦାଖଲ କରିଛ।'],
+ 'rooms.slowDown':['Slow down — too many messages.','ଧୀରେ — ଅତ୍ୟଧିକ ବାର୍ତ୍ତା।'],
+ 'rooms.err.net':['Network error — check your connection.','ନେଟୱାର୍କ ତ୍ରୁଟି।'],
+ 'rooms.err.gone':['This room is no longer available.','ଏହି କକ୍ଷ ଆଉ ଉପଲବ୍ଧ ନାହିଁ।'],
+ 'rooms.err.create':['Could not create room.','କକ୍ଷ ତିଆରି ହେଲା ନାହିଁ।'],
+ 'rooms.err.auth':['Please sign in again.','ପୁଣି ସାଇନ୍ ଇନ୍ କର।'],
+});

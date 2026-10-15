@@ -71,6 +71,7 @@ class DecisionInput:
     ruleset_version: str = "1.0.0"
     bloom_mastery: dict[str, dict[str, MasteryEntry]] = field(default_factory=dict)
     available_bloom_levels_for_concept: dict[str, list[str]] = field(default_factory=dict)
+    trigger_evidence: Optional[str] = None   # correct | incorrect | partial | none
 
 
 @dataclass

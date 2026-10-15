@@ -257,6 +257,15 @@ class Question(BaseModel):
     explanation_or: str
     difficulty: Literal["easy", "medium", "hard"]
     misconception_tag: Optional[str] = None
+    # Optional teacher-authored distractor→misconception mapping, keyed by the
+    # stringified option index ("0", "1", ...) since JSON object keys are
+    # strings. Indices are validated by diagnose(); legacy packs without this
+    # field load unchanged.
+    misconception_options: dict[str, str] = Field(default_factory=dict)
+    # Annotation provenance: None (legacy, unannotated),
+    # "pending_teacher_review", or "teacher_reviewed". Phase 6.
+    review_status: Optional[Literal["pending_teacher_review",
+                                    "teacher_reviewed"]] = None
     source_ref: str
     revision: int = 1
     answer_key_hash: str = ""
@@ -452,6 +461,10 @@ class AssessmentResult(BaseModel):
     mastery_after: MasteryRecord
     bloom_mastery_after: Optional[BloomMasteryRecord] = None
     next_decision_id: str
+    # Present on incorrect MCQ responses: candidate causes (or an explicit
+    # insufficient-evidence state), a discriminating follow-up question, and
+    # the verification-gate status. Absent/None for correct or non-MCQ answers.
+    diagnosis: Optional[dict] = None
     misconception_tag: Optional[str] = None
     remediation_or: Optional[str] = None
 

@@ -96,6 +96,17 @@ class Settings(BaseSettings):
     # ---- Determinism / tests ----
     random_seed: int = 42
 
+    # ---- Karana Study Rooms ----
+    # Room-scoped data is temporary: when the last active member leaves, the
+    # room is deleted this many hours later unless someone rejoins.
+    room_expiry_hours: int = 24
+    # Grace window after a member's last heartbeat before they count as gone.
+    room_presence_timeout_seconds: int = 90
+    # How often the backend sweeper deletes expired rooms (seconds).
+    room_sweep_interval_seconds: int = 60
+    # Simple in-memory rate limit for room chat posts.
+    room_chat_rate_limit_per_minute: int = 20
+
     # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------
@@ -117,7 +128,16 @@ class Settings(BaseSettings):
     @classmethod
     def _db_url(cls, v: str, info) -> str:
         if info.data.get("persistence_backend") == "postgres":
-            if not v.startswith(("postgres://", "postgresql://", "postgres+asyncpg://", "postgresql+asyncpg://")):
+            if not v.startswith(
+                (
+                    "postgres://",
+                    "postgresql://",
+                    "postgres+asyncpg://",
+                    "postgresql+asyncpg://",
+                    "postgresql+psycopg://",
+                    "postgresql+psycopg2://",
+                )
+            ):
                 raise ValueError("postgres backend requires a postgres* DATABASE_URL")
         return v
 

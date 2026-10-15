@@ -1,7 +1,7 @@
 """Routes aggregator."""
 from . import (
     admin, assessments, auth, content, decisions, doubts, health, learners, packs,
-    state, sync,
+    rooms, state, sync,
 )
 from fastapi import APIRouter
 
@@ -15,6 +15,7 @@ api_router.include_router(decisions.router)
 api_router.include_router(doubts.router)
 api_router.include_router(sync.router)
 api_router.include_router(packs.router)
+api_router.include_router(rooms.router)
 api_router.include_router(state.router)
 api_router.include_router(admin.router)
 

@@ -354,6 +354,116 @@ CREATE TABLE IF NOT EXISTS langgraph_writes (
 );
 
 -- ---------------------------------------------------------------- --
+-- Karana Collective Learning Rooms (temporary, room-scoped data).
+-- All tables here are deleted when a room expires (see rooms service).
+-- Personal learner progress lives OUTSIDE this section and is never
+-- touched by room expiry.
+-- ---------------------------------------------------------------- --
+CREATE TABLE IF NOT EXISTS study_rooms (
+  room_id             TEXT PRIMARY KEY,
+  room_code           TEXT NOT NULL UNIQUE,
+  title               TEXT NOT NULL,
+  subject             TEXT NOT NULL DEFAULT 'science',
+  chapter_id          TEXT NOT NULL DEFAULT '',
+  chapter_title       TEXT NOT NULL DEFAULT '',
+  learning_topic      TEXT NOT NULL DEFAULT '',
+  language            TEXT NOT NULL DEFAULT 'or',
+  capacity            INTEGER NOT NULL DEFAULT 6 CHECK (capacity BETWEEN 4 AND 6),
+  status              TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active', 'expired')),
+  created_by          TEXT NOT NULL REFERENCES learner_profiles(learner_id),
+  created_at          INTEGER NOT NULL,
+  empty_since         INTEGER,
+  expires_at          INTEGER,
+  last_activity_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rooms_code ON study_rooms (room_code);
+CREATE INDEX IF NOT EXISTS idx_rooms_expiry ON study_rooms (status, expires_at);
+
+CREATE TABLE IF NOT EXISTS room_members (
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
+  role                TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('host', 'member')),
+  joined_at           INTEGER NOT NULL,
+  last_seen_at        INTEGER NOT NULL,
+  PRIMARY KEY (room_id, learner_id)
+);
+CREATE INDEX IF NOT EXISTS idx_members_learner ON room_members (learner_id);
+
+CREATE TABLE IF NOT EXISTS room_messages (
+  message_id          TEXT PRIMARY KEY,
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  learner_id          TEXT,
+  sender_kind         TEXT NOT NULL CHECK (sender_kind IN ('member', 'karana', 'system')),
+  kind                TEXT NOT NULL DEFAULT 'chat'
+                      CHECK (kind IN ('chat', 'reply', 'system', 'summary')),
+  reply_to            TEXT REFERENCES room_messages(message_id) ON DELETE CASCADE,
+  body                TEXT NOT NULL,
+  created_at          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_messages_room ON room_messages (room_id, created_at);
+
+CREATE TABLE IF NOT EXISTS room_activities (
+  activity_id         TEXT PRIMARY KEY,
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  activity_type       TEXT NOT NULL CHECK (activity_type IN ('doubt_relay', 'find_the_mistake')),
+  status              TEXT NOT NULL DEFAULT 'collecting'
+                      CHECK (status IN ('collecting', 'revealed', 'followup', 'discussion',
+                                        'verification', 'completed')),
+  payload_json        TEXT NOT NULL DEFAULT '{}',
+  created_by          TEXT NOT NULL,
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_activities_room ON room_activities (room_id, created_at);
+
+CREATE TABLE IF NOT EXISTS activity_submissions (
+  submission_id       TEXT PRIMARY KEY,
+  activity_id         TEXT NOT NULL REFERENCES room_activities(activity_id) ON DELETE CASCADE,
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  learner_id          TEXT NOT NULL,
+  content             TEXT NOT NULL,
+  created_at          INTEGER NOT NULL,
+  UNIQUE (activity_id, learner_id)
+);
+CREATE INDEX IF NOT EXISTS idx_subs_activity ON activity_submissions (activity_id);
+
+CREATE TABLE IF NOT EXISTS activity_decisions (
+  decision_id         TEXT PRIMARY KEY,
+  activity_id         TEXT NOT NULL REFERENCES room_activities(activity_id) ON DELETE CASCADE,
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  stage               TEXT NOT NULL,
+  pattern             TEXT NOT NULL DEFAULT '',
+  action              TEXT NOT NULL,
+  trace_json          TEXT NOT NULL,
+  created_at          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_decisions_activity ON activity_decisions (activity_id);
+
+CREATE TABLE IF NOT EXISTS verification_results (
+  result_id           TEXT PRIMARY KEY,
+  activity_id         TEXT NOT NULL REFERENCES room_activities(activity_id) ON DELETE CASCADE,
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  learner_id          TEXT NOT NULL,
+  question_id         TEXT NOT NULL,
+  selected_option     INTEGER NOT NULL,
+  correct             INTEGER NOT NULL,
+  created_at          INTEGER NOT NULL,
+  UNIQUE (activity_id, learner_id)
+);
+
+CREATE TABLE IF NOT EXISTS room_summaries (
+  summary_id          TEXT PRIMARY KEY,
+  room_id             TEXT NOT NULL REFERENCES study_rooms(room_id) ON DELETE CASCADE,
+  original_question   TEXT NOT NULL,
+  explanation         TEXT NOT NULL DEFAULT '',
+  activity_type       TEXT NOT NULL DEFAULT 'doubt_relay',
+  verification_json   TEXT NOT NULL DEFAULT '{}',
+  unresolved_json     TEXT NOT NULL DEFAULT '[]',
+  created_at          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_summaries_room ON room_summaries (room_id, created_at);
+
 -- Durable worker jobs (Design v2 Section 5 & 14)
 -- Arq runs the jobs; PostgreSQL/SQLite job table is the source of truth,
 -- so a lost queue loses nothing.

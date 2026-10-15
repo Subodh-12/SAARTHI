@@ -68,6 +68,20 @@ class ErrorCode(str, enum.Enum):
     CONFLICT = "conflict"
     INTERNAL_ERROR = "internal_error"
     # Content
+    # Study rooms
+    ROOM_NOT_FOUND = "room_not_found"
+    ROOM_EXPIRED = "room_expired"
+    ROOM_FULL = "room_full"
+    NOT_A_MEMBER = "not_a_member"
+    INVALID_REPLY_TARGET = "invalid_reply_target"
+    ACTIVITY_NOT_FOUND = "activity_not_found"
+    ACTIVITY_CLOSED = "activity_closed"
+    DUPLICATE_SUBMISSION = "duplicate_submission"
+    INVALID_TRANSITION = "invalid_transition"
+    INVALID_STAGE = "invalid_stage"
+    NO_SUBMISSIONS = "no_submissions"
+    NO_VERIFICATION = "no_verification"
+    INVALID_ACTIVITY = "invalid_activity"
     CONTENT_OUT_OF_LESSONS = "content_out_of_lessons"
 
 
