@@ -41,15 +41,6 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/v1/"),
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "saarthi-api",
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
         ],
         navigateFallbackDenylist: [/^\/api\/.*/],
       },

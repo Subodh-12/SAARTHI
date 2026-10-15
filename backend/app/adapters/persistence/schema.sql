@@ -1,6 +1,10 @@
--- SAARTHI schema — works on SQLite (default MVP) and PostgreSQL.
--- Idempotent: each CREATE uses IF NOT EXISTS; ALTER TABLE guarded by
--- the existence check at the call site (see migrations.py).
+-- SAARTHI schema v2 — works on SQLite (default MVP) and PostgreSQL.
+-- Aligned with Design Document v2 Section 7 (devices/learner profiles,
+-- integer basis-point mastery, event status/effect/reason, generation
+-- records, refresh tokens and auth challenges).
+-- Idempotent: each CREATE uses IF NOT EXISTS. Column additions for prior
+-- schemas are handled by the guarded migrations in migrations.sql /
+-- persistence._migrate_prior_schema().
 
 -- ---------------------------------------------------------------- --
 -- Devices & learners
@@ -8,7 +12,10 @@
 CREATE TABLE IF NOT EXISTS devices (
   device_id          TEXT PRIMARY KEY,
   hardware_label      TEXT NOT NULL DEFAULT 'shared-android-low-end',
-  created_at          INTEGER NOT NULL
+  public_key_spki    TEXT,
+  created_at          INTEGER NOT NULL,
+  last_seen_at        INTEGER,
+  revoked_at          INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS learner_profiles (
@@ -21,23 +28,50 @@ CREATE TABLE IF NOT EXISTS learner_profiles (
   created_at          INTEGER NOT NULL,
   -- Soft column for the currently active profile on a given device.
   active_device_id    TEXT REFERENCES devices(device_id) ON DELETE SET NULL,
-  UNIQUE (active_device_id)  -- D-009: one active learner per device
+  UNIQUE (active_device_id)  -- v2: one ACTIVE device per learner (MVP)
 );
 
 CREATE TABLE IF NOT EXISTS learner_devices (
   learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
   device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+  status              TEXT NOT NULL DEFAULT 'active',
   first_seen_at       INTEGER NOT NULL,
   last_active_at      INTEGER NOT NULL,
   PRIMARY KEY (learner_id, device_id)
 );
 
 CREATE TABLE IF NOT EXISTS device_tokens (
-  device_id           TEXT PRIMARY KEY REFERENCES devices(device_id) ON DELETE CASCADE,
+  -- Short-lived ACCESS tokens (24h). token_hash = SHA-256 of the token.
+  device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
   token_hash          TEXT NOT NULL,
   issued_at           INTEGER NOT NULL,
   expires_at          INTEGER NOT NULL,
   revoked             INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_device_tokens_hash
+  ON device_tokens (token_hash, revoked, expires_at);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  -- Rotating REFRESH tokens (30 days); single use — presented refresh
+  -- tokens are marked used and a new one is issued on success.
+  id                  TEXT PRIMARY KEY,
+  device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+  token_hash          TEXT NOT NULL,
+  issued_at           INTEGER NOT NULL,
+  expires_at          INTEGER NOT NULL,
+  used_at             INTEGER,
+  revoked             INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash
+  ON refresh_tokens (token_hash, revoked, expires_at);
+
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  -- Signed-nonce challenge for renewal after prolonged offline periods.
+  nonce               TEXT PRIMARY KEY,
+  device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+  created_at          INTEGER NOT NULL,
+  expires_at          INTEGER NOT NULL,
+  used_at             INTEGER
 );
 
 -- ---------------------------------------------------------------- --
@@ -78,6 +112,7 @@ CREATE TABLE IF NOT EXISTS questions (
   question_id         TEXT PRIMARY KEY,
   concept_id          TEXT NOT NULL REFERENCES concepts(concept_id) ON DELETE CASCADE,
   chapter_id          TEXT NOT NULL REFERENCES chapters(chapter_id) ON DELETE CASCADE,
+  bloom_level         TEXT NOT NULL DEFAULT 'remember',
   qtype               TEXT NOT NULL,
   prompt_or           TEXT NOT NULL,
   options_json        TEXT NOT NULL DEFAULT '[]',
@@ -87,7 +122,10 @@ CREATE TABLE IF NOT EXISTS questions (
   explanation_or      TEXT NOT NULL,
   difficulty          TEXT NOT NULL,
   misconception_tag   TEXT,
-  source_ref          TEXT NOT NULL
+  source_ref          TEXT NOT NULL,
+  revision            INTEGER NOT NULL DEFAULT 1,
+  answer_key_hash     TEXT NOT NULL DEFAULT '',
+  status              TEXT NOT NULL DEFAULT 'active'
 );
 
 CREATE TABLE IF NOT EXISTS glossary (
@@ -136,17 +174,32 @@ CREATE TABLE IF NOT EXISTS installed_packs (
 );
 
 -- ---------------------------------------------------------------- --
--- Learner state (projections)
+-- Learner state (mastery projection — rebuilt by replay, never a
+-- source of truth. p_bp is the integer basis-point mastery.)
 -- ---------------------------------------------------------------- --
 CREATE TABLE IF NOT EXISTS learner_progress (
   learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
   concept_id          TEXT NOT NULL REFERENCES concepts(concept_id) ON DELETE CASCADE,
-  p_known             REAL NOT NULL DEFAULT 0.4,
-  band                TEXT NOT NULL DEFAULT 'unstarted',
+  p_bp                INTEGER NOT NULL DEFAULT 2000,
+  bkt_version         TEXT NOT NULL DEFAULT '1',
+  band                TEXT NOT NULL DEFAULT 'weak',
   attempts            INTEGER NOT NULL DEFAULT 0,
   correct             INTEGER NOT NULL DEFAULT 0,
-  last_updated_event_seq INTEGER,
+  last_event_seq      INTEGER,
   PRIMARY KEY (learner_id, concept_id)
+);
+
+CREATE TABLE IF NOT EXISTS learner_bloom_progress (
+  learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
+  concept_id          TEXT NOT NULL REFERENCES concepts(concept_id) ON DELETE CASCADE,
+  bloom_level         TEXT NOT NULL,
+  p_bp                INTEGER NOT NULL DEFAULT 2000,
+  bkt_version         TEXT NOT NULL DEFAULT '1',
+  band                TEXT NOT NULL DEFAULT 'weak',
+  attempts            INTEGER NOT NULL DEFAULT 0,
+  correct             INTEGER NOT NULL DEFAULT 0,
+  last_event_seq      INTEGER,
+  PRIMARY KEY (learner_id, concept_id, bloom_level)
 );
 
 CREATE TABLE IF NOT EXISTS learning_sessions (
@@ -159,25 +212,24 @@ CREATE TABLE IF NOT EXISTS learning_sessions (
 );
 
 -- ---------------------------------------------------------------- --
--- Events / sync
+-- Events / sync (append-only; unique on (device_id, seq))
 -- ---------------------------------------------------------------- --
 CREATE TABLE IF NOT EXISTS learner_events (
-  -- Idempotency key: (device_id, seq) — duplicate submissions return duplicate.
   device_id           TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
   learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
   seq                 INTEGER NOT NULL,
   event_id            TEXT NOT NULL,
-  ts                  INTEGER NOT NULL,
+  client_ts           INTEGER NOT NULL,
   event_type          TEXT NOT NULL,
   concept_id          TEXT,
   chapter_id          TEXT,
   question_id         TEXT,
   payload_json        TEXT NOT NULL DEFAULT '{}',
-  evidence            TEXT NOT NULL DEFAULT 'none',
-  weight              REAL NOT NULL DEFAULT 0.0,
+  status              TEXT NOT NULL DEFAULT 'accepted',
+  effect              TEXT,
+  reason              TEXT,
   received_at         INTEGER NOT NULL,
-  server_seq          INTEGER  -- server's monotonic sequence for replay ordering
-  ,
+  server_seq          INTEGER,
   PRIMARY KEY (device_id, seq),
   UNIQUE (event_id)
 );
@@ -207,23 +259,29 @@ CREATE TABLE IF NOT EXISTS dead_letter_events (
 );
 
 -- ---------------------------------------------------------------- --
--- Decisions and traces
+-- Decisions, traces, generation records
 -- ---------------------------------------------------------------- --
 CREATE TABLE IF NOT EXISTS decisions (
   decision_id         TEXT PRIMARY KEY,
   learner_id          TEXT NOT NULL REFERENCES learner_profiles(learner_id) ON DELETE CASCADE,
+  trigger_event_id    TEXT,
   ruleset_version     TEXT NOT NULL,
   target_concept_id   TEXT NOT NULL,
+  target_bloom_level  TEXT,
   action              TEXT NOT NULL,
   delivery_mode       TEXT NOT NULL,
   background_actions_json TEXT NOT NULL DEFAULT '[]',
   reason_code         TEXT NOT NULL,
   reason_or           TEXT NOT NULL,
-  chapter_id          TEXT NOT NULL,
+  needs_help          INTEGER NOT NULL DEFAULT 0,
+  chapter_id          TEXT NOT NULL DEFAULT '',
   suggested_question_id TEXT,
   suggested_chunk_id  TEXT,
   network             TEXT NOT NULL,
-  produced_by         TEXT NOT NULL,
+  source              TEXT NOT NULL DEFAULT 'server',
+  produced_by         TEXT NOT NULL DEFAULT 'server_engine',
+  inputs_json         TEXT NOT NULL DEFAULT '{}',
+  trace_json          TEXT,
   created_at          INTEGER NOT NULL
 );
 
@@ -240,11 +298,26 @@ CREATE TABLE IF NOT EXISTS decision_traces (
   error_code          TEXT,
   duration_ms        INTEGER NOT NULL,
   retry               INTEGER,
-  fallback           TEXT,
+  fallback            TEXT,
   input_summary_json  TEXT NOT NULL DEFAULT '{}',
   output_summary_json TEXT NOT NULL DEFAULT '{}',
   redacted            INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (decision_id, step_ordinal)
+);
+
+CREATE TABLE IF NOT EXISTS generation_records (
+  record_id           TEXT PRIMARY KEY,
+  decision_id         TEXT NOT NULL REFERENCES decisions(decision_id) ON DELETE CASCADE,
+  provider            TEXT NOT NULL,
+  model_id            TEXT,
+  prompt_version      TEXT NOT NULL,
+  prompt_hash         TEXT NOT NULL,
+  params_json         TEXT NOT NULL DEFAULT '{}',
+  chunk_ids_json      TEXT NOT NULL DEFAULT '[]',
+  output_or           TEXT NOT NULL DEFAULT '',
+  validation_results_json TEXT NOT NULL DEFAULT '{}',
+  fallback_used       INTEGER NOT NULL DEFAULT 0,
+  created_at          INTEGER NOT NULL
 );
 
 -- ---------------------------------------------------------------- --
@@ -260,8 +333,8 @@ CREATE TABLE IF NOT EXISTS langgraph_checkpoints (
   type                 TEXT NOT NULL DEFAULT 'dict',
   config_json          TEXT NOT NULL,
   metadata_json        TEXT NOT NULL DEFAULT '{}',
-  blob                 BLOB,
-  created_at           INTEGER NOT NULL,
+  blob                 BYTEA,
+  created_at           BIGINT NOT NULL,
   PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
 );
 
@@ -272,11 +345,11 @@ CREATE TABLE IF NOT EXISTS langgraph_writes (
   thread_id           TEXT NOT NULL,
   checkpoint_ns       TEXT NOT NULL DEFAULT '',
   checkpoint_id       TEXT NOT NULL,
-  task_id             INTEGER NOT NULL,
+  task_id             TEXT NOT NULL,
   channel             TEXT NOT NULL,
   type                TEXT NOT NULL,
-  blob                 BLOB,
-  created_at           INTEGER NOT NULL,
+  blob                 BYTEA,
+  created_at           BIGINT NOT NULL,
   PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, channel)
 );
 
@@ -390,3 +463,29 @@ CREATE TABLE IF NOT EXISTS room_summaries (
   created_at          INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_summaries_room ON room_summaries (room_id, created_at);
+
+-- Durable worker jobs (Design v2 Section 5 & 14)
+-- Arq runs the jobs; PostgreSQL/SQLite job table is the source of truth,
+-- so a lost queue loses nothing.
+-- ---------------------------------------------------------------- --
+CREATE TABLE IF NOT EXISTS jobs (
+  job_id              TEXT PRIMARY KEY,
+  type                TEXT NOT NULL,
+  payload_json        TEXT NOT NULL DEFAULT '{}',
+  dedupe_key          TEXT UNIQUE,
+  status              TEXT NOT NULL DEFAULT 'queued',
+  attempts            INTEGER NOT NULL DEFAULT 0,
+  max_attempts        INTEGER NOT NULL DEFAULT 6,
+  next_run_at         BIGINT NOT NULL,
+  lease_expires_at    BIGINT,
+  last_error          TEXT,
+  created_at          BIGINT NOT NULL,
+  updated_at          BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_status_next_run
+  ON jobs (status, next_run_at);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_lease_expires
+  ON jobs (status, lease_expires_at);
+

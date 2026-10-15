@@ -1,77 +1,92 @@
 {
-  "ruleset_version": "saarthi.rules.v1",
+  "version": "1.0.0",
+  "ruleset_version": "1.0.0",
+  "bkt_version": "1",
   "language": "or",
   "bkt": {
-    "priors": {
-      "default_prior": 0.4,
-      "default_learn": 0.3,
-      "default_slip": 0.1,
-      "default_guess": 0.25
-    },
-    "per_concept_overrides": {},
-    "evidence_rules": {
-      "mcq_correct": { "evidence": "correct", "weight": 1.0 },
-      "mcq_incorrect": { "evidence": "incorrect", "weight": 1.0 },
-      "short_answer_correct": { "evidence": "correct", "weight": 1.0 },
-      "short_answer_partial": { "evidence": "incorrect", "weight": 0.5 },
-      "short_answer_incorrect": { "evidence": "incorrect", "weight": 1.0 },
-      "doubt_asked": { "evidence": null, "weight": 0.0 },
-      "content_viewed": { "evidence": null, "weight": 0.0 },
-      "lesson_completed": { "evidence": null, "weight": 0.0 }
-    },
-    "update_bounds": {
-      "min_p": 0.01,
-      "max_p": 0.99
-    },
-    "default_q_matrix": {}
+    "p_init_bp": 2000,
+    "learn": 0.15,
+    "slip": 0.10,
+    "guess": 0.20,
+    "clamp_bp": [100, 9900],
+    "rounding": "half_up",
+    "per_concept_overrides": {}
   },
-  "mastery": {
-    "thresholds": {
-      "unstarted_lo": 0.05,
-      "novice_hi": 0.4,
-      "developing_hi": 0.7,
-      "proficient_hi": 0.9
-    },
-    "bands": ["unstarted", "novice", "developing", "proficient", "mastered"]
+  "bands": {
+    "weak_below_bp": 4000,
+    "mastered_at_bp": 8500
   },
-  "actions": {
-    "remediate_threshold": 0.4,
-    "retry_threshold": 0.55,
-    "revise_threshold": 0.7,
-    "advance_threshold": 0.85
+  "bloom": {
+    "taxonomy_version": "1.0.0",
+    "levels": [
+      "remember",
+      "understand",
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+    ],
+    "foundational_levels": [
+      "remember",
+      "understand"
+    ],
+    "higher_order_levels": [
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+    ],
+    "proficient_at_bp": 7000,
+    "mastered_at_bp": 8500
   },
-  "repetition_guard": {
-    "max_consecutive_same_action": 3,
-    "max_consecutive_same_concept": 3,
-    "escape_action": "REVISE"
-  },
-  "target_selection": {
-    "strategy": "first_unmastered_then_lowest_mastery",
-    "prerequisite_required": true,
-    "tiebreak": "concept_id_asc"
+  "guard": {
+    "attempts_without_gain": 3,
+    "min_gain_bp": 200
   },
   "network": {
-    "online_rt_threshold_ms": 600,
-    "online_loss_threshold": 0.0,
-    "weak_rt_threshold_ms": 1500,
-    "weak_loss_threshold": 0.25,
-    "offline_probe_timeout_ms": 800,
-    "hysteresis_observations": 3,
-    "online_to_weak_after_n_bad": 2,
-    "weak_to_offline_after_n_bad": 2,
-    "weak_to_online_after_n_good": 3,
-    "offline_to_weak_after_n_good": 2
+    "online": { "rtt_ms_max": 800, "downlink_kbps_min": 400 },
+    "weak": { "rtt_ms_max": 3000, "downlink_kbps_min": 50 },
+    "probe_interval_s": 30,
+    "probe_timeout_s": 3,
+    "hysteresis_downgrade_after_bad": 1,
+    "hysteresis_upgrade_after_good": 2
   },
   "delivery": {
     "online": "rich",
-    "weak": "prefetch_then_offline",
+    "weak": "cached",
     "offline": "cached",
     "reconnected": "rich"
   },
   "background_actions": {
-    "online_after_offline": ["SYNC", "PREFETCH"],
-    "weak": ["PREFETCH"],
-    "offline": []
+    "online": ["SYNC", "PREFETCH"],
+    "weak": ["SYNC"],
+    "offline": [],
+    "reconnected": ["SYNC", "PREFETCH"]
+  },
+  "prefetch": { "min_free_mb": 150, "battery_saver_blocks": true },
+  "sync": {
+    "batch_size": 100,
+    "backoff_s": [5, 15, 60, 300],
+    "backoff_jitter": 0.2,
+    "max_inflight_batches": 1
+  },
+  "doubt": { "max_tool_calls": 3, "budget_s": 12, "top_k": 4 },
+  "auth": { "access_ttl_h": 24, "refresh_ttl_d": 30, "challenge_ttl_s": 300 },
+  "repetition_guard": {
+    "attempts_without_gain": 3,
+    "min_gain_bp": 200
+  },
+  "target_selection": {
+    "strategy": "last_graded_then_doubt_hint_then_lowest_mastered_prereqs",
+    "prerequisite_required": true,
+    "tiebreak": "chapter_order_then_concept_id"
+  },
+  "mastery": {
+    "thresholds": {
+      "weak_below_bp": 4000,
+      "mastered_at_bp": 8500
+    },
+    "bands": ["weak", "partial", "mastered"]
   },
   "retries": {
     "default_max_attempts": 3,
@@ -80,23 +95,11 @@
     "backoff_max_ms": 8000,
     "backoff_jitter": 0.25
   },
-  "sync": {
-    "batch_size": 100,
-    "max_inflight_batches": 1,
-    "dead_letter_after_retries": 5
-  },
   "pack": {
     "max_bytes": 5242880,
     "min_app_version": "0.1.0",
     "checksum_algorithm": "sha256",
     "stale_after_days": 180
-  },
-  "prefetch": {
-    "enabled": true,
-    "wifi_only": false,
-    "min_free_storage_bytes": 10485760,
-    "battery_saver_skip": true,
-    "max_concurrent": 1
   },
   "orchestration": {
     "max_tool_calls_per_turn": 3,
@@ -106,7 +109,8 @@
       "translate_text",
       "retrieve_chunks",
       "generate_answer",
-      "validate_answer"
+      "validate_answer",
+      "check_entailment"
     ]
   },
   "translation": {
@@ -114,13 +118,16 @@
     "max_input_chars": 500,
     "cache_max_entries": 1024,
     "cache_ttl_seconds": 86400,
-    "min_confidence": 0.5
+    "min_confidence": 0.5,
+    "lang_codes": { "or": "ory_Odia", "en": "eng_Latn" }
   },
   "retrieval": {
     "default_provider": "local_hybrid",
-    "top_k": 5,
+    "top_k": 4,
+    "per_ranker_top": 8,
     "min_score": 0.05,
-    "glossary_expansion": true
+    "glossary_expansion": true,
+    "rrf_k": 60
   },
   "generation": {
     "default_provider": "mock",
@@ -129,7 +136,9 @@
   },
   "validation": {
     "min_odia_unicode_ratio": 0.6,
+    "max_answer_chars": 1200,
     "max_keyword_overlap_to_claim_grounding": 0.85,
-    "safety_blocked_terms": []
+    "safety_blocked_terms": [],
+    "grounding": "entailment_provider_or_extractive"
   }
 }

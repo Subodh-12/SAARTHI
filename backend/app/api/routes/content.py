@@ -53,10 +53,13 @@ async def get_next_question(
     concept_id: str,
     request: Request,
     difficulty: str | None = None,
+    bloom_level: str | None = None,
     ctx: tuple[str, str] = Depends(require_device_auth),
 ):
     pack = request.app.state.pack_index
-    qs = pack.list_questions_for_concept(concept_id, difficulty=difficulty)
+    qs = pack.list_questions_for_concept(concept_id, difficulty=difficulty, bloom_level=bloom_level)
+    if not qs and bloom_level is not None:
+        qs = pack.list_questions_for_concept(concept_id, difficulty=difficulty)
     if not qs:
         raise HTTPException(status_code=404, detail="no questions for concept")
     # Pick the first matching question — deterministic

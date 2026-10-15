@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { api, SaarthiApiError } from "../api/client";
-import { db, nextSeq, recordAssessmentEvent, getActiveProfile } from "../store/db";
-import { Action, AssessmentResult, Chapter, Chunk, Decision,
-         EvidenceType, EventType, MasteryRecord, NetworkState,
-         Question } from "../generated/api";
-import { OR, t } from "../i18n/or";
+import { recordAssessmentEvent, getMasterySnapshot } from "../store/db";
+import {
+  Action, AssessmentResult, Chapter, Chunk, Decision,
+  EvidenceType, NetworkState, Question,
+} from "../generated/api";
+import { t } from "../i18n/or";
 import { getInstalledPack } from "../lib/sync";
+import { RULESET, decide } from "../engine/decide";
+import { bloomLabel, bloomDescription, isValidBloomLevel } from "../engine/bloom";
 
 interface Props {
   profile: { learner_id: string; device_id: string; display_label: string };
@@ -26,29 +29,75 @@ export function LessonScreen({ profile, network }: Props) {
 
   useEffect(() => { void loadNext(); }, []);
 
-  const loadNext = async () => {
+  async function loadNext() {
     setLoading(true); setError(""); setSubmitted(false); setSelected(null);
     setResult(null); setDecision(null); setChunkIdx(0);
     try {
-      // Server-side decision (or local if offline)
+      // Server-side decision (or real local engine if offline)
       let d: Decision;
       if (network === NetworkState.OFFLINE) {
-        // pick first chapter of installed pack
         const pack = await getInstalledPack();
         if (!pack) throw new Error("No pack installed");
         const manifest = JSON.parse(pack.manifest_json);
-        const c = manifest.chapters[0];
-        const firstConcept = manifest.concepts.filter((cc: any) => cc.chapter_id === c.chapter_id)[0];
-        const ch = manifest.chunks.filter((ck: any) => ck.concept_id === firstConcept.concept_id);
-        setChapter(c); setChunks(ch); setQuestion(manifest.questions.find((q: any) => q.concept_id === firstConcept.concept_id));
+        const snap = await getMasterySnapshot();
+        const masteryMap = Object.fromEntries(
+          snap.map((m) => [
+            m.concept_id,
+            { p_bp: m.p_bp, attempts: m.attempts, correct: m.correct, last_event_seq: m.last_event_seq },
+          ])
+        );
+
+        const localOut = decide({
+          trigger_event_type: "SESSION_STARTED",
+          trigger_concept_id: manifest.concepts?.[0]?.concept_id || "c0001",
+          trigger_correct: null,
+          mastery: masteryMap,
+          recent_events: [],
+          prereqs: Object.fromEntries((manifest.concepts || []).map((c: any) => [c.concept_id, c.prerequisites || []])),
+          concept_order: (manifest.concepts || []).map((c: any) => c.concept_id),
+          chapter_id_for_concept: Object.fromEntries(
+            (manifest.concepts || []).map((c: any) => [c.concept_id, c.chapter_id])
+          ),
+          doubt_concept_hint: null,
+          env_network: "offline",
+          installed_pack_versions: { [pack.pack_id]: 1 },
+          required_pack_for_concept: Object.fromEntries(
+            (manifest.concepts || []).map((c: any) => [c.concept_id, pack.pack_id])
+          ),
+          storage_free_mb: 500,
+          battery_saver: false,
+          outbox_nonempty: false,
+          ruleset_version: RULESET.ruleset_version,
+        });
+
+        const targetConceptId = localOut.target_concept_id || manifest.concepts?.[0]?.concept_id;
+        const targetConcept = (manifest.concepts || []).find((c: any) => c.concept_id === targetConceptId);
+        const c = (manifest.chapters || []).find((ch: any) => ch.chapter_id === targetConcept?.chapter_id) || manifest.chapters?.[0];
+        const ch = (manifest.chunks || []).filter((ck: any) => ck.concept_id === targetConceptId);
+        const q = (manifest.questions || []).find((qq: any) => qq.concept_id === targetConceptId) || manifest.questions?.[0];
+
+        setChapter(c);
+        setChunks(ch);
+        setQuestion(q);
+
         d = {
-          decision_id: `local_${Date.now()}`, learner_id: profile.learner_id,
-          ruleset_version: "saarthi.rules.v1", target_concept_id: firstConcept.concept_id,
-          action: Action.REVISE, delivery_mode: "cached" as any, background_actions: [],
-          reason_code: "offline.fallback", reason_or: "ଅଫଲାଇନ — ସ୍ଥାନୀୟ ପାଠ",
-          chapter_id: c.chapter_id, network, produced_by: "local_engine",
-          created_at: Date.now(), suggested_chunk_id: ch[0]?.chunk_id ?? null,
-          suggested_question_id: null,
+          decision_id: `local_${Date.now()}`,
+          learner_id: profile.learner_id,
+          ruleset_version: RULESET.ruleset_version,
+          target_concept_id: targetConceptId,
+          action: localOut.action as Action,
+          delivery_mode: localOut.delivery_mode as any,
+          background_actions: localOut.background_actions as any,
+          reason_code: localOut.reason_code,
+          reason_or: "ଅଫଲାଇନ — ସ୍ଥାନୀୟ ପାଠ",
+          needs_help: localOut.needs_help,
+          chapter_id: c?.chapter_id || "",
+          network,
+          produced_by: "local_engine",
+          source: "local",
+          created_at: Date.now(),
+          suggested_chunk_id: ch[0]?.chunk_id ?? null,
+          suggested_question_id: q?.question_id ?? null,
         };
       } else {
         d = await api.nextDecision(network);
@@ -68,37 +117,51 @@ export function LessonScreen({ profile, network }: Props) {
 
   const submit = async () => {
     if (!question || selected === null || !decision) return;
-    // Build event + atomic state write
-    const seq = await nextSeq(profile.device_id, profile.learner_id);
     const eventId = `evt_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
     const correct = selected === question.correct_option;
     const evidence = correct ? EvidenceType.CORRECT : EvidenceType.INCORRECT;
-    // Local atomic write (state + event in one Dexie transaction)
-    await recordAssessmentEvent(
-      profile.learner_id, profile.device_id, eventId, seq,
-      question.concept_id, question.chapter_id, question.question_id,
-      (evidence as any).toString() as any, correct, selected, undefined, 0,
+    const attemptId = `att_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
+    // Atomic local write: mastery (basis points) + outbox event + seq counter
+    // in ONE IndexedDB transaction (ProfileSession).
+    const event = await recordAssessmentEvent(
+      profile.learner_id, profile.device_id, eventId,
+      question.concept_id,
+      { question_id: question.question_id, chapter_id: question.chapter_id,
+        revision: (question as any).revision ?? 1,
+        bloom_level: question.bloom_level },
+      correct, attemptId, selected, undefined, 0,
     );
     setSubmitted(true);
+    // Local mastery projection for instant feedback (the server regrades
+    // and its result wins at sync).
+    const snap = await getMasterySnapshot();
+    const local = snap.find((m) => m.concept_id === question.concept_id);
     setResult({
-      question_id: question.question_id, correct, evidence,
+      question_id: question.question_id, attempt_id: attemptId, correct,
+      evidence,
       explanation_or: question.explanation_or, concept_id: question.concept_id,
       mastery_after: {
-        concept_id: question.concept_id, p_known: 0, band: "novice",
-        attempts: 0, correct: 0,
-      } as MasteryRecord, next_decision_id: "",
+        concept_id: question.concept_id,
+        p_bp: local?.p_bp ?? 2000, band: local?.band ?? "weak",
+        attempts: local?.attempts ?? 1, correct: local?.correct ?? 0,
+        last_event_seq: (event as any).seq ?? 0,
+      } as any, next_decision_id: "",
     });
     // If online, also try to sync this event
     if (network !== NetworkState.OFFLINE) {
       try {
         await api.submitAssessment({
-          question_id: question.question_id, selected_option: selected,
+          question_id: question.question_id,
+          revision: (question as any).revision ?? 1,
+          attempt_id: attemptId,
+          selected_option: selected,
           answer_text: undefined, duration_ms: 0,
-          submitted_at: Date.now(), evidence,
-        }, seq);
+          submitted_at: Date.now(),
+          correct_claim: correct,
+        }, (event as any).seq ?? 1);
         const { trySyncNow } = await import("../lib/sync");
         await trySyncNow();
-      } catch (e) { /* offline-sync later */ }
+      } catch { /* offline-sync later */ }
     }
   };
 
@@ -126,10 +189,26 @@ export function LessonScreen({ profile, network }: Props) {
       </div>
 
       <div className="card">
-        <h2 className="font-semibold mb-2 odia">{"ଆପଣଙ୍କ ପ୍ରଶ୍ନ"}</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-semibold odia">{"ଆପଣଙ୍କ ପ୍ରଶ୍ନ"}</h2>
+          {question.bloom_level && isValidBloomLevel(question.bloom_level) && (
+            <span
+              className="text-xs px-2 py-0.5 rounded bg-saarthi-100 text-saarthi-800 font-semibold odia"
+              title={bloomDescription(question.bloom_level, "or")}
+            >
+              🎯 {bloomLabel(question.bloom_level, "or")} ({bloomLabel(question.bloom_level, "en")})
+            </span>
+          )}
+        </div>
+        {question.bloom_level && isValidBloomLevel(question.bloom_level) && (
+          <p className="text-xs text-slate-500 mb-3 odia italic">
+            ଦକ୍ଷତା ଲକ୍ଷ୍ୟ: {bloomDescription(question.bloom_level, "or")}
+          </p>
+        )}
         <p className="odia mb-4">{question.prompt_or}</p>
         <div className="space-y-2">
           {question.options.map((opt, i) => {
+            const optText = typeof opt === "string" ? opt : opt.text_or;
             let cls = "option-btn";
             if (submitted) {
               if (i === question.correct_option) cls += " option-correct";
@@ -139,7 +218,7 @@ export function LessonScreen({ profile, network }: Props) {
               <button key={i} className={cls}
                       disabled={submitted}
                       onClick={() => setSelected(i)}>
-                {i + 1}. {opt}
+                {i + 1}. {optText}
               </button>
             );
           })}
@@ -152,6 +231,21 @@ export function LessonScreen({ profile, network }: Props) {
             <h3 className="font-bold mb-2">
               {result?.correct ? `✅ ${t("quiz_correct")}` : `❌ ${t("quiz_incorrect")}`}
             </h3>
+            {!result?.correct && selected !== null && (() => {
+              const selOpt = question.options[selected];
+              const miscTag = (typeof selOpt === "object" && selOpt?.misconception_tag) || result?.misconception_tag;
+              const miscExpl = (typeof selOpt === "object" && selOpt?.explanation_or) || result?.remediation_or;
+              if (miscTag || miscExpl) {
+                return (
+                  <div className="p-3 mb-3 bg-amber-50 border border-amber-200 rounded text-amber-900 text-sm odia">
+                    <div className="font-semibold mb-1">💡 ଭ୍ରାନ୍ତ ଧାରଣା ସଂଶୋଧନ:</div>
+                    {miscExpl && <p>{miscExpl}</p>}
+                    {miscTag && <div className="text-xs text-amber-700 mt-1 italic">ଟ୍ୟାଗ୍: {miscTag}</div>}
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <p className="odia text-sm mb-3"><b>{t("quiz_explanation")}:</b> {question.explanation_or}</p>
             <button className="btn-primary w-full" onClick={loadNext}>{t("back")}</button>
           </div>

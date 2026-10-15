@@ -36,6 +36,8 @@ class ErrorCode(str, enum.Enum):
     TOKEN_EXPIRED = "token_expired"
     TOKEN_INVALID = "token_invalid"
     FORBIDDEN = "forbidden"
+    DEVICE_REVOKED = "device_revoked"
+    AUTH_PENDING = "auth_pending"
     # Profile / device
     DEVICE_UNKNOWN = "device_unknown"
     LEARNER_NOT_FOUND = "learner_not_found"

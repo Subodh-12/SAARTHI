@@ -73,9 +73,29 @@ class GenerationProvider(abc.ABC):
         """Return (answer_text, citation_chunk_ids, error)."""
 
 
+# --------------------------------------------------------------------------- #
+# Entailment (grounding validation — Design v2 Section 13 gate 5)
+# --------------------------------------------------------------------------- #
+@dataclass
+class EntailmentVerdict:
+    supported: bool
+    confidence: float = 0.0
+    detail: str = ""
+
+
+class EntailmentProvider(abc.ABC):
+    """Model-based grounding check. Keyword overlap is NEVER a substitute.
+    When unavailable, the caller must fall back to a labelled extractive
+    answer or a safe redirect (never show unverified generated text)."""
+    name: str = "abstract"
+    @abc.abstractmethod
+    async def entail(self, answer: str, source_chunks: list[str]) -> EntailmentVerdict: ...
+
+
 __all__ = [
     "TranslationProvider", "TranslationResult",
     "EmbeddingsProvider",
     "RetrievalProvider",
     "GenerationProvider", "GenerationRequest",
+    "EntailmentProvider", "EntailmentVerdict",
 ]

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { api, SaarthiApiError } from "../api/client";
-import { db, nextSeq, recordDoubtEvent } from "../store/db";
+import { recordDoubtEvent } from "../store/db";
 import { DoubtResponse, NetworkState } from "../generated/api";
-import { OR, t } from "../i18n/or";
+import { t } from "../i18n/or";
 import { offlineRetrieve } from "../lib/offline_retrieval";
 import { getInstalledPack } from "../lib/sync";
 
@@ -30,7 +30,8 @@ export function DoubtScreen({ profile, network }: Props) {
           setResp({
             answer: {
               text_or: t("doubt_out_of_lessons"),
-              citations: [], confidence: 0, provenance: "basic",
+              citations: [], chapter_refs: [], confidence: 0,
+              provenance: "basic",
               basic_answer_status: "out_of_lessons",
             },
             retrieved: {
@@ -44,7 +45,8 @@ export function DoubtScreen({ profile, network }: Props) {
           setResp({
             answer: {
               text_or: top.text_or.slice(0, 600),
-              citations: [top.chunk_id], confidence: top.score,
+              citations: [top.chunk_id], chapter_refs: [top.chapter_id].filter(Boolean),
+              confidence: top.score,
               provenance: "extractive", basic_answer_status: "offline_extractive",
             },
             retrieved: {
@@ -58,10 +60,9 @@ export function DoubtScreen({ profile, network }: Props) {
             translated_query: null, used_translation_tool: false,
           });
         }
-        // Record doubt event locally (outbox)
-        const seq = await nextSeq(profile.device_id, profile.learner_id);
+        // Record doubt event locally (outbox; no mastery effect)
         const eventId = `evt_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
-        await recordDoubtEvent(profile.learner_id, profile.device_id, eventId, seq,
+        await recordDoubtEvent(profile.learner_id, profile.device_id, eventId,
                                query, `local_${Date.now()}`);
       } else {
         // Online: call the orchestration graph
@@ -70,9 +71,8 @@ export function DoubtScreen({ profile, network }: Props) {
         });
         setResp(r);
         // Record event locally too (for offline replay / audit)
-        const seq = await nextSeq(profile.device_id, profile.learner_id);
         const eventId = `evt_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
-        await recordDoubtEvent(profile.learner_id, profile.device_id, eventId, seq,
+        await recordDoubtEvent(profile.learner_id, profile.device_id, eventId,
                                query, r.decision_id);
         // Try sync
         const { trySyncNow } = await import("../lib/sync");

@@ -18,5 +18,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // The local store deliberately treats IndexedDB payloads and event
+      // payloads as untrusted JSON (`Record<string, any>`); the strict
+      // contracts live at the generated API boundary and in tsc. Downgrade
+      // to a warning rather than sprinkling unsafe assertions.
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
   },
 ])

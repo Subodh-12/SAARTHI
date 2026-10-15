@@ -51,6 +51,8 @@ for q in PACK["questions"]:
         "id": q["question_id"],
         "c": q["concept_id"],
         "d": DIFF.get(q.get("difficulty"), 1),
+        "bl": q.get("bloom_level", "remember"),
+        "bloom_level": q.get("bloom_level", "remember"),
         "s": q["prompt_or"],
         "o": q["options"],
         "a": q["correct_option"],

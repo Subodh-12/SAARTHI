@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { db } from "../store/db";
-import { PackManifest, PackDownloadInfo } from "../generated/api";
-import { OR, t } from "../i18n/or";
+import { PackManifest } from "../generated/api";
+import { t } from "../i18n/or";
 import { packInstallAvailable, getInstalledPack } from "../lib/sync";
 
 export function PacksScreen() {
@@ -12,11 +11,7 @@ export function PacksScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  const load = async () => {
+  async function load() {
     setLoading(true); setError("");
     try {
       const ms = await api.listPackManifests();
@@ -28,14 +23,27 @@ export function PacksScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // Defer out of the effect body: the loader flips state synchronously.
+    const t = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const install = async (m: PackManifest) => {
     setBusy(m.pack_id); setError("");
     try {
       const info = await api.getPackDownloadInfo(m.pack_id, m.version);
-      const ok = await packInstallAvailable(m.pack_id, m.version, info.byte_size, info.checksum_sha256);
+      const expectedSha = info.archive_sha256 || info.checksum_sha256;
+      const expectedSize = info.archive_byte_size || info.byte_size;
+      const ok = await packInstallAvailable(m.pack_id, m.version, expectedSize, expectedSha, m.min_app_version);
       if (!ok) throw new Error("Install failed (checksum or download error)");
+      try {
+        await api.reportPackInstalled(m.pack_id, m.version);
+      } catch {
+        // Online notification optional; sync event also handles it
+      }
       await load();
     } catch (e: any) {
       setError(e.message || String(e));
